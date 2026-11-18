@@ -110,7 +110,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .run .close{z-index:25}
 .who{position:absolute;left:18px;top:12px;font-size:13px;z-index:21;color:color-mix(in srgb,var(--fg) 60%,transparent)}
 .who button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:13px}
-#editor,.run{background-size:cover;background-position:center}
+.hasbg .edit,.hasbg .slide .in,.hasbg .gate .in{background:rgba(255,255,255,.94);border:1px solid #fff;border-radius:16px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.18)}
 .bgctl{width:112px;display:flex;align-items:center;gap:4px;margin:0 auto}
 .bgctl .btn{white-space:nowrap;font-size:11px;padding:5px 6px;width:100%}
 .bgth{height:30px;width:80px;object-fit:cover;border-radius:4px}
@@ -315,7 +315,7 @@ let shared=false;
 if(location.hash.startsWith('#f=')){try{form=normalize(JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3))))));shared=true}catch{}}
 
 // theme only the canvas and runner, not the builder chrome
-function theme(){for(const el of [$('#editor'),$('#run')]){const r=el.style;r.backgroundImage=form.bgimg?`url(${form.bgimg})`:'';r.setProperty('--accent',form.accent);r.setProperty('--bg',form.bg);r.setProperty('--fg',form.fg)}}
+function theme(){for(const el of [$('#editor'),$('#run')]){const r=el.style;r.backgroundImage=form.bgimg?`url(${form.bgimg})`:'';r.backgroundSize='cover';r.backgroundPosition='center';r.backgroundRepeat='no-repeat';el.classList.toggle('hasbg',!!form.bgimg);r.setProperty('--accent',form.accent);r.setProperty('--bg',form.bg);r.setProperty('--fg',form.fg)}}
 
 /* ---------- builder ---------- */
 function treeHTML(fs,d){
@@ -543,10 +543,6 @@ document.addEventListener('change',e=>{
     });
     t.value='';
   }
-  else if(t.classList&&t.classList.contains('attin')){
-    const s=t.closest('.slide'),q=runQs[+s.dataset.i];
-    readImg(t.files[0],d=>{ans[q.id+'#img']=d;s.querySelector('.thumbs').innerHTML=`<img class="th" src="${d}"><button class="rmimg" type="button">✕</button>`});
-  }
 });
 document.addEventListener('paste',e=>{if(e.target.dataset&&e.target.dataset.rt){e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))}});
 
@@ -746,7 +742,7 @@ function slideHTML(q,i){
   else if(q.type=='long')body='<textarea class="ans" rows="3" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>';
   else if(q.type=='mc')body=q.options.map((o,j)=>`<button class="choice" data-v="${esc(o.text)}"><kbd>${kbdOf(q,j)}</kbd>${o.img?`<img class="oimgv" src="${o.img}">`:''}<span>${esc(o.text)}</span></button>`).join('');
   else if(q.type=='scale')body=`<div class="scale">${Array.from({length:q.max},(_,j)=>`<div class="sc"><button data-v="${j+1}">${j+1}</button><span>${esc(q.labels[j+1]||'')}</span></div>`).join('')}</div>`;
-  const extra=isQ?`<div class="extra">${q.type=='text'?'':'<textarea class="note" rows="1" placeholder="추가 의견 (선택)"></textarea>'}<label class="attach">📎 이미지 첨부<input type="file" class="attin" accept="image/*" hidden></label><span class="thumbs"></span></div>`:'';
+  const extra=isQ&&q.type!='text'?'<div class="extra"><textarea class="note" rows="1" placeholder="추가 의견 (선택)"></textarea></div>':'';
   const last=!runQs[i+1]||runQs[i+1].type=='end';
   const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
     :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
@@ -798,7 +794,6 @@ document.addEventListener('click',e=>{
   if(t.id=='again'){startRun();return}
   if(t.closest('#up')){if(cur>0)show(cur-1);return}
   if(t.closest('#dn')||t.closest('.go-btn')){next();return}
-  if(t.closest('.rmimg')){delete ans[runQs[cur].id+'#img'];t.closest('.thumbs').innerHTML='';return}
   const c=t.closest('.choice,.scale button');
   if(c)pick(c);
 });
