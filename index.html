@@ -80,6 +80,9 @@ header .crumb b{color:#191919;font-weight:600}
 .attach{cursor:pointer;color:var(--accent);font-size:15px;border:1px dashed color-mix(in srgb,var(--accent) 60%,transparent);padding:6px 12px;border-radius:6px}
 .th{height:56px;border-radius:6px;vertical-align:middle}
 .rmimg{border:0;background:none;color:var(--accent);cursor:pointer;font-size:14px}
+.field input[type=file]{width:auto;padding:0;border:0;font-size:12px;color:var(--muted)}
+.field input[type=file]::file-selector-button{font:inherit;font-size:12px;padding:4px 10px;margin-right:8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:#191919;cursor:pointer}
+.field input[type=file]::file-selector-button:hover{background:var(--card)}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
 .field input,.field select{padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0;width:100%}
@@ -159,7 +162,7 @@ th{background:var(--card);font-weight:600}
       <button data-cmd="underline" title="밑줄"><u>U</u></button>
       <button data-cmd="strikeThrough" title="줄긋기"><s>S</s></button>
       <label class="clr" title="글씨 색">A<input type="color" id="tbColor" value="#d32f2f"></label>
-      <button data-cmd="removeFormat" title="서식 지우기">⌫</button>
+      <button data-cmd="undo" title="되돌리기 (Ctrl+Z)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4v6h6"/><path d="M3.5 13a9 9 0 1 0 2.6-7.4L3 10"/></svg></button>
       <select id="tbSize" title="글씨 크기"><option value="">크기</option><option>14</option><option>18</option><option>24</option><option>32</option><option>44</option><option>60</option></select>
       <select id="tbFont" title="글씨체"><option value="">글씨체</option><option value="Pretendard">Pretendard</option><option value="'Malgun Gothic'">맑은 고딕</option><option value="serif">명조 (Serif)</option><option value="monospace">고정폭</option><option value="cursive">손글씨</option></select>
     </div>
