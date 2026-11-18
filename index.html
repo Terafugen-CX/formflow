@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FormFlow</title>
+<style>
+:root{--bg:#fff;--fg:#262627;--muted:#8a8a8f;--accent:#0445af;--line:#e4e4e7;--card:#f6f6f7}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;color:var(--fg);background:var(--bg)}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:10px 20px;font-weight:600}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btn.sm{padding:6px 12px;font-size:13px}
+input,textarea,select{font:inherit;color:inherit}
+header{display:flex;gap:12px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)}
+header b{font-size:18px;margin-right:auto}
+.tab{background:none;border:0;padding:8px 12px;border-radius:6px;color:var(--muted)}
+.tab.on{background:var(--card);color:var(--fg);font-weight:600}
+.builder{display:grid;grid-template-columns:260px 1fr 280px;height:calc(100vh - 57px)}
+.builder>div{overflow:auto;padding:16px}
+.side{border-right:1px solid var(--line)}
+.props{border-left:1px solid var(--line)}
+.qitem{display:flex;gap:8px;align-items:center;padding:10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.qitem:hover{background:var(--card)}
+.qitem.on{border-color:var(--accent);background:#eef3fc}
+.qitem .n{color:var(--muted);width:20px}
+.qitem span.t{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.types{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
+.types button{background:var(--card);border:0;border-radius:6px;padding:8px;font-size:13px;text-align:left}
+.types button:hover{background:#e8e8ea}
+.edit{max-width:640px;margin:0 auto}
+.edit input.title{width:100%;font-size:28px;border:0;border-bottom:2px solid var(--line);padding:8px 0;outline:0;background:transparent}
+.edit input.title:focus{border-color:var(--accent)}
+.edit textarea.desc{width:100%;border:0;border-bottom:1px solid var(--line);padding:8px 0;margin-top:12px;outline:0;resize:none;background:transparent}
+.opt{display:flex;gap:6px;margin-top:8px}
+.opt input{flex:1;padding:8px;border:1px solid var(--line);border-radius:6px}
+label.f{display:block;margin:14px 0 4px;font-size:13px;color:var(--muted)}
+.props input[type=text],.props input[type=number],.props input[type=color]{width:100%;padding:8px;border:1px solid var(--line);border-radius:6px}
+.props input[type=color]{padding:2px;height:36px}
+.row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.run{position:fixed;inset:0;background:var(--bg);color:var(--fg);overflow:hidden;z-index:10}
+.run .bar{position:absolute;top:0;left:0;height:5px;background:var(--accent);transition:width .4s}
+.run .close{position:absolute;top:14px;right:18px;background:none;border:0;font-size:22px;color:var(--muted)}
+.slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s}
+.slide.below{transform:translateY(60px);opacity:0;pointer-events:none}
+.slide.above{transform:translateY(-60px);opacity:0;pointer-events:none}
+.slide .in{width:100%;max-width:700px}
+.qnum{color:var(--accent);font-size:18px;margin-bottom:8px}
+.qtitle{font-size:clamp(22px,3.4vw,30px);font-weight:500;margin:0 0 8px}
+.qdesc{color:var(--muted);font-size:18px;margin:0 0 24px}
+.ans{width:100%;font-size:clamp(20px,3vw,28px);border:0;border-bottom:2px solid color-mix(in srgb,var(--fg) 30%,transparent);background:transparent;padding:8px 0;outline:0;resize:none}
+.ans:focus{border-color:var(--accent)}
+.choice{display:flex;align-items:center;gap:10px;width:100%;max-width:420px;text-align:left;margin:8px 0;padding:10px 12px;border-radius:6px;font-size:18px;color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 60%,transparent)}
+.choice:hover{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.choice.sel{background:var(--accent);color:#fff}
+.choice kbd{font:600 12px system-ui;border:1px solid currentColor;border-radius:4px;padding:2px 6px}
+.stars{display:flex;gap:8px;flex-wrap:wrap}
+.stars button{min-width:52px;height:52px;border-radius:8px;font-size:18px;background:none;border:1px solid color-mix(in srgb,var(--accent) 60%,transparent);color:var(--accent)}
+.stars button.sel{background:var(--accent);color:#fff}
+.go{display:flex;align-items:center;gap:12px;margin-top:24px;color:var(--muted);font-size:13px}
+.go .btn{font-size:18px;padding:8px 18px}
+.err{color:#c0392b;margin-top:10px;font-size:15px;min-height:20px}
+.nav{position:absolute;right:20px;bottom:20px;display:flex;gap:2px}
+.nav button{background:var(--accent);color:#fff;border:0;width:36px;height:34px}
+.nav button:first-child{border-radius:6px 0 0 6px}.nav button:last-child{border-radius:0 6px 6px 0}
+.res{max-width:900px;margin:24px auto;padding:0 16px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+th{background:var(--card)}
+.hide{display:none!important}
+@media(max-width:800px){.builder{grid-template-columns:1fr;height:auto}.side,.props{border:0}}
+</style>
+</head>
+<body>
+<header>
+  <b>FormFlow</b>
+  <button class="tab" data-v="build">편집</button>
+  <button class="tab" data-v="results">응답</button>
+  <button class="btn ghost sm" id="newf">새 폼</button>
+  <button class="btn ghost sm" id="share">공유 링크 복사</button>
+  <button class="btn sm" id="play">미리보기 ▶</button>
+</header>
+
+<div id="vBuild" class="builder">
+  <div class="side"><div id="list"></div><div class="types" id="types"></div></div>
+  <div id="editor"></div>
+  <div class="props" id="props"></div>
+</div>
+<div id="vResults" class="res hide"></div>
+<div id="run" class="run hide"></div>
+
+<script>
+const TYPES={welcome:'👋 시작 화면',short:'짧은 글',long:'긴 글',choice:'객관식',multi:'복수선택',yesno:'예/아니오',rating:'별점',nps:'0-10 점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
+const NOQ=['welcome','statement','end'];
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:['옵션 1','옵션 2'],max:5,btn:'시작하기'});
+const blank=()=>({title:'새 폼',accent:'#0445af',bg:'#ffffff',fg:'#262627',webhook:'',qs:[mk('welcome'),Object.assign(mk('short'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('choice'),{title:'어떻게 알게 되셨나요?',options:['검색','지인 소개','SNS']}),Object.assign(mk('rating'),{title:'만족도를 알려주세요'}),mk('end')]});
+let form,sel=0,view='build';
+try{form=JSON.parse(localStorage.ff_form)}catch{}
+form=form||blank();
+const save=()=>{try{localStorage.ff_form=JSON.stringify(form)}catch{}};
+const resKey=()=>{if(!form.id){form.id=uid();save()}return 'ff_res_'+form.id};
+const getRes=()=>{try{return JSON.parse(localStorage[resKey()]||'[]')}catch{return[]}};
+
+let shared=false;
+if(location.hash.startsWith('#f=')){try{form=JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3)))));shared=true}catch{}}
+
+function theme(){const r=document.documentElement.style;r.setProperty('--accent',form.accent);r.setProperty('--bg',form.bg);r.setProperty('--fg',form.fg)}
+
+/* builder */
+function renderBuild(){
+  theme();
+  $('#list').innerHTML=form.qs.map((q,i)=>`<div class="qitem ${i==sel?'on':''}" data-i="${i}"><span class="n">${i+1}</span><span class="t">${esc(q.title)}</span><button class="btn ghost sm" data-del="${i}">✕</button></div>`).join('');
+  $('#types').innerHTML=Object.entries(TYPES).map(([k,v])=>`<button data-add="${k}">+ ${v}</button>`).join('');
+  const q=form.qs[sel];
+  if(!q){$('#editor').innerHTML='';$('#props').innerHTML='';return}
+  const hasOpts=['choice','multi'].includes(q.type);
+  $('#editor').innerHTML=`<div class="edit"><div style="color:var(--muted);margin-bottom:8px">${TYPES[q.type]}</div>
+    <input class="title" value="${esc(q.title)}" data-k="title">
+    <textarea class="desc" rows="2" placeholder="설명 (선택)" data-k="desc">${esc(q.desc)}</textarea>
+    ${hasOpts?q.options.map((o,i)=>`<div class="opt"><input value="${esc(o)}" data-o="${i}"><button class="btn ghost sm" data-od="${i}">✕</button></div>`).join('')+'<button class="btn ghost sm" style="margin-top:8px" id="addo">+ 옵션 추가</button>':''}
+    ${q.type=='welcome'?`<label class="f">버튼 글자</label><div class="opt"><input value="${esc(q.btn)}" data-k="btn"></div>`:''}</div>`;
+  $('#props').innerHTML=`
+    ${NOQ.includes(q.type)?'':`<div class="row"><input type="checkbox" id="req" ${q.required?'checked':''}><label for="req">필수 응답</label></div>`}
+    ${q.type=='rating'?`<label class="f">별점 최대</label><input type="number" min="3" max="10" value="${q.max}" data-k="max">`:''}
+    <label class="f">폼 이름</label><input type="text" value="${esc(form.title)}" data-f="title">
+    <label class="f">강조 색</label><input type="color" value="${form.accent}" data-f="accent">
+    <label class="f">배경 색</label><input type="color" value="${form.bg}" data-f="bg">
+    <label class="f">글자 색</label><input type="color" value="${form.fg}" data-f="fg">
+    <label class="f">웹훅 URL (응답 전송, 선택)</label><input type="text" placeholder="https://..." value="${esc(form.webhook)}" data-f="webhook">
+    <div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>`;
+}
+document.addEventListener('input',e=>{
+  const t=e.target,q=form.qs[sel];
+  if(t.dataset.k){q[t.dataset.k]=t.type=='number'?+t.value:t.value;if(t.dataset.k=='title'){const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=t.value}}
+  else if(t.dataset.o!=null)q.options[t.dataset.o]=t.value;
+  else if(t.dataset.f){form[t.dataset.f]=t.value;theme()}
+  else if(t.id=='req')q.required=t.checked;
+  else return;
+  save();
+});
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-i],[data-del],[data-add],[data-od],[data-mv],#addo');
+  if(!t||view!='build'||!$('#run').classList.contains('hide'))return;
+  const q=form.qs[sel];
+  if(t.dataset.del!=null){form.qs.splice(+t.dataset.del,1);sel=Math.max(0,Math.min(sel,form.qs.length-1))}
+  else if(t.dataset.add){form.qs.push(mk(t.dataset.add));sel=form.qs.length-1}
+  else if(t.dataset.i!=null)sel=+t.dataset.i;
+  else if(t.dataset.od!=null)q.options.splice(+t.dataset.od,1);
+  else if(t.id=='addo')q.options.push('옵션 '+(q.options.length+1));
+  else if(t.dataset.mv){const j=sel+ +t.dataset.mv;if(j>=0&&j<form.qs.length){[form.qs[sel],form.qs[j]]=[form.qs[j],form.qs[sel]];sel=j}}
+  save();renderBuild();
+});
+
+/* runner */
+let ans={},cur=0,runQs=[],submitted=false;
+function startRun(){
+  theme();runQs=form.qs;ans={};cur=0;submitted=false;
+  const R=$('#run');R.classList.remove('hide');
+  R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up">▲</button><button id="dn">▼</button></div>';
+  show(0);
+}
+function slideHTML(q,i){
+  const isQ=!NOQ.includes(q.type);
+  const n=runQs.slice(0,i+1).filter(x=>!NOQ.includes(x.type)).length;
+  const L='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let body='';
+  if(q.type=='short')body='<input class="ans" placeholder="답변을 입력하세요">';
+  else if(q.type=='email')body='<input class="ans" type="email" placeholder="name@example.com">';
+  else if(q.type=='number')body='<input class="ans" type="number" placeholder="0">';
+  else if(q.type=='date')body='<input class="ans" type="date">';
+  else if(q.type=='long')body='<textarea class="ans" rows="3" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>';
+  else if(q.type=='choice'||q.type=='multi')body=q.options.map((o,j)=>`<button class="choice" data-v="${esc(o)}"><kbd>${L[j]}</kbd>${esc(o)}</button>`).join('');
+  else if(q.type=='yesno')body=['예','아니오'].map((o,j)=>`<button class="choice" data-v="${o}"><kbd>${'YN'[j]}</kbd>${o}</button>`).join('');
+  else if(q.type=='rating')body='<div class="stars">'+Array.from({length:q.max},(_,j)=>`<button data-v="${j+1}">★ ${j+1}</button>`).join('')+'</div>';
+  else if(q.type=='nps')body='<div class="stars">'+Array.from({length:11},(_,j)=>`<button data-v="${j}">${j}</button>`).join('')+'</div>';
+  const last=!runQs[i+1]||runQs[i+1].type=='end';
+  const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
+    :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
+    :`<div class="go"><button class="btn go-btn">${last&&isQ?'제출':'확인 ✓'}</button><span>Enter ↵ 키를 누르세요</span></div>`;
+  return `<section class="slide below" data-i="${i}"><div class="in">
+    ${isQ?`<div class="qnum">${n} →</div>`:''}
+    <h2 class="qtitle">${esc(q.title)}${q.required?' *':''}</h2>${q.desc?`<p class="qdesc">${esc(q.desc)}</p>`:''}
+    ${body}<div class="err"></div>${foot}</div></section>`;
+}
+function show(i){
+  cur=i;
+  document.querySelectorAll('.slide').forEach((s,k)=>{s.classList.toggle('below',k>i);s.classList.toggle('above',k<i)});
+  $('.bar').style.width=Math.min(100,i/Math.max(1,runQs.length-1)*100)+'%';
+  const s=document.querySelector(`.slide[data-i="${i}"]`);
+  setTimeout(()=>s&&s.querySelector('.ans')?.focus({preventScroll:true}),350);
+}
+function validate(i){
+  const q=runQs[i],err=document.querySelector(`.slide[data-i="${i}"] .err`),v=ans[q.id];
+  const empty=v==null||v===''||(Array.isArray(v)&&!v.length);
+  err.textContent='';
+  if(NOQ.includes(q.type))return true;
+  if(empty){if(q.required){err.textContent='이 질문은 필수입니다';return false}return true}
+  if(q.type=='email'&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){err.textContent='올바른 이메일을 입력하세요';return false}
+  return true;
+}
+function next(){
+  if(!validate(cur))return;
+  const nx=runQs[cur+1];
+  if(!nx)return;
+  if(nx.type=='end'&&!submitted){submitted=true;submit()}
+  show(cur+1);
+}
+function submit(){
+  const ids=runQs.filter(q=>q.id in ans);
+  const rec={at:new Date().toISOString(),a:Object.fromEntries(ids.map(q=>[q.id,ans[q.id]]))};
+  if(!shared){const r=getRes();r.push(rec);try{localStorage[resKey()]=JSON.stringify(r)}catch{}}
+  if(form.webhook){
+    const body={at:rec.at,form:form.title,answers:Object.fromEntries(ids.map(q=>[q.title,ans[q.id]]))};
+    fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).catch(()=>{});
+  }
+}
+function closeRun(){$('#run').classList.add('hide');$('#run').innerHTML='';if(view=='results')renderResults()}
+document.addEventListener('click',e=>{
+  if($('#run').classList.contains('hide'))return;
+  const t=e.target;
+  if(t.closest('.close')){shared?startRun():closeRun();return}
+  if(t.id=='again'){startRun();return}
+  if(t.closest('#up')){if(cur>0)show(cur-1);return}
+  if(t.closest('#dn')||t.closest('.go-btn')){next();return}
+  const c=t.closest('.choice,.stars button');
+  if(c)pick(c);
+});
+function pick(c){
+  const q=runQs[cur],s=c.closest('.slide'),v=c.dataset.v;
+  if(q.type=='multi'){c.classList.toggle('sel');ans[q.id]=[...s.querySelectorAll('.sel')].map(x=>x.dataset.v);return}
+  s.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
+  ans[q.id]=q.type=='rating'||q.type=='nps'?+v:v;
+  setTimeout(next,350);
+}
+document.addEventListener('input',e=>{if(e.target.classList.contains('ans')&&runQs[cur])ans[runQs[cur].id]=e.target.value});
+document.addEventListener('keydown',e=>{
+  if($('#run').classList.contains('hide'))return;
+  if(e.key=='Escape'&&!shared){closeRun();return}
+  const q=runQs[cur],s=document.querySelector(`.slide[data-i="${cur}"]`);
+  if(e.key=='Enter'){
+    if(e.target.tagName=='TEXTAREA'&&e.shiftKey)return;
+    e.preventDefault();if(q.type!='end')next();
+  }else if(!e.ctrlKey&&!e.metaKey&&e.target.tagName!='INPUT'&&e.target.tagName!='TEXTAREA'){
+    if(e.key=='ArrowUp'&&cur>0)show(cur-1);
+    if(e.key=='ArrowDown')next();
+    const ch=[...s.querySelectorAll('.choice')];
+    const i=(q.type=='yesno'?'YN':'ABCDEFGHIJKLMNOPQRSTUVWXYZ').indexOf(e.key.toUpperCase());
+    if(i>=0&&ch[i])pick(ch[i]);
+  }
+});
+
+/* results */
+function renderResults(){
+  const rs=getRes(),qs=form.qs.filter(q=>!NOQ.includes(q.type));
+  const fmt=v=>Array.isArray(v)?v.join(', '):v??'';
+  $('#vResults').innerHTML=`<h2>${esc(form.title)} — 응답 ${rs.length}건</h2>
+  <p style="color:var(--muted)">이 브라우저에 저장된 응답입니다. 다른 기기 응답을 모으려면 웹훅 URL을 설정하세요.</p>
+  <button class="btn sm" id="csv">CSV 내보내기</button> <button class="btn ghost sm" id="clr">응답 삭제</button>
+  <div style="overflow:auto;margin-top:16px"><table><tr><th>시간</th>${qs.map(q=>`<th>${esc(q.title)}</th>`).join('')}</tr>
+  ${rs.map(r=>`<tr><td>${new Date(r.at).toLocaleString()}</td>${qs.map(q=>`<td>${esc(fmt(r.a[q.id]))}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="99">아직 응답이 없습니다</td></tr>'}</table></div>`;
+  $('#csv').onclick=()=>{
+    const c=v=>'"'+String(v).replace(/"/g,'""')+'"';
+    const out=[['시간',...qs.map(q=>q.title)].map(c).join(','),...rs.map(r=>[r.at,...qs.map(q=>fmt(r.a[q.id]))].map(c).join(','))].join('\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+out],{type:'text/csv'}));a.download=form.title+'.csv';a.click();
+  };
+  $('#clr').onclick=()=>{if(confirm('모든 응답을 삭제할까요?')){localStorage.removeItem(resKey());renderResults()}};
+}
+
+/* shell */
+function setView(v){
+  view=v;
+  $('#vBuild').classList.toggle('hide',v!='build');$('#vResults').classList.toggle('hide',v!='results');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v==v));
+  v=='build'?renderBuild():renderResults();
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v));
+$('#play').onclick=startRun;
+$('#newf').onclick=()=>{if(confirm('새 폼을 만들까요? 현재 폼은 사라집니다.')){form=blank();sel=0;save();setView('build')}};
+$('#share').onclick=async()=>{
+  const {id,...f}=form;
+  const url=location.href.split('#')[0]+'#f='+btoa(unescape(encodeURIComponent(JSON.stringify(f))));
+  try{await navigator.clipboard.writeText(url);alert('링크가 복사되었습니다.\n링크를 열면 응답자 화면이 바로 시작됩니다.')}catch{prompt('링크 복사:',url)}
+};
+if(shared){document.querySelector('header').classList.add('hide');$('#vBuild').classList.add('hide');startRun()}
+else setView('build');
+</script>
+</body>
+</html>
