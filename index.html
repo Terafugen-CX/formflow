@@ -119,8 +119,9 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .acard h2{margin:0 0 8px;font-size:24px}
 .acard p{color:var(--muted);font-size:14px;margin:0 0 18px}
 .acard label{display:block;text-align:left;font-size:12px;color:var(--muted);margin-bottom:4px}
-.acard input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px}
-.arow{display:flex;gap:8px;justify-content:center;margin-top:16px}
+.gbtn{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 auto;padding:11px 26px;background:#fff;border:1px solid #dadce0;border-radius:8px;font-size:15px;font-weight:600;color:#3c4043;cursor:pointer}
+.gbtn:hover{background:#f8f9fa;box-shadow:0 1px 3px rgba(60,64,67,.2)}
+.gbtn:disabled{opacity:.6;cursor:default}
 .agate .err{min-height:20px;margin-top:8px}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
@@ -184,7 +185,6 @@ th{background:var(--card);font-weight:600}
   <button class="tab" data-v="build">편집</button>
   <button class="tab" data-v="results">응답</button>
   <span id="who" style="font-size:13px;color:var(--muted)"></span>
-  <button class="btn ghost sm" id="loginSet">로그인 설정</button>
   <button class="btn ghost sm" id="share">공유 링크 복사</button>
   <button class="btn sm" id="play">미리보기 ▶</button>
 </header>
@@ -218,8 +218,8 @@ th{background:var(--card);font-weight:600}
   <p style="color:var(--muted);margin:0 0 12px;font-size:14px">응답이 제출될 때마다 구글 시트에 한 줄씩 자동으로 쌓입니다. 구글 시트는 엑셀로 바로 열 수 있습니다. (무료)</p>
   <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:#fafafa">
     <div style="font-weight:600;margin-bottom:8px">버튼 한 번으로 새 시트를 만들고 자동 연동</div>
-    <label style="font-size:12px;color:var(--muted)">구글 OAuth 클라이언트 ID (처음 한 번만 입력)</label>
-    <input id="gcid" placeholder="123456-abc.apps.googleusercontent.com" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px">
+    <div id="gcidBox"><label style="font-size:12px;color:var(--muted)">구글 OAuth 클라이언트 ID (처음 한 번만 입력)</label>
+    <input id="gcid" placeholder="123456-abc.apps.googleusercontent.com" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px"></div>
     <button class="btn sm" id="gsMake">구글 시트 만들고 연동</button>
     <div id="gsStatus" style="font-size:13px;margin-top:8px;color:#444"></div>
     <div id="gsLinks" style="font-size:13px;margin-top:6px;display:flex;gap:14px;flex-wrap:wrap"></div>
@@ -250,6 +250,9 @@ th{background:var(--card);font-weight:600}
 </dialog>
 
 <script>
+// Google OAuth "web application" client ID used for the creator login button.
+// Create it once in Google Cloud Console and paste it here; leave empty to run without login.
+const APP_GCID='';
 // legacy types (choice/email/number/date) stay renderable for old forms but can no longer be added
 const TYPES={welcome:'시작 화면',text:'본문',short:'짧은 글',long:'긴 글',mc:'객관식',scale:'점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
 const ADDABLE=['welcome','text','mc','scale','statement','end']
@@ -674,7 +677,7 @@ function showSheetState(){
   if(/^https:\/\/script\.google\.com\//.test(form.webhook||'')&&form.sheetUrl)L.innerHTML+=`<a href="${form.webhook}" target="_blank" rel="noopener">✅ 최초 1회 승인하기</a>`;
 }
 async function createLink(){
-  const say=m=>$('#gsStatus').textContent=m,btn=$('#gsMake'),cid=$('#gcid').value.trim();
+  const say=m=>$('#gsStatus').textContent=m,btn=$('#gsMake'),cid=savedCid()||$('#gcid').value.trim();
   if(!/\.apps\.googleusercontent\.com$/.test(cid)){say('클라이언트 ID를 입력하세요 (…apps.googleusercontent.com)');return}
   try{localStorage.ff_gcid=cid}catch{}
   form.gcid=cid;save();
@@ -702,7 +705,7 @@ async function createLink(){
 }
 document.addEventListener('click',e=>{
   if(e.target.id=='gsMake')createLink();
-  else if(e.target.closest('#gs')||e.target.closest('#gs2')){try{$('#gcid').value=form.gcid||localStorage.ff_gcid||''}catch{}$('#gsStatus').textContent='';showSheetState()}
+  else if(e.target.closest('#gs')||e.target.closest('#gs2')){try{$('#gcid').value=form.gcid||localStorage.ff_gcid||''}catch{}$('#gsStatus').textContent='';$('#gcidBox').hidden=!!savedCid();showSheetState()}
 });
 
 /* ---------- runner ---------- */
@@ -717,52 +720,38 @@ function startRun(){
 // (the page is static, so this identifies the creator but is not a server-side lock)
 const ADMIN_TTL=3*24*3600*1000,CIDRE=/^[\w.-]+\.apps\.googleusercontent\.com$/;
 let admin=null;try{admin=JSON.parse(localStorage.ff_admin||'null')}catch{}
-const savedCid=()=>{try{const v=localStorage.ff_gcid||'';return CIDRE.test(v)?v:''}catch{return''}};
+const savedCid=()=>CIDRE.test(APP_GCID)?APP_GCID:'';
 const adminOk=()=>!!(admin&&admin.cid==savedCid()&&admin.exp>Date.now());
 function adminChip(){$('#who').innerHTML=adminOk()?`${esc(admin.email)} · <button class="ico" id="alogout" style="width:auto;padding:0 6px">로그아웃</button>`:''}
-function adminGate(setup){
-  const cid=savedCid(),old=document.getElementById('adminGate');if(old)old.remove();
+const G_LOGO='<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+function adminGate(){
+  const old=document.getElementById('adminGate');if(old)old.remove();
   const g=document.createElement('div');g.id='adminGate';g.className='agate';
-  g.innerHTML=(!cid||setup)
-    ?`<div class="acard"><h2>구글 로그인 설정</h2><p>폼을 만드는 사람만 구글 계정으로 로그인하도록 설정합니다. 응답하는 사람은 로그인이 필요 없습니다.</p><label>구글 OAuth 클라이언트 ID</label><input id="agcid" value="${esc(cid)}" placeholder="123-abc.apps.googleusercontent.com"><div class="err" id="agErr"></div><div class="arow"><button class="btn" id="agSave">저장하고 로그인</button><button class="btn ghost" id="agSkip">${cid?'로그인 해제':'나중에 하기'}</button>${cid&&adminOk()?'<button class="btn ghost" id="agBack">닫기</button>':''}</div></div>`
-    :`<div class="acard"><h2>FormFlow</h2><p>폼을 만들려면 구글 계정으로 로그인하세요.</p><div id="agBtn" style="display:flex;justify-content:center;min-height:44px"></div><div class="err" id="agErr"></div><div class="arow"><button class="btn ghost sm" id="agChange">클라이언트 ID 변경</button></div></div>`;
+  g.innerHTML=`<div class="acard"><h2>FormFlow</h2><p>폼을 만들려면 구글 계정으로 로그인하세요.</p><button class="gbtn" id="agLogin">${G_LOGO}<span>Google로 로그인</span></button><div class="err" id="agErr"></div></div>`;
   document.body.append(g);
-  if(cid&&!setup)adminButton(cid);
+  loadGIS().catch(()=>{});
 }
-async function adminButton(cid){
+// custom button + Google popup (access token -> userinfo); needs no client ID typed by the user
+async function adminLogin(){
+  const cid=savedCid(),err=$('#agErr'),btn=$('#agLogin');err.textContent='';btn.disabled=true;
   try{
-    await loadGIS();
-    google.accounts.id.initialize({client_id:cid,callback:r=>{
-      try{
-        const p=JSON.parse(decodeURIComponent(escape(atob(r.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))));
-        if(p.aud!=cid||p.exp*1000<Date.now()||!p.email)throw 0;
-        admin={email:p.email,name:p.name||'',cid,exp:Date.now()+ADMIN_TTL};
-        try{localStorage.ff_admin=JSON.stringify(admin)}catch{}
-        $('#adminGate').remove();adminChip();
-      }catch{$('#agErr').textContent='로그인 정보를 확인하지 못했습니다. 다시 시도해 주세요.'}
-    }});
-    google.accounts.id.renderButton($('#agBtn'),{theme:'outline',size:'large',locale:'ko'});
-  }catch(e){$('#agErr').textContent=e.message}
+    if(!(window.google&&google.accounts&&google.accounts.oauth2))await loadGIS();
+    const tok=await new Promise((ok,no)=>google.accounts.oauth2.initTokenClient({client_id:cid,scope:'openid email profile',
+      callback:r=>r.access_token?ok(r.access_token):no(new Error(r.error_description||r.error||'로그인에 실패했습니다')),
+      error_callback:x=>no(new Error(x&&x.type=='popup_closed'?'로그인 창이 닫혔습니다':'로그인에 실패했습니다 (팝업 차단을 확인하세요)'))}).requestAccessToken());
+    const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+tok}});
+    const p=await r.json();
+    if(!r.ok||!p.email)throw new Error('계정 정보를 가져오지 못했습니다');
+    admin={email:p.email,name:p.name||'',cid,exp:Date.now()+ADMIN_TTL};
+    try{localStorage.ff_admin=JSON.stringify(admin)}catch{}
+    $('#adminGate').remove();adminChip();
+  }catch(e){err.textContent=e.message;btn.disabled=false}
 }
-function adminInit(){
-  if(savedCid()){adminOk()?adminChip():adminGate()}
-  else{let skip;try{skip=localStorage.ff_nogate}catch{}if(!skip)adminGate()}
-}
+function adminInit(){if(savedCid()){adminOk()?adminChip():adminGate()}}
 document.addEventListener('click',e=>{
-  const id=e.target.id;
-  if(id=='agSave'){
-    const v=$('#agcid').value.trim();
-    if(!CIDRE.test(v)){$('#agErr').textContent='클라이언트 ID 형식이 올바르지 않습니다 (…apps.googleusercontent.com)';return}
-    try{localStorage.ff_gcid=v;localStorage.removeItem('ff_nogate')}catch{}
-    admin=null;adminChip();adminGate();
-  }else if(id=='agSkip'){
-    try{localStorage.removeItem('ff_gcid');localStorage.removeItem('ff_admin');localStorage.ff_nogate='1'}catch{}
-    admin=null;adminChip();$('#adminGate').remove();
-  }else if(id=='agBack')$('#adminGate').remove();
-  else if(id=='agChange'||e.target.closest('#loginSet'))adminGate(true);
-  else if(id=='alogout'){
+  if(e.target.closest('#agLogin'))adminLogin();
+  else if(e.target.id=='alogout'){
     admin=null;try{localStorage.removeItem('ff_admin')}catch{}
-    try{google.accounts.id.disableAutoSelect()}catch{}
     adminChip();adminGate();
   }
 });
