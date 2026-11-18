@@ -4,159 +4,276 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FormFlow</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
-:root{--bg:#fff;--fg:#262627;--muted:#8a8a8f;--accent:#0445af;--line:#e4e4e7;--card:#f6f6f7}
+:root{--bg:#fff;--fg:#191919;--muted:#6b6b70;--accent:#0445af;--line:#e8e8ea;--card:#f5f5f6;--ui:#0445af}
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;color:var(--fg);background:var(--bg)}
+html,body{height:100%}
+body{margin:0;font-family:Pretendard,system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;color:#191919;background:#fff;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
 button{font:inherit;cursor:pointer}
-.btn{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:10px 20px;font-weight:600}
-.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
-.btn.sm{padding:6px 12px;font-size:13px}
 input,textarea,select{font:inherit;color:inherit}
-header{display:flex;gap:12px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)}
-header b{font-size:18px;margin-right:auto}
-.tab{background:none;border:0;padding:8px 12px;border-radius:6px;color:var(--muted)}
-.tab.on{background:var(--card);color:var(--fg);font-weight:600}
-.builder{display:grid;grid-template-columns:260px 1fr 280px;height:calc(100vh - 57px)}
-.builder>div{overflow:auto;padding:16px}
-.side{border-right:1px solid var(--line)}
-.props{border-left:1px solid var(--line)}
-.qitem{display:flex;gap:8px;align-items:center;padding:10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
-.qitem:hover{background:var(--card)}
-.qitem.on{border-color:var(--accent);background:#eef3fc}
-.qitem .n{color:var(--muted);width:20px}
-.qitem span.t{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.types{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
-.types button{background:var(--card);border:0;border-radius:6px;padding:8px;font-size:13px;text-align:left}
-.types button:hover{background:#e8e8ea}
-#editor{background:var(--bg);color:var(--fg)}
+.btn{background:var(--ui);color:#fff;border:0;border-radius:8px;padding:9px 18px;font-weight:600;font-size:14px}
+.btn:hover{filter:brightness(1.1)}
+.btn.ghost{background:#fff;color:#191919;border:1px solid var(--line);font-weight:500}
+.btn.ghost:hover{background:var(--card);filter:none}
+.btn.sm{padding:6px 12px;font-size:13px;border-radius:6px}
+.ico{background:none;border:0;color:var(--muted);width:24px;height:24px;border-radius:4px;font-size:12px;padding:0}
+.ico:hover{background:#e8e8ea;color:#191919}
+
+header{display:flex;gap:8px;align-items:center;height:56px;padding:0 20px;border-bottom:1px solid var(--line)}
+header .logo{font-weight:800;font-size:18px;margin-right:12px;color:#191919}
+header .crumb{color:var(--muted);font-size:14px;margin-right:auto}
+header .crumb b{color:#191919;font-weight:600}
+.tab{background:none;border:0;padding:8px 14px;border-radius:8px;color:var(--muted);font-weight:500;font-size:14px}
+.tab.on{background:var(--card);color:#191919;font-weight:600}
+
+.builder{display:grid;grid-template-columns:280px 1fr 280px;height:calc(100vh - 56px)}
+.builder>div{overflow:auto}
+.side{border-right:1px solid var(--line);padding:12px;background:#fafafa}
+.props{border-left:1px solid var(--line);padding:16px}
+.props .sec{margin-top:0}
+#propsBody{margin-top:16px;padding-top:4px;border-top:1px solid var(--line)}
+#editor{padding:32px 24px;background:var(--bg);color:var(--fg)}
+.sec{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 4px 6px}
+.sec:first-child{margin-top:2px}
+.proj{display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500}
+.proj:hover{background:#efeff0}
+.proj.on{background:#eaeaec;font-weight:600}
+.proj .nm{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.proj .acts{display:none}.proj:hover .acts{display:flex}
+.fitem{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 28px;border-radius:8px;cursor:pointer;font-size:13px;color:#3b3b40}
+.fitem:hover{background:#efeff0}
+.fitem.on{background:#e3ecfb;color:var(--ui);font-weight:600}
+.fitem .nm{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.fitem .ico{display:none}.fitem:hover .ico{display:block}
+.addf{margin:2px 0 0 28px;background:none;border:0;color:var(--ui);font-size:13px;padding:4px 8px;border-radius:6px;font-weight:600}
+.addf:hover{background:#e3ecfb}
+.qitem{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;cursor:pointer;border:1px solid transparent;background:#fff;margin-bottom:4px}
+.qitem:hover{border-color:var(--line)}
+.qitem.on{border-color:var(--ui);box-shadow:0 0 0 1px var(--ui) inset}
+.qitem .n{width:22px;height:22px;border-radius:5px;background:#dfe8f8;color:var(--ui);font-size:12px;font-weight:700;display:grid;place-items:center;flex:none}
+.qitem .t{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px}
+.qitem .ico{display:none}.qitem:hover .ico{display:block}
+.types{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.types button{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;text-align:left;color:#3b3b40}
+.types button:hover{border-color:var(--ui);color:var(--ui)}
+
 .edit{max-width:640px;margin:0 auto}
-.edit input.title{width:100%;font-size:28px;border:0;border-bottom:2px solid var(--line);padding:8px 0;outline:0;background:transparent}
+.edit .kind{color:var(--accent);font-size:13px;font-weight:600;margin-bottom:10px}
+.edit input.title{width:100%;font-size:30px;font-weight:500;border:0;border-bottom:2px solid color-mix(in srgb,var(--fg) 15%,transparent);padding:6px 0;outline:0;background:transparent}
 .edit input.title:focus{border-color:var(--accent)}
-.edit textarea.desc{width:100%;border:0;border-bottom:1px solid var(--line);padding:8px 0;margin-top:12px;outline:0;resize:none;background:transparent}
+.edit textarea.desc{width:100%;font-size:18px;color:color-mix(in srgb,var(--fg) 60%,transparent);border:0;border-bottom:1px solid color-mix(in srgb,var(--fg) 12%,transparent);padding:8px 0;margin-top:10px;outline:0;resize:none;background:transparent}
+.field{margin-top:18px}
+.field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
+.field input,.field select{padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0;width:100%}
+.field input:focus,.field select:focus{border-color:var(--accent)}
 .opt{display:flex;gap:6px;margin-top:8px}
-.opt input{flex:1;padding:8px;border:1px solid var(--line);border-radius:6px}
-label.f{display:block;margin:14px 0 4px;font-size:13px;color:var(--muted)}
-.props input[type=text],.props input[type=number],.props input[type=color]{width:100%;padding:8px;border:1px solid var(--line);border-radius:6px}
-.props input[type=color]{padding:2px;height:36px}
-.row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.opt input{flex:1;padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0}
+.opt input:focus{border-color:var(--accent)}
+.prev{margin-top:22px}
+.props label.f{display:block;margin:16px 0 6px;font-size:12px;font-weight:600;color:var(--muted)}
+.props input[type=text],.props input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;outline:0}
+.props input:focus{border-color:var(--ui)}
+.props input[type=color]{width:100%;height:36px;border:1px solid var(--line);border-radius:8px;padding:3px;background:#fff}
+.row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px}
+
+/* runner & shared choice styles */
 .run{position:fixed;inset:0;background:var(--bg);color:var(--fg);overflow:hidden;z-index:10}
-.run .bar{position:absolute;top:0;left:0;height:5px;background:var(--accent);transition:width .4s}
-.run .close{position:absolute;top:14px;right:18px;background:none;border:0;font-size:22px;color:var(--muted)}
+.run .bar{position:absolute;top:0;left:0;height:4px;background:var(--accent);transition:width .4s}
+.run .close{position:absolute;top:14px;right:18px;background:none;border:0;font-size:22px;color:color-mix(in srgb,var(--fg) 50%,transparent)}
 .slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s}
 .slide.below{transform:translateY(60px);opacity:0;pointer-events:none}
 .slide.above{transform:translateY(-60px);opacity:0;pointer-events:none}
 .slide .in{width:100%;max-width:700px}
 .qnum{color:var(--accent);font-size:18px;margin-bottom:8px}
-.qtitle{font-size:clamp(22px,3.4vw,30px);font-weight:500;margin:0 0 8px}
-.qdesc{color:var(--muted);font-size:18px;margin:0 0 24px}
-.ans{width:100%;font-size:clamp(20px,3vw,28px);border:0;border-bottom:2px solid color-mix(in srgb,var(--fg) 30%,transparent);background:transparent;padding:8px 0;outline:0;resize:none}
+.qtitle{font-size:clamp(22px,3.4vw,30px);font-weight:500;margin:0 0 8px;line-height:1.3}
+.qdesc{color:color-mix(in srgb,var(--fg) 60%,transparent);font-size:18px;margin:0 0 24px}
+.ans{width:100%;font-size:clamp(20px,3vw,28px);border:0;border-bottom:2px solid color-mix(in srgb,var(--fg) 30%,transparent);background:transparent;padding:8px 0;outline:0;resize:none;color:inherit}
 .ans:focus{border-color:var(--accent)}
-.choice{display:flex;align-items:center;gap:10px;width:100%;max-width:420px;text-align:left;margin:8px 0;padding:10px 12px;border-radius:6px;font-size:18px;color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 60%,transparent)}
+.choice{display:flex;align-items:center;gap:10px;width:100%;max-width:420px;text-align:left;margin:8px 0;padding:9px 12px;border-radius:6px;font-size:18px;color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 60%,transparent)}
 .choice:hover{background:color-mix(in srgb,var(--accent) 16%,transparent)}
-.choice.sel{background:var(--accent);color:#fff}
-.choice kbd{font:600 12px system-ui;border:1px solid currentColor;border-radius:4px;padding:2px 6px}
-.stars{display:flex;gap:8px;flex-wrap:wrap}
-.stars button{min-width:52px;height:52px;border-radius:8px;font-size:18px;background:none;border:1px solid color-mix(in srgb,var(--accent) 60%,transparent);color:var(--accent)}
-.stars button.sel{background:var(--accent);color:#fff}
-.go{display:flex;align-items:center;gap:12px;margin-top:24px;color:var(--muted);font-size:13px}
-.go .btn{font-size:18px;padding:8px 18px}
+.choice.sel{background:var(--accent);color:var(--bg)}
+.choice kbd{font:600 12px Pretendard,system-ui;border:1px solid currentColor;border-radius:4px;padding:2px 7px;background:var(--bg);color:var(--accent)}
+.choice.sel kbd{color:var(--accent)}
+.scale{display:flex;gap:6px;flex-wrap:wrap}
+.scale button{flex:1;min-width:46px;height:56px;border-radius:6px;font-size:18px;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 60%,transparent);color:var(--accent)}
+.scale button:hover{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.scale button.sel{background:var(--accent);color:var(--bg)}
+.lbls{display:flex;justify-content:space-between;gap:16px;margin-top:10px;font-size:15px;color:color-mix(in srgb,var(--fg) 60%,transparent)}
+.lbls span:last-child{text-align:right}
+.go{display:flex;align-items:center;gap:12px;margin-top:24px;color:color-mix(in srgb,var(--fg) 50%,transparent);font-size:13px}
+.go .btn,.run .btn{background:var(--accent);color:var(--bg);font-size:18px;padding:8px 18px;border-radius:6px}
+.run .btn.ghost{background:transparent;color:var(--fg);border:1px solid color-mix(in srgb,var(--fg) 25%,transparent)}
 .err{color:#c0392b;margin-top:10px;font-size:15px;min-height:20px}
 .nav{position:absolute;right:20px;bottom:20px;display:flex;gap:2px}
-.nav button{background:var(--accent);color:#fff;border:0;width:36px;height:34px}
+.nav button{background:var(--accent);color:var(--bg);border:0;width:36px;height:34px}
 .nav button:first-child{border-radius:6px 0 0 6px}.nav button:last-child{border-radius:0 6px 6px 0}
-.res{max-width:900px;margin:24px auto;padding:0 16px}
+
+.res{max-width:960px;margin:28px auto;padding:0 20px}
+.res h2{margin:0 0 4px}
 table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
-th{background:var(--card)}
+th,td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}
+th{background:var(--card);font-weight:600}
 .hide{display:none!important}
-@media(max-width:800px){.builder{grid-template-columns:1fr;height:auto}.side,.props{border:0}}
+@media(max-width:900px){.builder{grid-template-columns:1fr;height:auto}.side,.props{border:0}}
 </style>
 </head>
 <body>
 <header>
-  <b>FormFlow</b>
+  <span class="logo">FormFlow</span>
+  <span class="crumb" id="crumb"></span>
   <button class="tab" data-v="build">편집</button>
   <button class="tab" data-v="results">응답</button>
-  <button class="btn ghost sm" id="newf">새 폼</button>
   <button class="btn ghost sm" id="share">공유 링크 복사</button>
   <button class="btn sm" id="play">미리보기 ▶</button>
 </header>
 
 <div id="vBuild" class="builder">
-  <div class="side"><div id="list"></div><div class="types" id="types"></div></div>
+  <div class="side">
+    <div class="sec">프로젝트 <button class="ico" id="addproj" title="프로젝트 추가">＋</button></div>
+    <div id="projs"></div>
+    <div class="sec">질문</div>
+    <div id="list"></div>
+  </div>
   <div id="editor"></div>
-  <div class="props" id="props"></div>
+  <div class="props"><div class="sec">질문 추가</div><div class="types" id="types"></div><div id="propsBody"></div></div>
 </div>
 <div id="vResults" class="res hide"></div>
 <div id="run" class="run hide"></div>
 
 <script>
-const TYPES={welcome:'👋 시작 화면',short:'짧은 글',long:'긴 글',choice:'객관식',multi:'복수선택',yesno:'예/아니오',rating:'별점',nps:'0-10 점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
+const TYPES={welcome:'시작 화면',short:'짧은 글',long:'긴 글',choice:'객관식',multi:'복수선택',yesno:'예/아니오',scale:'점수 (1~10)',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
 const NOQ=['welcome','statement','end'];
+const YN={ko:['예','아니오'],ox:['O','X']};
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
-const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:['옵션 1','옵션 2'],max:5,btn:'시작하기'});
-const blank=()=>({title:'새 폼',accent:'#0445af',bg:'#ffffff',fg:'#262627',webhook:'',qs:[mk('welcome'),Object.assign(mk('short'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('choice'),{title:'어떻게 알게 되셨나요?',options:['검색','지인 소개','SNS']}),Object.assign(mk('rating'),{title:'만족도를 알려주세요'}),mk('end')]});
-let form,sel=0,view='build';
-try{form=JSON.parse(localStorage.ff_form)}catch{}
-form=form||blank();
-const save=()=>{try{localStorage.ff_form=JSON.stringify(form)}catch{}};
-const resKey=()=>{if(!form.id){form.id=uid();save()}return 'ff_res_'+form.id};
+const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:['옵션 1','옵션 2'],yn:'ko',max:10,left:'',right:'',btn:'시작하기'});
+const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('short'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('choice'),{title:'어떻게 알게 되셨나요?',options:['검색','지인 소개','SNS']}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',left:'전혀 아니다',right:'매우 그렇다'}),mk('end')]});
+// migrate old question types (rating / nps -> scale)
+function normalize(f){
+  f.id=f.id||uid();
+  f.qs=f.qs.map(q=>{
+    if(q.type=='rating'){q.type='scale';q.max=q.max||5}
+    else if(q.type=='nps'){q.type='scale';q.max=10}
+    return Object.assign(mk(q.type),q);
+  });
+  return f;
+}
+
+let store,form,sel=0,view='build';
+try{store=JSON.parse(localStorage.ff_store)}catch{}
+if(!store){
+  let old;try{old=JSON.parse(localStorage.ff_form)}catch{}
+  const f=old?normalize(old):blankForm();
+  store={projects:[{id:uid(),name:'내 프로젝트',forms:[f]}],pid:null,fid:f.id};
+}
+store.projects.forEach(p=>p.forms.forEach(normalize));
+const curProj=()=>store.projects.find(p=>p.id==store.pid)||store.projects[0];
+{const p=curProj();store.pid=p.id;form=p.forms.find(f=>f.id==store.fid)||p.forms[0];store.fid=form.id}
+const save=()=>{try{localStorage.ff_store=JSON.stringify(store)}catch{}};
+const resKey=()=>'ff_res_'+form.id;
 const getRes=()=>{try{return JSON.parse(localStorage[resKey()]||'[]')}catch{return[]}};
 
 let shared=false;
-if(location.hash.startsWith('#f=')){try{form=JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3)))));shared=true}catch{}}
+if(location.hash.startsWith('#f=')){try{form=normalize(JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3))))));shared=true}catch{}}
 
-// theme only the preview canvas and runner, not the builder chrome
+// theme only the canvas and runner, not the builder chrome
 function theme(){for(const el of [$('#editor'),$('#run')]){const r=el.style;r.setProperty('--accent',form.accent);r.setProperty('--bg',form.bg);r.setProperty('--fg',form.fg)}}
 
-/* builder */
+/* ---------- builder ---------- */
+function renderNav(){
+  $('#crumb').innerHTML=`${esc(curProj().name)} / <b>${esc(form.title)}</b>`;
+  $('#projs').innerHTML=store.projects.map(p=>{
+    const on=p.id==store.pid;
+    return `<div class="proj ${on?'on':''}" data-pid="${p.id}"><span>${on?'📂':'📁'}</span><span class="nm">${esc(p.name)}</span><span class="acts"><button class="ico" data-pren="${p.id}" title="이름 변경">✎</button><button class="ico" data-pdel="${p.id}" title="삭제">✕</button></span></div>`
+    +(on?p.forms.map(f=>`<div class="fitem ${f.id==form.id?'on':''}" data-fid="${f.id}"><span class="nm">${esc(f.title)}</span><button class="ico" data-fdel="${f.id}" title="삭제">✕</button></div>`).join('')+'<button class="addf" id="addform">＋ 새 폼</button>':'');
+  }).join('');
+}
+function renderQs(){
+  $('#list').innerHTML=form.qs.map((q,i)=>`<div class="qitem ${i==sel?'on':''}" data-i="${i}"><span class="n">${i+1}</span><span class="t">${esc(q.title)}</span><button class="ico" data-del="${i}">✕</button></div>`).join('');
+  $('#types').innerHTML=Object.entries(TYPES).map(([k,v])=>`<button data-add="${k}">${v}</button>`).join('');
+}
+function previewHTML(q){
+  if(q.type=='yesno')return '<div class="prev">'+YN[q.yn].map((o,j)=>`<div class="choice" style="pointer-events:none"><kbd>${YN[q.yn][j]=='예'?'Y':YN[q.yn][j]=='아니오'?'N':o}</kbd>${o}</div>`).join('')+'</div>';
+  if(q.type=='scale')return `<div class="prev"><div class="scale" style="pointer-events:none">${Array.from({length:q.max},(_,j)=>`<button>${j+1}</button>`).join('')}</div><div class="lbls"><span>${esc(q.left)}</span><span>${esc(q.right)}</span></div></div>`;
+  return '';
+}
 function renderBuild(){
-  theme();
-  $('#list').innerHTML=form.qs.map((q,i)=>`<div class="qitem ${i==sel?'on':''}" data-i="${i}"><span class="n">${i+1}</span><span class="t">${esc(q.title)}</span><button class="btn ghost sm" data-del="${i}">✕</button></div>`).join('');
-  $('#types').innerHTML=Object.entries(TYPES).map(([k,v])=>`<button data-add="${k}">+ ${v}</button>`).join('');
+  theme();renderNav();renderQs();
   const q=form.qs[sel];
-  if(!q){$('#editor').innerHTML='';$('#props').innerHTML='';return}
+  if(!q){$('#editor').innerHTML='';$('#propsBody').innerHTML='';return}
   const hasOpts=['choice','multi'].includes(q.type);
-  $('#editor').innerHTML=`<div class="edit"><div style="color:var(--muted);margin-bottom:8px">${TYPES[q.type]}</div>
-    <input class="title" value="${esc(q.title)}" data-k="title">
+  $('#editor').innerHTML=`<div class="edit"><div class="kind">${sel+1} · ${TYPES[q.type]}</div>
+    <input class="title" value="${esc(q.title)}" data-k="title" placeholder="질문을 입력하세요">
     <textarea class="desc" rows="2" placeholder="설명 (선택)" data-k="desc">${esc(q.desc)}</textarea>
-    ${hasOpts?q.options.map((o,i)=>`<div class="opt"><input value="${esc(o)}" data-o="${i}"><button class="btn ghost sm" data-od="${i}">✕</button></div>`).join('')+'<button class="btn ghost sm" style="margin-top:8px" id="addo">+ 옵션 추가</button>':''}
-    ${q.type=='welcome'?`<label class="f">버튼 글자</label><div class="opt"><input value="${esc(q.btn)}" data-k="btn"></div>`:''}</div>`;
-  $('#props').innerHTML=`
+    ${q.type=='yesno'?`<div class="field"><label>답변 형식</label><select data-k="yn" data-pv="1"><option value="ko" ${q.yn=='ko'?'selected':''}>예 / 아니오</option><option value="ox" ${q.yn=='ox'?'selected':''}>O / X</option></select></div>`:''}
+    ${q.type=='scale'?`<div class="field"><label>최대 점수 (1점 ~ ${q.max}점)</label><input type="number" min="2" max="10" value="${q.max}" data-k="max" data-pv="1"></div>
+      <div class="field"><label>왼쪽 문구 (1점)</label><input value="${esc(q.left)}" data-k="left" data-pv="1" placeholder="예: 전혀 아니다"></div>
+      <div class="field"><label>오른쪽 문구 (${q.max}점)</label><input value="${esc(q.right)}" data-k="right" data-pv="1" placeholder="예: 매우 그렇다"></div>`:''}
+    ${hasOpts?q.options.map((o,i)=>`<div class="opt"><input value="${esc(o)}" data-o="${i}"><button class="btn ghost sm" data-od="${i}">✕</button></div>`).join('')+'<button class="btn ghost sm" style="margin-top:10px" id="addo">＋ 옵션 추가</button>':''}
+    ${q.type=='welcome'?`<div class="field"><label>버튼 글자</label><input value="${esc(q.btn)}" data-k="btn"></div>`:''}
+    ${previewHTML(q)}</div>`;
+  $('#propsBody').innerHTML=`
     ${NOQ.includes(q.type)?'':`<div class="row"><input type="checkbox" id="req" ${q.required?'checked':''}><label for="req">필수 응답</label></div>`}
-    ${q.type=='rating'?`<label class="f">별점 최대</label><input type="number" min="3" max="10" value="${q.max}" data-k="max">`:''}
-    <label class="f">폼 이름</label><input type="text" value="${esc(form.title)}" data-f="title">
-    <label class="f">강조 색</label><input type="color" value="${form.accent}" data-f="accent">
-    <label class="f">배경 색</label><input type="color" value="${form.bg}" data-f="bg">
-    <label class="f">글자 색</label><input type="color" value="${form.fg}" data-f="fg">
-    <label class="f">웹훅 URL (응답 전송, 선택)</label><input type="text" placeholder="https://..." value="${esc(form.webhook)}" data-f="webhook">
-    <div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>`;
+    <div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>
+    <label class="f">폼 이름</label><input type="text" value="${esc(form.title)}" data-fp="title">
+    <label class="f">강조 색</label><input type="color" value="${form.accent}" data-fp="accent">
+    <label class="f">배경 색</label><input type="color" value="${form.bg}" data-fp="bg">
+    <label class="f">글자 색</label><input type="color" value="${form.fg}" data-fp="fg">
+    <label class="f">웹훅 URL (응답 전송, 선택)</label><input type="text" placeholder="https://..." value="${esc(form.webhook)}" data-fp="webhook">`;
 }
 document.addEventListener('input',e=>{
   const t=e.target,q=form.qs[sel];
-  if(t.dataset.k){q[t.dataset.k]=t.type=='number'?+t.value:t.value;if(t.dataset.k=='title'){const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=t.value}}
+  if(t.dataset.k){
+    let v=t.value;
+    if(t.dataset.k=='max'){v=Math.max(2,Math.min(10,Math.round(+v)||10))}
+    q[t.dataset.k]=v;
+    if(t.dataset.k=='title'){const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=v}
+  }
   else if(t.dataset.o!=null)q.options[t.dataset.o]=t.value;
-  else if(t.dataset.f){form[t.dataset.f]=t.value;theme()}
+  else if(t.dataset.fp){form[t.dataset.fp]=t.value;theme();if(t.dataset.fp=='title')renderNav()}
   else if(t.id=='req')q.required=t.checked;
   else return;
   save();
 });
+document.addEventListener('change',e=>{if(e.target.dataset.pv){renderBuild()}});
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-i],[data-del],[data-add],[data-od],[data-mv],#addo');
-  if(!t||view!='build'||!$('#run').classList.contains('hide'))return;
-  const q=form.qs[sel];
-  if(t.dataset.del!=null){form.qs.splice(+t.dataset.del,1);sel=Math.max(0,Math.min(sel,form.qs.length-1))}
-  else if(t.dataset.add){form.qs.push(mk(t.dataset.add));sel=form.qs.length-1}
-  else if(t.dataset.i!=null)sel=+t.dataset.i;
-  else if(t.dataset.od!=null)q.options.splice(+t.dataset.od,1);
+  if(view!='build'||!$('#run').classList.contains('hide'))return;
+  const t=e.target.closest('[data-i],[data-del],[data-add],[data-od],[data-mv],#addo,[data-pid],[data-pren],[data-pdel],[data-fid],[data-fdel],#addform,#addproj');
+  if(!t)return;
+  const q=form.qs[sel],d=t.dataset;
+  if(t.id=='addproj'){const n=prompt('프로젝트 이름');if(!n)return;const f=blankForm();const p={id:uid(),name:n,forms:[f]};store.projects.push(p);store.pid=p.id;store.fid=f.id;form=f;sel=0}
+  else if(d.pren){const p=store.projects.find(x=>x.id==d.pren);const n=prompt('프로젝트 이름 변경',p.name);if(!n)return;p.name=n}
+  else if(d.pdel){
+    if(store.projects.length<2){alert('프로젝트는 최소 1개가 필요합니다.');return}
+    const p=store.projects.find(x=>x.id==d.pdel);
+    if(!confirm(`"${p.name}" 프로젝트와 안의 폼 ${p.forms.length}개를 삭제할까요?`))return;
+    p.forms.forEach(f=>localStorage.removeItem('ff_res_'+f.id));
+    store.projects=store.projects.filter(x=>x!=p);
+    if(store.pid==p.id){const n=store.projects[0];store.pid=n.id;form=n.forms[0];store.fid=form.id;sel=0}
+  }
+  else if(d.pid){if(d.pid==store.pid)return;const p=store.projects.find(x=>x.id==d.pid);store.pid=p.id;form=p.forms[0];store.fid=form.id;sel=0}
+  else if(t.id=='addform'){const f=blankForm();curProj().forms.push(f);form=f;store.fid=f.id;sel=0}
+  else if(d.fdel){
+    const p=curProj();
+    if(p.forms.length<2){alert('프로젝트에는 최소 1개의 폼이 필요합니다.');return}
+    const f=p.forms.find(x=>x.id==d.fdel);
+    if(!confirm(`"${f.title}" 폼을 삭제할까요? 응답도 함께 삭제됩니다.`))return;
+    localStorage.removeItem('ff_res_'+f.id);
+    p.forms=p.forms.filter(x=>x!=f);
+    if(form==f){form=p.forms[0];store.fid=form.id;sel=0}
+  }
+  else if(d.fid){if(d.fid==form.id)return;form=curProj().forms.find(x=>x.id==d.fid);store.fid=form.id;sel=0}
+  else if(d.del!=null){form.qs.splice(+d.del,1);sel=Math.max(0,Math.min(sel,form.qs.length-1))}
+  else if(d.add){form.qs.push(mk(d.add));sel=form.qs.length-1}
+  else if(d.i!=null)sel=+d.i;
+  else if(d.od!=null)q.options.splice(+d.od,1);
   else if(t.id=='addo')q.options.push('옵션 '+(q.options.length+1));
-  else if(t.dataset.mv){const j=sel+ +t.dataset.mv;if(j>=0&&j<form.qs.length){[form.qs[sel],form.qs[j]]=[form.qs[j],form.qs[sel]];sel=j}}
+  else if(d.mv){const j=sel+ +d.mv;if(j>=0&&j<form.qs.length){[form.qs[sel],form.qs[j]]=[form.qs[j],form.qs[sel]];sel=j}}
   save();renderBuild();
 });
 
-/* runner */
+/* ---------- runner ---------- */
 let ans={},cur=0,runQs=[],submitted=false;
 function startRun(){
   theme();runQs=form.qs;ans={};cur=0;submitted=false;
@@ -164,20 +281,19 @@ function startRun(){
   R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up">▲</button><button id="dn">▼</button></div>';
   show(0);
 }
+const kbdOf=(q,j)=>q.type=='yesno'?(q.yn=='ox'?'OX':'YN')[j]:'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[j];
 function slideHTML(q,i){
   const isQ=!NOQ.includes(q.type);
   const n=runQs.slice(0,i+1).filter(x=>!NOQ.includes(x.type)).length;
-  const L='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   let body='';
   if(q.type=='short')body='<input class="ans" placeholder="답변을 입력하세요">';
   else if(q.type=='email')body='<input class="ans" type="email" placeholder="name@example.com">';
   else if(q.type=='number')body='<input class="ans" type="number" placeholder="0">';
   else if(q.type=='date')body='<input class="ans" type="date">';
   else if(q.type=='long')body='<textarea class="ans" rows="3" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>';
-  else if(q.type=='choice'||q.type=='multi')body=q.options.map((o,j)=>`<button class="choice" data-v="${esc(o)}"><kbd>${L[j]}</kbd>${esc(o)}</button>`).join('');
-  else if(q.type=='yesno')body=['예','아니오'].map((o,j)=>`<button class="choice" data-v="${o}"><kbd>${'YN'[j]}</kbd>${o}</button>`).join('');
-  else if(q.type=='rating')body='<div class="stars">'+Array.from({length:q.max},(_,j)=>`<button data-v="${j+1}">★ ${j+1}</button>`).join('')+'</div>';
-  else if(q.type=='nps')body='<div class="stars">'+Array.from({length:11},(_,j)=>`<button data-v="${j}">${j}</button>`).join('')+'</div>';
+  else if(q.type=='choice'||q.type=='multi')body=q.options.map((o,j)=>`<button class="choice" data-v="${esc(o)}"><kbd>${kbdOf(q,j)}</kbd>${esc(o)}</button>`).join('');
+  else if(q.type=='yesno')body=YN[q.yn].map((o,j)=>`<button class="choice" data-v="${o}"><kbd>${kbdOf(q,j)}</kbd>${o}</button>`).join('');
+  else if(q.type=='scale')body=`<div class="scale">${Array.from({length:q.max},(_,j)=>`<button data-v="${j+1}">${j+1}</button>`).join('')}</div><div class="lbls"><span>${esc(q.left)}</span><span>${esc(q.right)}</span></div>`;
   const last=!runQs[i+1]||runQs[i+1].type=='end';
   const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
     :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
@@ -227,14 +343,14 @@ document.addEventListener('click',e=>{
   if(t.id=='again'){startRun();return}
   if(t.closest('#up')){if(cur>0)show(cur-1);return}
   if(t.closest('#dn')||t.closest('.go-btn')){next();return}
-  const c=t.closest('.choice,.stars button');
+  const c=t.closest('.choice,.scale button');
   if(c)pick(c);
 });
 function pick(c){
   const q=runQs[cur],s=c.closest('.slide'),v=c.dataset.v;
   if(q.type=='multi'){c.classList.toggle('sel');ans[q.id]=[...s.querySelectorAll('.sel')].map(x=>x.dataset.v);return}
   s.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
-  ans[q.id]=q.type=='rating'||q.type=='nps'?+v:v;
+  ans[q.id]=q.type=='scale'?+v:v;
   setTimeout(next,350);
 }
 document.addEventListener('input',e=>{if(e.target.classList.contains('ans')&&runQs[cur])ans[runQs[cur].id]=e.target.value});
@@ -249,12 +365,12 @@ document.addEventListener('keydown',e=>{
     if(e.key=='ArrowUp'&&cur>0)show(cur-1);
     if(e.key=='ArrowDown')next();
     const ch=[...s.querySelectorAll('.choice')];
-    const i=(q.type=='yesno'?'YN':'ABCDEFGHIJKLMNOPQRSTUVWXYZ').indexOf(e.key.toUpperCase());
-    if(i>=0&&ch[i])pick(ch[i]);
+    const i=ch.findIndex((_,j)=>kbdOf(q,j)==e.key.toUpperCase());
+    if(i>=0)pick(ch[i]);
   }
 });
 
-/* results */
+/* ---------- results ---------- */
 function renderResults(){
   const rs=getRes(),qs=form.qs.filter(q=>!NOQ.includes(q.type));
   const fmt=v=>Array.isArray(v)?v.join(', '):v??'';
@@ -271,7 +387,7 @@ function renderResults(){
   $('#clr').onclick=()=>{if(confirm('모든 응답을 삭제할까요?')){localStorage.removeItem(resKey());renderResults()}};
 }
 
-/* shell */
+/* ---------- shell ---------- */
 function setView(v){
   view=v;
   $('#vBuild').classList.toggle('hide',v!='build');$('#vResults').classList.toggle('hide',v!='results');
@@ -280,14 +396,13 @@ function setView(v){
 }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v));
 $('#play').onclick=startRun;
-$('#newf').onclick=()=>{if(confirm('새 폼을 만들까요? 현재 폼은 사라집니다.')){form=blank();sel=0;save();setView('build')}};
 $('#share').onclick=async()=>{
   const {id,...f}=form;
   const url=location.href.split('#')[0]+'#f='+btoa(unescape(encodeURIComponent(JSON.stringify(f))));
   try{await navigator.clipboard.writeText(url);alert('링크가 복사되었습니다.\n링크를 열면 응답자 화면이 바로 시작됩니다.')}catch{prompt('링크 복사:',url)}
 };
 if(shared){document.querySelector('header').classList.add('hide');$('#vBuild').classList.add('hide');startRun()}
-else setView('build');
+else{save();setView('build')}
 </script>
 </body>
 </html>
