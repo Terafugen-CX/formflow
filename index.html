@@ -63,6 +63,16 @@ header .crumb b{color:#191919;font-weight:600}
 .edit input.title{width:100%;font-size:30px;font-weight:500;border:0;border-bottom:2px solid color-mix(in srgb,var(--fg) 15%,transparent);padding:6px 0;outline:0;background:transparent}
 .edit input.title:focus{border-color:var(--accent)}
 .edit textarea.desc{width:100%;font-size:18px;color:color-mix(in srgb,var(--fg) 60%,transparent);border:0;border-bottom:1px solid color-mix(in srgb,var(--fg) 12%,transparent);padding:8px 0;margin-top:10px;outline:0;resize:none;background:transparent}
+.rt{outline:0;word-break:break-word}
+.rt.title{font-size:30px;font-weight:500;border-bottom:2px solid color-mix(in srgb,var(--fg) 15%,transparent);padding:6px 0;min-height:48px;line-height:1.3}
+.rt.title:focus{border-color:var(--accent)}
+.rt.desc{font-size:18px;color:color-mix(in srgb,var(--fg) 60%,transparent);border-bottom:1px solid color-mix(in srgb,var(--fg) 12%,transparent);padding:8px 0;margin-top:10px;min-height:40px}
+.rt:empty:before{content:attr(data-ph);opacity:.4}
+.tb{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.tb button,.tb .clr{height:32px;min-width:32px;padding:0 8px;border:1px solid var(--line);background:#fff;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;gap:4px;font-weight:700}
+.tb button:hover{background:var(--card)}
+.props .tb input[type=color]{width:20px;height:20px;border:0;padding:0;background:none}
+.tb select{height:32px;border:1px solid var(--line);border-radius:6px;background:#fff;padding:0 6px;font-size:13px;flex:1;min-width:70px}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
 .field input,.field select{padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0;width:100%}
@@ -136,7 +146,17 @@ th{background:var(--card);font-weight:600}
     <div id="list"></div>
   </div>
   <div id="editor"></div>
-  <div class="props"><div class="sec">질문 추가</div><div class="types" id="types"></div><div id="propsBody"></div></div>
+  <div class="props"><div class="sec">글씨 서식 <span style="text-transform:none;font-weight:400">· 글씨를 드래그해서 선택</span></div>
+    <div class="tb" id="tb">
+      <button data-cmd="bold" title="굵게"><b>B</b></button>
+      <button data-cmd="underline" title="밑줄"><u>U</u></button>
+      <button data-cmd="strikeThrough" title="줄긋기"><s>S</s></button>
+      <label class="clr" title="글씨 색">A<input type="color" id="tbColor" value="#d32f2f"></label>
+      <button data-cmd="removeFormat" title="서식 지우기">⌫</button>
+      <select id="tbSize" title="글씨 크기"><option value="">크기</option><option>14</option><option>18</option><option>24</option><option>32</option><option>44</option><option>60</option></select>
+      <select id="tbFont" title="글씨체"><option value="">글씨체</option><option value="Pretendard">Pretendard</option><option value="'Malgun Gothic'">맑은 고딕</option><option value="serif">명조 (Serif)</option><option value="monospace">고정폭</option><option value="cursive">손글씨</option></select>
+    </div>
+    <div class="sec">질문 추가</div><div class="types" id="types"></div><div id="propsBody"></div></div>
 </div>
 <div id="vResults" class="res hide"></div>
 <div id="run" class="run hide"></div>
@@ -155,7 +175,9 @@ function normalize(f){
   f.qs=f.qs.map(q=>{
     if(q.type=='rating'){q.type='scale';q.max=q.max||5}
     else if(q.type=='nps'){q.type='scale';q.max=10}
-    return Object.assign(mk(q.type),q);
+    const r=Object.assign(mk(q.type),q);
+    r.titleHtml=r.titleHtml?cleanHtml(r.titleHtml):'';r.descHtml=r.descHtml?cleanHtml(r.descHtml):'';
+    return r;
   });
   return f;
 }
@@ -211,8 +233,8 @@ function renderBuild(){
   if(!q){$('#editor').innerHTML='';$('#propsBody').innerHTML='';return}
   const hasOpts=['choice','multi'].includes(q.type);
   $('#editor').innerHTML=`<div class="edit"><div class="kind">${sel+1} · ${TYPES[q.type]}</div>
-    <input class="title" value="${esc(q.title)}" data-k="title" placeholder="질문을 입력하세요">
-    <textarea class="desc" rows="2" placeholder="설명 (선택)" data-k="desc">${esc(q.desc)}</textarea>
+    <div class="rt title" contenteditable="true" data-rt="title" data-ph="질문을 입력하세요">${q.titleHtml||esc(q.title)}</div>
+    <div class="rt desc" contenteditable="true" data-rt="desc" data-ph="설명 (선택)">${q.descHtml||esc(q.desc)}</div>
     ${q.type=='yesno'?`<div class="field"><label>답변 형식</label><select data-k="yn" data-pv="1"><option value="ko" ${q.yn=='ko'?'selected':''}>예 / 아니오</option><option value="ox" ${q.yn=='ox'?'selected':''}>O / X</option></select></div>`:''}
     ${q.type=='scale'?`<div class="field"><label>최대 점수 (1점 ~ ${q.max}점)</label><input type="number" min="2" max="10" value="${q.max}" data-k="max" data-pv="1"></div>
       <div class="field"><label>왼쪽 문구 (1점)</label><input value="${esc(q.left)}" data-k="left" data-pv="1" placeholder="예: 전혀 아니다"></div>
@@ -237,6 +259,7 @@ document.addEventListener('input',e=>{
     q[t.dataset.k]=v;
     if(t.dataset.k=='title'){const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=v}
   }
+  else if(t.dataset.rt){const k=t.dataset.rt;q[k+'Html']=cleanHtml(t.innerHTML);q[k]=t.innerText.trim();if(k=='title'){const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=q.title}}
   else if(t.dataset.o!=null)q.options[t.dataset.o]=t.value;
   else if(t.dataset.fp){form[t.dataset.fp]=t.value;theme();if(t.dataset.fp=='title')renderNav()}
   else if(t.id=='req')q.required=t.checked;
@@ -289,6 +312,65 @@ document.addEventListener('dblclick',e=>{
   if(n){r.form.title=n;save();renderBuild()}
 });
 
+/* ---------- rich text ---------- */
+// keep only simple formatting tags/styles; parsed in an inert document so shared links can't run script
+function cleanHtml(h){
+  const d=new DOMParser().parseFromString(String(h),'text/html').body,doc=d.ownerDocument;
+  const ok=['B','STRONG','I','EM','U','S','STRIKE','SPAN','BR','DIV','FONT'];
+  const keep=['color','font-size','font-family','font-weight','font-style','text-decoration','text-decoration-line'];
+  (function walk(n){
+    [...n.childNodes].forEach(c=>{
+      if(c.nodeType==3)return;
+      if(c.nodeType!=1){c.remove();return}
+      walk(c);
+      if(!ok.includes(c.tagName)){c.replaceWith(...c.childNodes);return}
+      let st='';
+      for(const p of keep){const v=c.style.getPropertyValue(p);if(v&&!/url|expression|[<>]/i.test(v))st+=p+':'+v+';'}
+      if(c.tagName=='FONT'){
+        const sp=doc.createElement('span');
+        if(c.getAttribute('color'))st+='color:'+c.getAttribute('color').replace(/[^#\w(),.\s%-]/g,'')+';';
+        if(c.getAttribute('face'))st+='font-family:'+c.getAttribute('face').replace(/[^\w\s,'-]/g,'')+';';
+        if(st)sp.setAttribute('style',st);
+        sp.append(...c.childNodes);c.replaceWith(sp);return;
+      }
+      [...c.attributes].forEach(a=>c.removeAttribute(a.name));
+      if(st)c.setAttribute('style',st);
+    });
+  })(d);
+  return d.innerHTML;
+}
+let lastRange=null,lastRt=null;
+document.addEventListener('selectionchange',()=>{
+  const s=getSelection();if(!s.rangeCount||!s.anchorNode)return;
+  const n=s.anchorNode.nodeType==1?s.anchorNode:s.anchorNode.parentElement;
+  const rt=n&&n.closest&&n.closest('.rt');
+  if(rt){lastRt=rt;lastRange=s.getRangeAt(0).cloneRange()}
+});
+function fmt(fn){
+  if(!lastRt||!document.contains(lastRt)||!lastRange)return;
+  lastRt.focus();const s=getSelection();s.removeAllRanges();s.addRange(lastRange);
+  document.execCommand('styleWithCSS',false,true);fn();
+  lastRt.dispatchEvent(new Event('input',{bubbles:true}));
+  if(s.rangeCount)lastRange=s.getRangeAt(0).cloneRange();
+}
+$('#tb').addEventListener('mousedown',e=>{if(e.target.closest('button'))e.preventDefault()});
+$('#tb').addEventListener('click',e=>{const b=e.target.closest('[data-cmd]');if(b)fmt(()=>document.execCommand(b.dataset.cmd))});
+$('#tbColor').addEventListener('input',e=>fmt(()=>document.execCommand('foreColor',false,e.target.value)));
+$('#tbFont').addEventListener('change',e=>{const v=e.target.value;if(v)fmt(()=>document.execCommand('fontName',false,v));e.target.value=''});
+$('#tbSize').addEventListener('change',e=>{
+  const px=e.target.value;if(!px)return;
+  fmt(()=>{
+    document.execCommand('fontSize',false,'7');
+    lastRt.querySelectorAll('font[size="7"],span').forEach(el=>{
+      if(el.tagName=='FONT'){const sp=document.createElement('span');sp.style.fontSize=px+'px';sp.innerHTML=el.innerHTML;el.replaceWith(sp)}
+      else if(el.style.fontSize=='xxx-large')el.style.fontSize=px+'px';
+    });
+  });
+  e.target.value='';
+});
+document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&e.target.dataset.rt=='title')e.preventDefault()});
+document.addEventListener('paste',e=>{if(e.target.dataset&&e.target.dataset.rt){e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))}});
+
 /* ---------- runner ---------- */
 let ans={},cur=0,runQs=[],submitted=false;
 function startRun(){
@@ -316,7 +398,7 @@ function slideHTML(q,i){
     :`<div class="go"><button class="btn go-btn">${last&&isQ?'제출':'확인 ✓'}</button><span>Enter ↵ 키를 누르세요</span></div>`;
   return `<section class="slide below" data-i="${i}"><div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
-    <h2 class="qtitle">${esc(q.title)}${q.required?' *':''}</h2>${q.desc?`<p class="qdesc">${esc(q.desc)}</p>`:''}
+    <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${q.desc?`<div class="qdesc">${q.descHtml||esc(q.desc)}</div>`:''}
     ${body}<div class="err"></div>${foot}</div></section>`;
 }
 function show(i){
