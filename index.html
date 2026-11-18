@@ -686,16 +686,18 @@ async function createLink(){
   btn.disabled=true;
   try{
     say('구글 로그인 중…');await loadGIS();const tok=await gToken(cid);
-    say('① 새 구글 시트를 만드는 중…');
+    // script first: if Apps Script API is off we fail before leaving an empty sheet in Drive
+    say('① 응답 수집 스크립트를 만드는 중…');
+    const pr=await gapi(tok,'https://script.googleapis.com/v1/projects','POST',{title:'FormFlow 연동 - '+form.title});
+    say('② 새 구글 시트를 만드는 중…');
     const sh=await gapi(tok,'https://sheets.googleapis.com/v4/spreadsheets','POST',{properties:{title:form.title+' 응답'}});
     const titles=form.qs.filter(q=>!NOQ.includes(q.type)).map(q=>q.title);
     await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/A1?valueInputOption=RAW`,'PUT',{values:[['시간',...(form.loginRequired?['이메일','이름']:[]),...titles]]});
-    say('② 응답 수집 스크립트를 만드는 중…');
-    const pr=await gapi(tok,'https://script.googleapis.com/v1/projects','POST',{title:'FormFlow 연동 - '+form.title});
+    say('③ 스크립트를 시트에 연결하는 중…');
     await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/content`,'PUT',{files:[
       {name:'Code',type:'SERVER_JS',source:gsCode(sh.spreadsheetId)},
       {name:'appsscript',type:'JSON',source:JSON.stringify({timeZone:'Asia/Seoul',runtimeVersion:'V8',exceptionLogging:'STACKDRIVER',webapp:{access:'ANYONE_ANONYMOUS',executeAs:'USER_DEPLOYING'}})}]});
-    say('③ 배포하는 중…');
+    say('④ 배포하는 중…');
     const ver=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/versions`,'POST',{description:'FormFlow'});
     const dep=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/deployments`,'POST',{versionNumber:ver.versionNumber,manifestFileName:'appsscript',description:'FormFlow'});
     const ep=(dep.entryPoints||[]).find(x=>x.webApp);
