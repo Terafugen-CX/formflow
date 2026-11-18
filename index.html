@@ -148,6 +148,10 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .ih[data-dir=t]{top:-5px}.ih[data-dir=b]{bottom:-5px}
 .ih[data-dir=l]::after,.ih[data-dir=r]::after{left:3px;top:calc(50% - 12px);width:4px;height:24px}
 .ih[data-dir=t]::after,.ih[data-dir=b]::after{top:3px;left:calc(50% - 12px);height:4px;width:24px}
+.ih[data-dir=tl],.ih[data-dir=tr],.ih[data-dir=bl],.ih[data-dir=br]{width:16px;height:16px;z-index:4}
+.ih[data-dir=tl]{left:-8px;top:-8px;cursor:nwse-resize}.ih[data-dir=br]{right:-8px;bottom:-8px;cursor:nwse-resize}
+.ih[data-dir=tr]{right:-8px;top:-8px;cursor:nesw-resize}.ih[data-dir=bl]{left:-8px;bottom:-8px;cursor:nesw-resize}
+.ih[data-dir=tl]::after,.ih[data-dir=tr]::after,.ih[data-dir=bl]::after,.ih[data-dir=br]::after{left:3px;top:3px;width:10px;height:10px;border-radius:2px;border:1px solid #fff}
 .ix{position:absolute;z-index:0;object-fit:fill;pointer-events:none}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
@@ -211,6 +215,7 @@ th{background:var(--card);font-weight:600}
   <button class="tab" data-v="build">편집</button>
   <button class="tab" data-v="results">응답</button>
   <span id="who" style="font-size:13px;color:var(--muted)"></span>
+  <button class="btn ghost sm" id="gs2" style="display:inline-flex;align-items:center;gap:8px"></button>
   <button class="btn ghost sm" id="share">공유 링크 복사</button>
   <button class="btn sm" id="play">미리보기 ▶</button>
 </header>
@@ -405,7 +410,7 @@ function textBoxes(q){
 // image boxes: x/y in % of the page, w/h in cqw (so the shape stays the same at any page size)
 function imageBoxes(q){
   if(!TXTYPES.includes(q.type))return '';
-  return q.images.map(t=>`<div class="ibox" data-iid="${t.id}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw"><img src="${t.src}" draggable="false"><span class="igrip" title="드래그해서 이동">⠿</span><button class="idel" data-idel="${t.id}" title="삭제">✕</button><i class="ih" data-dir="l"></i><i class="ih" data-dir="r"></i><i class="ih" data-dir="t"></i><i class="ih" data-dir="b"></i></div>`).join('');
+  return q.images.map(t=>`<div class="ibox" data-iid="${t.id}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw"><img src="${t.src}" draggable="false"><span class="igrip" title="드래그해서 이동">⠿</span><button class="idel" data-idel="${t.id}" title="삭제">✕</button><i class="ih" data-dir="l"></i><i class="ih" data-dir="r"></i><i class="ih" data-dir="t"></i><i class="ih" data-dir="b"></i><i class="ih" data-dir="tl"></i><i class="ih" data-dir="tr"></i><i class="ih" data-dir="bl"></i><i class="ih" data-dir="br"></i></div>`).join('');
 }
 function blocksEditor(q){
   const rows=q.blocks.map(b=>b.kind=='img'
@@ -441,7 +446,7 @@ function renderBuild(){
     <div class="crow"><span>배경 색</span><input type="color" value="${q.bg||'#ffffff'}" data-k="bg"></div>
     <div class="crow"><span>배경 이미지</span><span class="bgctl">${q.bgimg?`<img class="bgth" src="${q.bgimg}"><button class="ico" id="bgdel" title="배경 이미지 삭제">✕</button>`:'<button class="btn ghost sm" id="bgpick">이미지 선택</button>'}</span></div>
     <div style="font-size:11px;color:var(--muted);margin-top:6px">배경 색·이미지는 지금 선택한 질문 페이지에만 적용됩니다</div>
-    <button class="btn ghost sm" id="gs2" style="margin-top:16px;display:inline-flex;align-items:center;gap:8px">${SHEET_ICON}Sheet 연결</button>`;
+    `;
 }
 document.addEventListener('input',e=>{
   const t=e.target,q=form.qs[sel];
@@ -691,6 +696,13 @@ document.addEventListener('pointerdown',e=>{
     else if(dir=='l'){const nw=Math.max(MIN,o.w-dx);im.x=o.x+(o.w-nw);im.w=nw}
     else if(dir=='b')im.h=Math.max(MIN,o.h+dyw);
     else if(dir=='t'){const nh=Math.max(MIN,o.h-dyw);im.y=o.y+(o.h-nh)*W/H;im.h=nh}
+    else{ // corners scale diagonally and keep the image's proportions
+      const sgx=dir.includes('r')?1:-1,sgy=dir.includes('b')?1:-1;
+      const k=Math.max(MIN/o.w,MIN/o.h,1+(sgx*dx/o.w+sgy*dyw/o.h)/2),nw=o.w*k,nh=o.h*k;
+      if(dir.includes('l'))im.x=o.x+(o.w-nw);
+      if(dir.includes('t'))im.y=o.y+(o.h-nh)*W/H;
+      im.w=nw;im.h=nh;
+    }
     box.style.left=im.x+'%';box.style.top=im.y+'%';box.style.width=im.w+'cqw';box.style.height=im.h+'cqw';
   };
   const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);save()};
@@ -740,6 +752,7 @@ const GS_CODE=`function doPost(e){
   return ContentService.createTextOutput('ok');
 }`;
 $('#gsCode').textContent=GS_CODE;
+$('#gs2').innerHTML=SHEET_ICON+'Sheet 연결';
 document.addEventListener('click',e=>{
   const t=e.target;
   if(t.closest('#gs')||t.closest('#gs2'))$('#sheetGuide').showModal();
