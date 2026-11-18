@@ -29,6 +29,7 @@ header b{font-size:18px;margin-right:auto}
 .types{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
 .types button{background:var(--card);border:0;border-radius:6px;padding:8px;font-size:13px;text-align:left}
 .types button:hover{background:#e8e8ea}
+#editor{background:var(--bg);color:var(--fg)}
 .edit{max-width:640px;margin:0 auto}
 .edit input.title{width:100%;font-size:28px;border:0;border-bottom:2px solid var(--line);padding:8px 0;outline:0;background:transparent}
 .edit input.title:focus{border-color:var(--accent)}
@@ -107,7 +108,8 @@ const getRes=()=>{try{return JSON.parse(localStorage[resKey()]||'[]')}catch{retu
 let shared=false;
 if(location.hash.startsWith('#f=')){try{form=JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3)))));shared=true}catch{}}
 
-function theme(){const r=document.documentElement.style;r.setProperty('--accent',form.accent);r.setProperty('--bg',form.bg);r.setProperty('--fg',form.fg)}
+// theme only the preview canvas and runner, not the builder chrome
+function theme(){for(const el of [$('#editor'),$('#run')]){const r=el.style;r.setProperty('--accent',form.accent);r.setProperty('--bg',form.bg);r.setProperty('--fg',form.fg)}}
 
 /* builder */
 function renderBuild(){
