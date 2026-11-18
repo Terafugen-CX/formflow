@@ -110,10 +110,18 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .run .close{z-index:25}
 .who{position:absolute;left:18px;top:12px;font-size:13px;z-index:21;color:color-mix(in srgb,var(--fg) 60%,transparent)}
 .who button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:13px}
-.hasbg .edit,.hasbg .slide .in,.hasbg .gate .in{background:rgba(255,255,255,.94);border:1px solid #fff;border-radius:16px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.18)}
+.hasbg .edit,.slide.hasbg .in{background:rgba(255,255,255,.94);border:1px solid #fff;border-radius:16px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.18)}
 .bgctl{width:112px;display:flex;align-items:center;gap:4px;margin:0 auto}
 .bgctl .btn{white-space:nowrap;font-size:11px;padding:5px 6px;width:100%}
 .bgth{height:30px;width:80px;object-fit:cover;border-radius:4px}
+.agate{position:fixed;inset:0;z-index:100;background:#fff;display:grid;place-items:center;padding:20px}
+.acard{width:min(440px,100%);text-align:center}
+.acard h2{margin:0 0 8px;font-size:24px}
+.acard p{color:var(--muted);font-size:14px;margin:0 0 18px}
+.acard label{display:block;text-align:left;font-size:12px;color:var(--muted);margin-bottom:4px}
+.acard input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px}
+.arow{display:flex;gap:8px;justify-content:center;margin-top:16px}
+.agate .err{min-height:20px;margin-top:8px}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
 .field input,.field select{padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0;width:100%}
@@ -175,6 +183,8 @@ th{background:var(--card);font-weight:600}
   <span class="crumb" id="crumb"></span>
   <button class="tab" data-v="build">편집</button>
   <button class="tab" data-v="results">응답</button>
+  <span id="who" style="font-size:13px;color:var(--muted)"></span>
+  <button class="btn ghost sm" id="loginSet">로그인 설정</button>
   <button class="btn ghost sm" id="share">공유 링크 복사</button>
   <button class="btn sm" id="play">미리보기 ▶</button>
 </header>
@@ -248,7 +258,7 @@ const NOQ=['welcome','statement','end'];
 const YN={ko:['예','아니오'],ox:['O','X']};
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
-const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
+const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',bg:'',bgimg:'',labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
 const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('text'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('mc'),{title:'다시 이용하실 의향이 있나요?',options:[{id:uid(),text:'예',img:''},{id:uid(),text:'아니오',img:''}]}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',labels:{1:'전혀 아니다',10:'매우 그렇다'}}),mk('end')]});
 // migrate old question types (rating / nps -> scale)
 function normalize(f){
@@ -273,6 +283,7 @@ function normalize(f){
     // values may come from a shared link: coerce everything that ends up in markup or loops
     r.max=Math.max(2,Math.min(10,Math.round(+r.max)||10));
     r.multi=!!r.multi;
+    r.bg=/^#[0-9a-f]{6}$/i.test(r.bg||'')?r.bg:'';r.bgimg=IMGRE.test(r.bgimg||'')?r.bgimg:'';
     if(r.type=='mc'){
       r.options=(Array.isArray(r.options)?r.options:[]).slice(0,30).map(o=>typeof o=='string'?{id:uid(),text:o,img:''}:{id:String(o&&o.id||'').replace(/[^\w-]/g,'')||uid(),text:String((o&&o.text)||''),img:IMGRE.test((o&&o.img)||'')?o.img:''});
       if(!r.options.length)r.options=[{id:uid(),text:'옵션 1',img:''}];
@@ -282,6 +293,10 @@ function normalize(f){
     r.blocks=r.blocks.map(b=>b&&b.kind=='img'?{id:cid(b.id),kind:'img',src:String(b.src||'')}:{id:cid(b&&b.id),kind:'text',text:String((b&&b.text)||''),html:b&&b.html?cleanHtml(b.html):''}).filter(b=>b.kind=='text'||/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(b.src));
     return r;
   });
+  // older forms had one form-wide background: copy it onto each page once, then drop it
+  f.bg=/^#[0-9a-f]{6}$/i.test(f.bg||'')?f.bg:'#ffffff';
+  f.qs.forEach(q=>{if(!q.bg&&f.bg!='#ffffff')q.bg=f.bg;if(!q.bgimg&&f.bgimg)q.bgimg=f.bgimg});
+  f.bg='#ffffff';f.bgimg='';
   // welcome only first, end only last; extra copies become plain statements
   let w=null,e=null;const mid=[];
   f.qs.forEach(q=>{
@@ -315,7 +330,14 @@ let shared=false;
 if(location.hash.startsWith('#f=')){try{form=normalize(JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3))))));shared=true}catch{}}
 
 // theme only the canvas and runner, not the builder chrome
-function theme(){for(const el of [$('#editor'),$('#run')]){const r=el.style;r.backgroundImage=form.bgimg?`url(${form.bgimg})`:'';r.backgroundSize='cover';r.backgroundPosition='center';r.backgroundRepeat='no-repeat';el.classList.toggle('hasbg',!!form.bgimg);r.setProperty('--accent',form.accent);r.setProperty('--bg',form.bg);r.setProperty('--fg',form.fg)}}
+// the canvas shows the selected question's own background; the runner sets each slide's background itself
+function theme(){
+  const q=form.qs[sel]||{},ed=$('#editor').style,run=$('#run').style;
+  ed.setProperty('--accent',form.accent);ed.setProperty('--fg',form.fg);ed.setProperty('--bg',q.bg||form.bg);
+  ed.backgroundImage=q.bgimg?`url(${q.bgimg})`:'';ed.backgroundSize='cover';ed.backgroundPosition='center';ed.backgroundRepeat='no-repeat';
+  $('#editor').classList.toggle('hasbg',!!q.bgimg);
+  run.setProperty('--accent',form.accent);run.setProperty('--fg',form.fg);run.setProperty('--bg',form.bg);
+}
 
 /* ---------- builder ---------- */
 function treeHTML(fs,d){
@@ -372,10 +394,9 @@ function renderBuild(){
     ${q.type=='welcome'||q.type=='end'?`<div class="row" style="color:var(--muted);font-size:13px">${q.type=='welcome'?'시작 화면은 항상 맨 앞에 고정됩니다':'끝 화면은 항상 맨 뒤에 고정됩니다'}</div>`:'<div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>'}
     <label class="f">폼 이름</label><input type="text" value="${esc(form.title)}" data-fp="title">
     <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
-    <div class="crow"><span>배경 색</span><input type="color" value="${form.bg}" data-fp="bg"></div>
-    <div class="crow"><span>배경 이미지</span><span class="bgctl">${form.bgimg?`<img class="bgth" src="${form.bgimg}"><button class="ico" id="bgdel" title="배경 이미지 삭제">✕</button>`:'<button class="btn ghost sm" id="bgpick">이미지 선택</button>'}</span></div>
-    <div class="row"><input type="checkbox" id="loginreq" ${form.loginRequired?'checked':''}><label for="loginreq">응답자 구글 로그인 필요</label></div>
-    <label class="f">구글 클라이언트 ID (로그인·시트 연동용)</label><input type="text" placeholder="…apps.googleusercontent.com" value="${esc(form.gcid)}" data-fp="gcid">
+    <div class="crow"><span>배경 색</span><input type="color" value="${q.bg||'#ffffff'}" data-k="bg"></div>
+    <div class="crow"><span>배경 이미지</span><span class="bgctl">${q.bgimg?`<img class="bgth" src="${q.bgimg}"><button class="ico" id="bgdel" title="배경 이미지 삭제">✕</button>`:'<button class="btn ghost sm" id="bgpick">이미지 선택</button>'}</span></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">배경 색·이미지는 지금 선택한 질문 페이지에만 적용됩니다</div>
     <label class="f">구글 시트 연동 URL (선택)</label><button class="btn ghost sm" id="gs2" style="margin-bottom:6px">연동 방법 · 코드 보기</button><input type="text" placeholder="https://..." value="${esc(form.webhook)}" data-fp="webhook">`;
 }
 document.addEventListener('input',e=>{
@@ -383,7 +404,7 @@ document.addEventListener('input',e=>{
   if(t.dataset.k){
     let v=t.value;
     if(t.dataset.k=='max'){v=Math.max(2,Math.min(10,Math.round(+v)||10))}
-    q[t.dataset.k]=v;
+    q[t.dataset.k]=v;if(t.dataset.k=='bg')theme();
     if(t.dataset.k=='title'){const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=v}
   }
   else if(t.dataset.lb!=null)q.labels[t.dataset.lb]=t.value;
@@ -394,9 +415,7 @@ document.addEventListener('input',e=>{
   }
   else if(t.dataset.ot!=null){const o=q.options.find(x=>x.id==t.dataset.ot);if(o)o.text=t.value}
   else if(t.dataset.fp){form[t.dataset.fp]=t.value;theme();if(t.dataset.fp=='title')renderNav()}
-  else if(t.id=='req')q.required=t.checked;
-  else if(t.id=='loginreq')form.loginRequired=t.checked;
-  else return;
+  else if(t.id=='req')q.required=t.checked;  else return;
   save();
 });
 document.addEventListener('change',e=>{if(e.target.dataset.pv){renderBuild()}});
@@ -576,11 +595,11 @@ document.addEventListener('change',e=>{
 /* ---------- background image ---------- */
 document.addEventListener('click',e=>{
   if(e.target.closest('#bgpick'))$('#bgFile').click();
-  else if(e.target.closest('#bgdel')){form.bgimg='';save();renderBuild()}
+  else if(e.target.closest('#bgdel')){form.qs[sel].bgimg='';save();renderBuild()}
 });
 document.addEventListener('change',e=>{
   const t=e.target;if(t.id!='bgFile')return;
-  readImg(t.files[0],d=>{form.bgimg=d;save();renderBuild()},1600);
+  readImg(t.files[0],d=>{form.qs[sel].bgimg=d;save();renderBuild()},1600);
   t.value='';
 });
 
@@ -693,43 +712,58 @@ function startRun(){
   const R=$('#run');R.classList.remove('hide');
   R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up">▲</button><button id="dn">▼</button></div>';
   show(0);
-  if(needGate())gate();else addWho();
 }
-// respondent Google sign-in (ID token only; decoded in the browser, not verified by a server)
-// login is remembered for 3 days (localStorage), then the respondent must sign in again
-const LOGIN_TTL=3*24*3600*1000;
-let runUser=null;try{runUser=JSON.parse(localStorage.ff_user||'null')}catch{}
-const userOk=()=>!!(runUser&&runUser.cid==form.gcid&&runUser.exp>Date.now());
-const needGate=()=>form.loginRequired&&!userOk();
-function addWho(){
-  if(!form.loginRequired||!runUser)return;
-  const d=document.createElement('div');d.className='who';d.innerHTML=`${esc(runUser.email)} · <button id="signout">로그아웃</button>`;
-  $('#run').append(d);
+// creator-only Google sign-in: protects the builder, never the shared respondent page. Remembered 3 days.
+// (the page is static, so this identifies the creator but is not a server-side lock)
+const ADMIN_TTL=3*24*3600*1000,CIDRE=/^[\w.-]+\.apps\.googleusercontent\.com$/;
+let admin=null;try{admin=JSON.parse(localStorage.ff_admin||'null')}catch{}
+const savedCid=()=>{try{const v=localStorage.ff_gcid||'';return CIDRE.test(v)?v:''}catch{return''}};
+const adminOk=()=>!!(admin&&admin.cid==savedCid()&&admin.exp>Date.now());
+function adminChip(){$('#who').innerHTML=adminOk()?`${esc(admin.email)} · <button class="ico" id="alogout" style="width:auto;padding:0 6px">로그아웃</button>`:''}
+function adminGate(setup){
+  const cid=savedCid(),old=document.getElementById('adminGate');if(old)old.remove();
+  const g=document.createElement('div');g.id='adminGate';g.className='agate';
+  g.innerHTML=(!cid||setup)
+    ?`<div class="acard"><h2>구글 로그인 설정</h2><p>폼을 만드는 사람만 구글 계정으로 로그인하도록 설정합니다. 응답하는 사람은 로그인이 필요 없습니다.</p><label>구글 OAuth 클라이언트 ID</label><input id="agcid" value="${esc(cid)}" placeholder="123-abc.apps.googleusercontent.com"><div class="err" id="agErr"></div><div class="arow"><button class="btn" id="agSave">저장하고 로그인</button><button class="btn ghost" id="agSkip">${cid?'로그인 해제':'나중에 하기'}</button>${cid&&adminOk()?'<button class="btn ghost" id="agBack">닫기</button>':''}</div></div>`
+    :`<div class="acard"><h2>FormFlow</h2><p>폼을 만들려면 구글 계정으로 로그인하세요.</p><div id="agBtn" style="display:flex;justify-content:center;min-height:44px"></div><div class="err" id="agErr"></div><div class="arow"><button class="btn ghost sm" id="agChange">클라이언트 ID 변경</button></div></div>`;
+  document.body.append(g);
+  if(cid&&!setup)adminButton(cid);
 }
-async function gate(){
-  const g=document.createElement('section');g.id='gate';g.className='gate';
-  g.innerHTML=`<div class="in" style="text-align:center"><h2 class="qtitle">${esc(form.title)}</h2><p class="qdesc">응답하려면 구글 계정으로 로그인해 주세요.</p><div id="gsiBtn" style="display:inline-block"></div><div class="err" id="gateErr"></div></div>`;
-  $('#run').append(g);
-  if(!form.gcid){$('#gateErr').textContent='이 폼에 구글 클라이언트 ID가 설정되지 않았습니다. (편집 화면 오른쪽 패널에서 입력)';return}
+async function adminButton(cid){
   try{
     await loadGIS();
-    google.accounts.id.initialize({client_id:form.gcid,callback:r=>{
+    google.accounts.id.initialize({client_id:cid,callback:r=>{
       try{
         const p=JSON.parse(decodeURIComponent(escape(atob(r.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))));
-        if(p.aud!=form.gcid||p.exp*1000<Date.now()||!p.email)throw 0;
-        runUser={email:p.email,name:p.name||'',cid:form.gcid,exp:Date.now()+LOGIN_TTL};
-        try{localStorage.ff_user=JSON.stringify(runUser)}catch{}
-        g.remove();addWho();
-      }catch{$('#gateErr').textContent='로그인 정보를 확인하지 못했습니다. 다시 시도해 주세요.'}
+        if(p.aud!=cid||p.exp*1000<Date.now()||!p.email)throw 0;
+        admin={email:p.email,name:p.name||'',cid,exp:Date.now()+ADMIN_TTL};
+        try{localStorage.ff_admin=JSON.stringify(admin)}catch{}
+        $('#adminGate').remove();adminChip();
+      }catch{$('#agErr').textContent='로그인 정보를 확인하지 못했습니다. 다시 시도해 주세요.'}
     }});
-    google.accounts.id.renderButton($('#gsiBtn'),{theme:'outline',size:'large',locale:'ko'});
-  }catch(e){$('#gateErr').textContent=e.message}
+    google.accounts.id.renderButton($('#agBtn'),{theme:'outline',size:'large',locale:'ko'});
+  }catch(e){$('#agErr').textContent=e.message}
+}
+function adminInit(){
+  if(savedCid()){adminOk()?adminChip():adminGate()}
+  else{let skip;try{skip=localStorage.ff_nogate}catch{}if(!skip)adminGate()}
 }
 document.addEventListener('click',e=>{
-  if(e.target.id=='signout'){
-    runUser=null;try{localStorage.removeItem('ff_user')}catch{}
+  const id=e.target.id;
+  if(id=='agSave'){
+    const v=$('#agcid').value.trim();
+    if(!CIDRE.test(v)){$('#agErr').textContent='클라이언트 ID 형식이 올바르지 않습니다 (…apps.googleusercontent.com)';return}
+    try{localStorage.ff_gcid=v;localStorage.removeItem('ff_nogate')}catch{}
+    admin=null;adminChip();adminGate();
+  }else if(id=='agSkip'){
+    try{localStorage.removeItem('ff_gcid');localStorage.removeItem('ff_admin');localStorage.ff_nogate='1'}catch{}
+    admin=null;adminChip();$('#adminGate').remove();
+  }else if(id=='agBack')$('#adminGate').remove();
+  else if(id=='agChange'||e.target.closest('#loginSet'))adminGate(true);
+  else if(id=='alogout'){
+    admin=null;try{localStorage.removeItem('ff_admin')}catch{}
     try{google.accounts.id.disableAutoSelect()}catch{}
-    startRun();
+    adminChip();adminGate();
   }
 });
 const kbdOf=(q,j)=>String(j+1);
@@ -750,7 +784,8 @@ function slideHTML(q,i){
   const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
     :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
     :`<div class="go"><button class="btn go-btn">${last&&isQ?'제출':'확인 ✓'}</button><span>Enter ↵ 키를 누르세요</span></div>`;
-  return `<section class="slide below" data-i="${i}"><div class="in">
+  const sbg=`${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
+  return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}" style="${sbg}"><div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
     <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${(q.type=='mc'?[]:q.blocks).map(b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`:(b.text||b.html?`<div class="qdesc">${b.html||esc(b.text)}</div>`:'')).join('')}
     ${body}${extra}<div class="err"></div>${foot}</div></section>`;
@@ -780,7 +815,7 @@ function next(){
 }
 function submit(){
   const a=Object.fromEntries(Object.entries(ans).filter(([,v])=>v!==''&&v!=null));
-  const rec={at:new Date().toISOString(),a,user:form.loginRequired&&userOk()?{email:runUser.email,name:runUser.name}:undefined};
+  const rec={at:new Date().toISOString(),a};
   if(!shared){const r=getRes();r.push(rec);try{localStorage[resKey()]=JSON.stringify(r)}catch{alert('저장 공간이 부족해 응답을 저장하지 못했습니다. 응답 탭에서 CSV로 내보낸 뒤 삭제해 주세요.')}}
   if(form.webhook){
     const label=k=>{const [id,x]=k.split('#'),q=runQs.find(z=>z.id==id);return (q?q.title:id)+(x=='note'?' (의견)':x=='img'?' (이미지)':'')};
@@ -813,9 +848,7 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('keydown',e=>{
   if($('#run').classList.contains('hide'))return;
-  if(e.key=='Escape'&&!shared){closeRun();return}
-  if($('#gate'))return;
-  const q=runQs[cur],s=document.querySelector(`.slide[data-i="${cur}"]`);
+  if(e.key=='Escape'&&!shared){closeRun();return}  const q=runQs[cur],s=document.querySelector(`.slide[data-i="${cur}"]`);
   if(e.key=='Enter'){
     if(e.target.tagName=='TEXTAREA'&&e.shiftKey)return;
     e.preventDefault();if(q.type!='end')next();
@@ -873,7 +906,7 @@ $('#share').onclick=async()=>{
   try{await navigator.clipboard.writeText(url);alert('링크가 복사되었습니다.\n링크를 열면 응답자 화면이 바로 시작됩니다.')}catch{prompt('링크 복사:',url)}
 };
 if(shared){document.querySelector('header').classList.add('hide');$('#vBuild').classList.add('hide');startRun()}
-else{save();setView('build')}
+else{save();setView('build');adminInit()}
 </script>
 </body>
 </html>
