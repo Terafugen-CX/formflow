@@ -73,6 +73,13 @@ header .crumb b{color:#191919;font-weight:600}
 .tb button:hover{background:var(--card)}
 .props .tb input[type=color]{width:20px;height:20px;border:0;padding:0;background:none}
 .tb select{height:32px;border:1px solid var(--line);border-radius:6px;background:#fff;padding:0 6px;font-size:13px;flex:1;min-width:70px}
+.qimg{max-width:100%;max-height:260px;border-radius:8px;display:block;margin:0 0 20px}
+.extra{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
+.note{flex:1 1 100%;font-size:16px;border:0;border-bottom:1px solid color-mix(in srgb,var(--fg) 25%,transparent);background:transparent;outline:0;resize:none;color:inherit;padding:6px 0}
+.note:focus{border-color:var(--accent)}
+.attach{cursor:pointer;color:var(--accent);font-size:15px;border:1px dashed color-mix(in srgb,var(--accent) 60%,transparent);padding:6px 12px;border-radius:6px}
+.th{height:56px;border-radius:6px;vertical-align:middle}
+.rmimg{border:0;background:none;color:var(--accent);cursor:pointer;font-size:14px}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
 .field input,.field select{padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0;width:100%}
@@ -162,23 +169,35 @@ th{background:var(--card);font-weight:600}
 <div id="run" class="run hide"></div>
 
 <script>
-const TYPES={welcome:'시작 화면',short:'짧은 글',long:'긴 글',choice:'객관식',multi:'복수선택',yesno:'예/아니오',scale:'점수 (1~10)',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
+// legacy types (choice/email/number/date) stay renderable for old forms but can no longer be added
+const TYPES={welcome:'시작 화면',text:'글',short:'짧은 글',long:'긴 글',choice:'객관식',multi:'복수선택',yesno:'예/아니오',scale:'점수 (1~10)',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
+const ADDABLE=['welcome','text','multi','yesno','scale','statement','end'];
 const NOQ=['welcome','statement','end'];
 const YN={ko:['예','아니오'],ox:['O','X']};
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
-const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:['옵션 1','옵션 2'],yn:'ko',max:10,left:'',right:'',btn:'시작하기'});
-const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('short'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('choice'),{title:'어떻게 알게 되셨나요?',options:['검색','지인 소개','SNS']}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',left:'전혀 아니다',right:'매우 그렇다'}),mk('end')]});
+const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:['옵션 1','옵션 2'],yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:''});
+const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('text'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('multi'),{title:'어떻게 알게 되셨나요?',options:['검색','지인 소개','SNS']}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',left:'전혀 아니다',right:'매우 그렇다'}),mk('end')]});
 // migrate old question types (rating / nps -> scale)
 function normalize(f){
   f.id=f.id||uid();
   f.qs=f.qs.map(q=>{
     if(q.type=='rating'){q.type='scale';q.max=q.max||5}
     else if(q.type=='nps'){q.type='scale';q.max=10}
+    else if(q.type=='short'||q.type=='long')q.type='text';
     const r=Object.assign(mk(q.type),q);
     r.titleHtml=r.titleHtml?cleanHtml(r.titleHtml):'';r.descHtml=r.descHtml?cleanHtml(r.descHtml):'';
+    if(!/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(r.img||''))r.img='';
     return r;
   });
+  // welcome only first, end only last; extra copies become plain statements
+  let w=null,e=null;const mid=[];
+  f.qs.forEach(q=>{
+    if(q.type=='welcome'){if(!w)w=q;else{q.type='statement';mid.push(q)}}
+    else if(q.type=='end'){if(!e)e=q;else{q.type='statement';mid.push(q)}}
+    else mid.push(q);
+  });
+  f.qs=[...(w?[w]:[]),...mid,...(e?[e]:[])];
   return f;
 }
 
@@ -220,7 +239,11 @@ function renderNav(){
 }
 function renderQs(){
   $('#list').innerHTML=form.qs.map((q,i)=>`<div class="qitem ${i==sel?'on':''}" data-i="${i}"><span class="n">${i+1}</span><span class="t">${esc(q.title)}</span><button class="ico" data-del="${i}">✕</button></div>`).join('');
-  $('#types').innerHTML=Object.entries(TYPES).map(([k,v])=>`<button data-add="${k}">${v}</button>`).join('');
+  const has=t=>form.qs.some(x=>x.type==t);
+  $('#types').innerHTML=ADDABLE.map(k=>{
+    const off=(k=='welcome'||k=='end')&&has(k);
+    return `<button data-add="${k}" ${off?'disabled title="이미 있습니다 (1개만 가능)"':''}>${TYPES[k]}</button>`;
+  }).join('');
 }
 function previewHTML(q){
   if(q.type=='yesno')return '<div class="prev">'+YN[q.yn].map((o,j)=>`<div class="choice" style="pointer-events:none"><kbd>${YN[q.yn][j]=='예'?'Y':YN[q.yn][j]=='아니오'?'N':o}</kbd>${o}</div>`).join('')+'</div>';
@@ -235,6 +258,7 @@ function renderBuild(){
   $('#editor').innerHTML=`<div class="edit"><div class="kind">${sel+1} · ${TYPES[q.type]}</div>
     <div class="rt title" contenteditable="true" data-rt="title" data-ph="질문을 입력하세요">${q.titleHtml||esc(q.title)}</div>
     <div class="rt desc" contenteditable="true" data-rt="desc" data-ph="설명 (선택)">${q.descHtml||esc(q.desc)}</div>
+    <div class="field"><label>이미지 (선택)</label>${q.img?`<div style="margin-bottom:8px"><img class="qimg" src="${q.img}"><br><button class="btn ghost sm" data-imgdel="1">이미지 삭제</button></div>`:''}<input type="file" class="imgin" accept="image/*"></div>
     ${q.type=='yesno'?`<div class="field"><label>답변 형식</label><select data-k="yn" data-pv="1"><option value="ko" ${q.yn=='ko'?'selected':''}>예 / 아니오</option><option value="ox" ${q.yn=='ox'?'selected':''}>O / X</option></select></div>`:''}
     ${q.type=='scale'?`<div class="field"><label>최대 점수 (1점 ~ ${q.max}점)</label><input type="number" min="2" max="10" value="${q.max}" data-k="max" data-pv="1"></div>
       <div class="field"><label>왼쪽 문구 (1점)</label><input value="${esc(q.left)}" data-k="left" data-pv="1" placeholder="예: 전혀 아니다"></div>
@@ -244,7 +268,7 @@ function renderBuild(){
     ${previewHTML(q)}</div>`;
   $('#propsBody').innerHTML=`
     ${NOQ.includes(q.type)?'':`<div class="row"><input type="checkbox" id="req" ${q.required?'checked':''}><label for="req">필수 응답</label></div>`}
-    <div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>
+    ${q.type=='welcome'||q.type=='end'?`<div class="row" style="color:var(--muted);font-size:13px">${q.type=='welcome'?'시작 화면은 항상 맨 앞에 고정됩니다':'끝 화면은 항상 맨 뒤에 고정됩니다'}</div>`:'<div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>'}
     <label class="f">폼 이름</label><input type="text" value="${esc(form.title)}" data-fp="title">
     <label class="f">강조 색</label><input type="color" value="${form.accent}" data-fp="accent">
     <label class="f">배경 색</label><input type="color" value="${form.bg}" data-fp="bg">
@@ -269,7 +293,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{if(e.target.dataset.pv){renderBuild()}});
 document.addEventListener('click',e=>{
   if(view!='build'||!$('#run').classList.contains('hide'))return;
-  const t=e.target.closest('[data-i],[data-del],[data-add],[data-od],[data-mv],#addo,[data-pid],[data-pren],[data-pdel],[data-addfm],[data-addsub],[data-fid],[data-fren],[data-fdel],#addproj');
+  const t=e.target.closest('[data-i],[data-del],[data-add],[data-od],[data-mv],#addo,[data-pid],[data-pren],[data-pdel],[data-addfm],[data-addsub],[data-fid],[data-fren],[data-fdel],#addproj,[data-imgdel]');
   if(!t)return;
   const q=form.qs[sel],d=t.dataset;
   const pickForm=id=>{form=findForm(id).form;store.fid=id;sel=0};
@@ -299,11 +323,19 @@ document.addEventListener('click',e=>{
   }
   else if(d.fid){if(d.fid==form.id)return;pickForm(d.fid)}
   else if(d.del!=null){form.qs.splice(+d.del,1);sel=Math.max(0,Math.min(sel,form.qs.length-1))}
-  else if(d.add){form.qs.push(mk(d.add));sel=form.qs.length-1}
+  else if(d.add){
+    const t2=d.add,has=x=>form.qs.some(z=>z.type==x);
+    if((t2=='welcome'||t2=='end')&&has(t2))return;
+    const nq=mk(t2),lastEnd=form.qs.length&&form.qs[form.qs.length-1].type=='end';
+    if(t2=='welcome'){form.qs.unshift(nq);sel=0}
+    else if(t2=='end'){form.qs.push(nq);sel=form.qs.length-1}
+    else{const at=lastEnd?form.qs.length-1:form.qs.length;form.qs.splice(at,0,nq);sel=at}
+  }
+  else if(d.imgdel){q.img=''}
   else if(d.i!=null)sel=+d.i;
   else if(d.od!=null)q.options.splice(+d.od,1);
   else if(t.id=='addo')q.options.push('옵션 '+(q.options.length+1));
-  else if(d.mv){const j=sel+ +d.mv;if(j>=0&&j<form.qs.length){[form.qs[sel],form.qs[j]]=[form.qs[j],form.qs[sel]];sel=j}}
+  else if(d.mv){const j=sel+ +d.mv;const fixed=x=>x&&(x.type=='welcome'||x.type=='end');if(j>=0&&j<form.qs.length&&!fixed(form.qs[sel])&&!fixed(form.qs[j])){[form.qs[sel],form.qs[j]]=[form.qs[j],form.qs[sel]];sel=j}}
   save();renderBuild();
 });
 document.addEventListener('dblclick',e=>{
@@ -369,6 +401,26 @@ $('#tbSize').addEventListener('change',e=>{
   e.target.value='';
 });
 document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&e.target.dataset.rt=='title')e.preventDefault()});
+// downscale uploaded images so they fit in localStorage
+function readImg(file,cb){
+  if(!file||!file.type.startsWith('image/'))return;
+  const fr=new FileReader();
+  fr.onload=()=>{const im=new Image();
+    im.onload=()=>{const k=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');
+      c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+      const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+      cb(c.toDataURL('image/jpeg',.7))};
+    im.onerror=()=>alert('이미지를 읽을 수 없습니다');im.src=fr.result};
+  fr.readAsDataURL(file);
+}
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.classList&&t.classList.contains('imgin')){readImg(t.files[0],d=>{form.qs[sel].img=d;save();renderBuild()})}
+  else if(t.classList&&t.classList.contains('attin')){
+    const s=t.closest('.slide'),q=runQs[+s.dataset.i];
+    readImg(t.files[0],d=>{ans[q.id+'#img']=d;s.querySelector('.thumbs').innerHTML=`<img class="th" src="${d}"><button class="rmimg" type="button">✕</button>`});
+  }
+});
 document.addEventListener('paste',e=>{if(e.target.dataset&&e.target.dataset.rt){e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))}});
 
 /* ---------- runner ---------- */
@@ -384,7 +436,8 @@ function slideHTML(q,i){
   const isQ=!NOQ.includes(q.type);
   const n=runQs.slice(0,i+1).filter(x=>!NOQ.includes(x.type)).length;
   let body='';
-  if(q.type=='short')body='<input class="ans" placeholder="답변을 입력하세요">';
+  if(q.type=='text')body='<textarea class="ans" rows="2" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>';
+  else if(q.type=='short')body='<input class="ans" placeholder="답변을 입력하세요">';
   else if(q.type=='email')body='<input class="ans" type="email" placeholder="name@example.com">';
   else if(q.type=='number')body='<input class="ans" type="number" placeholder="0">';
   else if(q.type=='date')body='<input class="ans" type="date">';
@@ -392,6 +445,7 @@ function slideHTML(q,i){
   else if(q.type=='choice'||q.type=='multi')body=q.options.map((o,j)=>`<button class="choice" data-v="${esc(o)}"><kbd>${kbdOf(q,j)}</kbd>${esc(o)}</button>`).join('');
   else if(q.type=='yesno')body=YN[q.yn].map((o,j)=>`<button class="choice" data-v="${o}"><kbd>${kbdOf(q,j)}</kbd>${o}</button>`).join('');
   else if(q.type=='scale')body=`<div class="scale">${Array.from({length:q.max},(_,j)=>`<button data-v="${j+1}">${j+1}</button>`).join('')}</div><div class="lbls"><span>${esc(q.left)}</span><span>${esc(q.right)}</span></div>`;
+  const extra=isQ?`<div class="extra">${q.type=='text'?'':'<textarea class="note" rows="1" placeholder="추가 의견 (선택)"></textarea>'}<label class="attach">📎 이미지 첨부<input type="file" class="attin" accept="image/*" hidden></label><span class="thumbs"></span></div>`:'';
   const last=!runQs[i+1]||runQs[i+1].type=='end';
   const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
     :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
@@ -399,7 +453,8 @@ function slideHTML(q,i){
   return `<section class="slide below" data-i="${i}"><div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
     <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${q.desc?`<div class="qdesc">${q.descHtml||esc(q.desc)}</div>`:''}
-    ${body}<div class="err"></div>${foot}</div></section>`;
+    ${q.img?`<img class="qimg" src="${q.img}">`:''}
+    ${body}${extra}<div class="err"></div>${foot}</div></section>`;
 }
 function show(i){
   cur=i;
@@ -425,11 +480,12 @@ function next(){
   show(cur+1);
 }
 function submit(){
-  const ids=runQs.filter(q=>q.id in ans);
-  const rec={at:new Date().toISOString(),a:Object.fromEntries(ids.map(q=>[q.id,ans[q.id]]))};
-  if(!shared){const r=getRes();r.push(rec);try{localStorage[resKey()]=JSON.stringify(r)}catch{}}
+  const a=Object.fromEntries(Object.entries(ans).filter(([,v])=>v!==''&&v!=null));
+  const rec={at:new Date().toISOString(),a};
+  if(!shared){const r=getRes();r.push(rec);try{localStorage[resKey()]=JSON.stringify(r)}catch{alert('저장 공간이 부족해 응답을 저장하지 못했습니다. 응답 탭에서 CSV로 내보낸 뒤 삭제해 주세요.')}}
   if(form.webhook){
-    const body={at:rec.at,form:form.title,answers:Object.fromEntries(ids.map(q=>[q.title,ans[q.id]]))};
+    const label=k=>{const [id,x]=k.split('#'),q=runQs.find(z=>z.id==id);return (q?q.title:id)+(x=='note'?' (의견)':x=='img'?' (이미지)':'')};
+    const body={at:rec.at,form:form.title,answers:Object.fromEntries(Object.entries(a).map(([k,v])=>[label(k),v]))};
     fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).catch(()=>{});
   }
 }
@@ -441,6 +497,7 @@ document.addEventListener('click',e=>{
   if(t.id=='again'){startRun();return}
   if(t.closest('#up')){if(cur>0)show(cur-1);return}
   if(t.closest('#dn')||t.closest('.go-btn')){next();return}
+  if(t.closest('.rmimg')){delete ans[runQs[cur].id+'#img'];t.closest('.thumbs').innerHTML='';return}
   const c=t.closest('.choice,.scale button');
   if(c)pick(c);
 });
@@ -449,9 +506,12 @@ function pick(c){
   if(q.type=='multi'){c.classList.toggle('sel');ans[q.id]=[...s.querySelectorAll('.sel')].map(x=>x.dataset.v);return}
   s.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
   ans[q.id]=q.type=='scale'?+v:v;
-  setTimeout(next,350);
 }
-document.addEventListener('input',e=>{if(e.target.classList.contains('ans')&&runQs[cur])ans[runQs[cur].id]=e.target.value});
+document.addEventListener('input',e=>{
+  const c=e.target.classList;if(!runQs[cur]||!c)return;
+  if(c.contains('ans'))ans[runQs[cur].id]=e.target.value;
+  else if(c.contains('note'))ans[runQs[cur].id+'#note']=e.target.value;
+});
 document.addEventListener('keydown',e=>{
   if($('#run').classList.contains('hide'))return;
   if(e.key=='Escape'&&!shared){closeRun();return}
@@ -472,14 +532,17 @@ document.addEventListener('keydown',e=>{
 function renderResults(){
   const rs=getRes(),qs=form.qs.filter(q=>!NOQ.includes(q.type));
   const fmt=v=>Array.isArray(v)?v.join(', '):v??'';
+  const okImg=s=>/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(s||'');
+  const txt=(r,q)=>fmt(r.a[q.id])+(r.a[q.id+'#note']?' / 의견: '+r.a[q.id+'#note']:'')+(r.a[q.id+'#img']?' [이미지]':'');
+  const cell=(r,q)=>esc(fmt(r.a[q.id]))+(r.a[q.id+'#note']?`<div style="color:var(--muted)">💬 ${esc(r.a[q.id+'#note'])}</div>`:'')+(okImg(r.a[q.id+'#img'])?`<img src="${r.a[q.id+'#img']}" style="max-height:64px;display:block;margin-top:6px;border-radius:4px">`:'');
   $('#vResults').innerHTML=`<h2>${esc(form.title)} — 응답 ${rs.length}건</h2>
   <p style="color:var(--muted)">이 브라우저에 저장된 응답입니다. 다른 기기 응답을 모으려면 웹훅 URL을 설정하세요.</p>
   <button class="btn sm" id="csv">CSV 내보내기</button> <button class="btn ghost sm" id="clr">응답 삭제</button>
   <div style="overflow:auto;margin-top:16px"><table><tr><th>시간</th>${qs.map(q=>`<th>${esc(q.title)}</th>`).join('')}</tr>
-  ${rs.map(r=>`<tr><td>${new Date(r.at).toLocaleString()}</td>${qs.map(q=>`<td>${esc(fmt(r.a[q.id]))}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="99">아직 응답이 없습니다</td></tr>'}</table></div>`;
+  ${rs.map(r=>`<tr><td>${new Date(r.at).toLocaleString()}</td>${qs.map(q=>`<td>${cell(r,q)}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="99">아직 응답이 없습니다</td></tr>'}</table></div>`;
   $('#csv').onclick=()=>{
     const c=v=>'"'+String(v).replace(/"/g,'""')+'"';
-    const out=[['시간',...qs.map(q=>q.title)].map(c).join(','),...rs.map(r=>[r.at,...qs.map(q=>fmt(r.a[q.id]))].map(c).join(','))].join('\n');
+    const out=[['시간',...qs.map(q=>q.title)].map(c).join(','),...rs.map(r=>[r.at,...qs.map(q=>txt(r,q))].map(c).join(','))].join('\n');
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+out],{type:'text/csv'}));a.download=form.title+'.csv';a.click();
   };
   $('#clr').onclick=()=>{if(confirm('모든 응답을 삭제할까요?')){localStorage.removeItem(resKey());renderResults()}};
