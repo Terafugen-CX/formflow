@@ -83,6 +83,19 @@ header .crumb b{color:#191919;font-weight:600}
 .field input[type=file]{width:auto;padding:0;border:0;font-size:12px;color:var(--muted)}
 .field input[type=file]::file-selector-button{font:inherit;font-size:12px;padding:4px 10px;margin-right:8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:#191919;cursor:pointer}
 .field input[type=file]::file-selector-button:hover{background:var(--card)}
+.scale .sc{flex:1;min-width:46px;display:flex;flex-direction:column;gap:6px}
+.scale .sc button{flex:none;width:100%;min-width:0}
+.scale .sc span{font-size:12px;text-align:center;color:color-mix(in srgb,var(--fg) 60%,transparent);word-break:keep-all}
+.blk{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:4px;border-radius:8px}
+.blk.over{outline:2px dashed var(--accent)}
+.blk.dragging{opacity:.4}
+.grip{cursor:grab;color:color-mix(in srgb,var(--fg) 40%,transparent);padding:10px 2px;user-select:none}
+.blk .rt.desc{flex:1;margin-top:0}
+.badd{display:flex;gap:4px;flex:none;padding-top:6px}
+.badd .btn{white-space:nowrap;font-size:12px;padding:5px 9px}
+.blk .ico{margin-top:8px}
+.crow{display:flex;align-items:center;justify-content:space-between;margin-top:14px;font-size:12px;font-weight:600;color:var(--muted)}
+.props .crow input[type=color]{width:56px;height:30px;padding:2px}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
 .field input,.field select{padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0;width:100%}
@@ -170,17 +183,18 @@ th{background:var(--card);font-weight:600}
 </div>
 <div id="vResults" class="res hide"></div>
 <div id="run" class="run hide"></div>
+<input type="file" id="imgFile" accept="image/*" hidden>
 
 <script>
 // legacy types (choice/email/number/date) stay renderable for old forms but can no longer be added
-const TYPES={welcome:'시작 화면',text:'글',short:'짧은 글',long:'긴 글',choice:'객관식',multi:'복수선택',yesno:'예/아니오',scale:'점수 (1~10)',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
-const ADDABLE=['welcome','text','multi','yesno','scale','statement','end'];
+const TYPES={welcome:'시작 화면',text:'본문',short:'짧은 글',long:'긴 글',choice:'객관식',multi:'복수선택',yesno:'예/아니오',scale:'점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
+const ADDABLE=['welcome','text','yesno','scale','statement','end'];
 const NOQ=['welcome','statement','end'];
 const YN={ko:['예','아니오'],ox:['O','X']};
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
-const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:['옵션 1','옵션 2'],yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:''});
-const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('text'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('multi'),{title:'어떻게 알게 되셨나요?',options:['검색','지인 소개','SNS']}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',left:'전혀 아니다',right:'매우 그렇다'}),mk('end')]});
+const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:['옵션 1','옵션 2'],yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
+const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('text'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('yesno'),{title:'다시 이용하실 의향이 있나요?'}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',labels:{1:'전혀 아니다',10:'매우 그렇다'}}),mk('end')]});
 // migrate old question types (rating / nps -> scale)
 function normalize(f){
   f.id=f.id||uid();
@@ -188,9 +202,20 @@ function normalize(f){
     if(q.type=='rating'){q.type='scale';q.max=q.max||5}
     else if(q.type=='nps'){q.type='scale';q.max=10}
     else if(q.type=='short'||q.type=='long')q.type='text';
+    if(q.type=='scale'&&(!q.labels||typeof q.labels!='object')){q.labels={};if(q.left)q.labels[1]=q.left;if(q.right)q.labels[q.max||10]=q.right}
+    if(!Array.isArray(q.blocks)){
+      q.blocks=[{id:uid(),kind:'text',text:q.desc||'',html:q.descHtml||''}];
+      if(q.img)q.blocks.push({id:uid(),kind:'img',src:q.img});
+    }
     const r=Object.assign(mk(q.type),q);
     r.titleHtml=r.titleHtml?cleanHtml(r.titleHtml):'';r.descHtml=r.descHtml?cleanHtml(r.descHtml):'';
     if(!/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(r.img||''))r.img='';
+    // values may come from a shared link: coerce everything that ends up in markup or loops
+    r.max=Math.max(2,Math.min(10,Math.round(+r.max)||10));
+    if(!YN[r.yn])r.yn='ko';
+    r.labels=(r.labels&&typeof r.labels=='object'&&!Array.isArray(r.labels))?Object.fromEntries(Object.entries(r.labels).filter(([k])=>/^\d{1,2}$/.test(k)).map(([k,v])=>[k,String(v)])):{};
+    const cid=v=>String(v||'').replace(/[^\w-]/g,'')||uid();
+    r.blocks=r.blocks.map(b=>b&&b.kind=='img'?{id:cid(b.id),kind:'img',src:String(b.src||'')}:{id:cid(b&&b.id),kind:'text',text:String((b&&b.text)||''),html:b&&b.html?cleanHtml(b.html):''}).filter(b=>b.kind=='text'||/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(b.src));
     return r;
   });
   // welcome only first, end only last; extra copies become plain statements
@@ -248,9 +273,22 @@ function renderQs(){
     return `<button data-add="${k}" ${off?'disabled title="이미 있습니다 (1개만 가능)"':''}>${TYPES[k]}</button>`;
   }).join('');
 }
+const BADD='<button class="btn ghost sm" data-addtxt="1" title="내용 추가">＋ 내용</button><button class="btn ghost sm" data-addimg="1" title="이미지 추가">＋ 이미지</button>';
+function blocksEditor(q){
+  const rows=q.blocks.map(b=>b.kind=='img'
+    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div style="flex:1"><img class="qimg" draggable="false" src="${b.src}" style="max-height:160px;margin:0"></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
+    :`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div class="rt desc" contenteditable="true" data-rt="b:${b.id}" data-ph="내용">${b.html||esc(b.text)}</div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`).join('');
+  return rows||`<div class="badd" style="margin-top:12px">${BADD}</div>`;
+}
+function scaleEditor(q){
+  const used=Object.keys(q.labels).filter(k=>+k<=q.max).sort((a,b)=>a-b);
+  const opts=c=>Array.from({length:q.max},(_,i)=>i+1).map(n=>`<option value="${n}" ${n==c?'selected':''} ${n!=c&&q.labels[n]!==undefined?'disabled':''}>${n}점</option>`).join('');
+  return `<div class="field"><label>점수 범위</label><select data-k="max" data-pv="1">${Array.from({length:9},(_,i)=>i+2).map(n=>`<option value="${n}" ${n==q.max?'selected':''}>1 ~ ${n}점</option>`).join('')}</select></div>
+    <div class="field"><label>점수별 문구 (점수를 고르고 오른쪽에 문구 입력)</label>${used.map(k=>`<div class="opt"><select data-lbsel="${k}" style="width:84px;flex:none">${opts(+k)}</select><input data-lb="${k}" value="${esc(q.labels[k])}" placeholder="문구 입력"><button class="btn ghost sm" data-lbdel="${k}">✕</button></div>`).join('')}<button class="btn ghost sm" style="margin-top:10px" id="addlb">＋ 점수 문구 추가</button></div>`;
+}
 function previewHTML(q){
   if(q.type=='yesno')return '<div class="prev">'+YN[q.yn].map((o,j)=>`<div class="choice" style="pointer-events:none"><kbd>${YN[q.yn][j]=='예'?'Y':YN[q.yn][j]=='아니오'?'N':o}</kbd>${o}</div>`).join('')+'</div>';
-  if(q.type=='scale')return `<div class="prev"><div class="scale" style="pointer-events:none">${Array.from({length:q.max},(_,j)=>`<button>${j+1}</button>`).join('')}</div><div class="lbls"><span>${esc(q.left)}</span><span>${esc(q.right)}</span></div></div>`;
+  if(q.type=='scale')return `<div class="prev"><div class="scale" style="pointer-events:none">${Array.from({length:q.max},(_,j)=>`<div class="sc"><button>${j+1}</button><span>${esc(q.labels[j+1]||'')}</span></div>`).join('')}</div></div>`;
   return '';
 }
 function renderBuild(){
@@ -260,12 +298,9 @@ function renderBuild(){
   const hasOpts=['choice','multi'].includes(q.type);
   $('#editor').innerHTML=`<div class="edit"><div class="kind">${sel+1} · ${TYPES[q.type]}</div>
     <div class="rt title" contenteditable="true" data-rt="title" data-ph="질문을 입력하세요">${q.titleHtml||esc(q.title)}</div>
-    <div class="rt desc" contenteditable="true" data-rt="desc" data-ph="설명 (선택)">${q.descHtml||esc(q.desc)}</div>
-    <div class="field"><label>이미지 (선택)</label>${q.img?`<div style="margin-bottom:8px"><img class="qimg" src="${q.img}"><br><button class="btn ghost sm" data-imgdel="1">이미지 삭제</button></div>`:''}<input type="file" class="imgin" accept="image/*"></div>
+    ${blocksEditor(q)}
     ${q.type=='yesno'?`<div class="field"><label>답변 형식</label><select data-k="yn" data-pv="1"><option value="ko" ${q.yn=='ko'?'selected':''}>예 / 아니오</option><option value="ox" ${q.yn=='ox'?'selected':''}>O / X</option></select></div>`:''}
-    ${q.type=='scale'?`<div class="field"><label>최대 점수 (1점 ~ ${q.max}점)</label><input type="number" min="2" max="10" value="${q.max}" data-k="max" data-pv="1"></div>
-      <div class="field"><label>왼쪽 문구 (1점)</label><input value="${esc(q.left)}" data-k="left" data-pv="1" placeholder="예: 전혀 아니다"></div>
-      <div class="field"><label>오른쪽 문구 (${q.max}점)</label><input value="${esc(q.right)}" data-k="right" data-pv="1" placeholder="예: 매우 그렇다"></div>`:''}
+    ${q.type=='scale'?scaleEditor(q):''}
     ${hasOpts?q.options.map((o,i)=>`<div class="opt"><input value="${esc(o)}" data-o="${i}"><button class="btn ghost sm" data-od="${i}">✕</button></div>`).join('')+'<button class="btn ghost sm" style="margin-top:10px" id="addo">＋ 옵션 추가</button>':''}
     ${q.type=='welcome'?`<div class="field"><label>버튼 글자</label><input value="${esc(q.btn)}" data-k="btn"></div>`:''}
     ${previewHTML(q)}</div>`;
@@ -273,9 +308,9 @@ function renderBuild(){
     ${NOQ.includes(q.type)?'':`<div class="row"><input type="checkbox" id="req" ${q.required?'checked':''}><label for="req">필수 응답</label></div>`}
     ${q.type=='welcome'||q.type=='end'?`<div class="row" style="color:var(--muted);font-size:13px">${q.type=='welcome'?'시작 화면은 항상 맨 앞에 고정됩니다':'끝 화면은 항상 맨 뒤에 고정됩니다'}</div>`:'<div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>'}
     <label class="f">폼 이름</label><input type="text" value="${esc(form.title)}" data-fp="title">
-    <label class="f">강조 색</label><input type="color" value="${form.accent}" data-fp="accent">
-    <label class="f">배경 색</label><input type="color" value="${form.bg}" data-fp="bg">
-    <label class="f">글자 색</label><input type="color" value="${form.fg}" data-fp="fg">
+    <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
+    <div class="crow"><span>배경 색</span><input type="color" value="${form.bg}" data-fp="bg"></div>
+    <div class="crow"><span>글자 색</span><input type="color" value="${form.fg}" data-fp="fg"></div>
     <label class="f">웹훅 URL (응답 전송, 선택)</label><input type="text" placeholder="https://..." value="${esc(form.webhook)}" data-fp="webhook">`;
 }
 document.addEventListener('input',e=>{
@@ -286,7 +321,12 @@ document.addEventListener('input',e=>{
     q[t.dataset.k]=v;
     if(t.dataset.k=='title'){const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=v}
   }
-  else if(t.dataset.rt){const k=t.dataset.rt;q[k+'Html']=cleanHtml(t.innerHTML);q[k]=t.innerText.trim();if(k=='title'){const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=q.title}}
+  else if(t.dataset.lb!=null)q.labels[t.dataset.lb]=t.value;
+  else if(t.dataset.rt){
+    const k=t.dataset.rt;
+    if(k.startsWith('b:')){const b=q.blocks.find(x=>x.id==k.slice(2));if(b){b.html=cleanHtml(t.innerHTML);b.text=t.innerText.trim()}}
+    else{q.titleHtml=cleanHtml(t.innerHTML);q.title=t.innerText.trim();const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=q.title}
+  }
   else if(t.dataset.o!=null)q.options[t.dataset.o]=t.value;
   else if(t.dataset.fp){form[t.dataset.fp]=t.value;theme();if(t.dataset.fp=='title')renderNav()}
   else if(t.id=='req')q.required=t.checked;
@@ -296,7 +336,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{if(e.target.dataset.pv){renderBuild()}});
 document.addEventListener('click',e=>{
   if(view!='build'||!$('#run').classList.contains('hide'))return;
-  const t=e.target.closest('[data-i],[data-del],[data-add],[data-od],[data-mv],#addo,[data-pid],[data-pren],[data-pdel],[data-addfm],[data-addsub],[data-fid],[data-fren],[data-fdel],#addproj,[data-imgdel]');
+  const t=e.target.closest('[data-i],[data-del],[data-add],[data-od],[data-mv],#addo,[data-pid],[data-pren],[data-pdel],[data-addfm],[data-addsub],[data-fid],[data-fren],[data-fdel],#addproj,[data-addtxt],[data-addimg],[data-bdel],#addlb,[data-lbdel]');
   if(!t)return;
   const q=form.qs[sel],d=t.dataset;
   const pickForm=id=>{form=findForm(id).form;store.fid=id;sel=0};
@@ -334,7 +374,14 @@ document.addEventListener('click',e=>{
     else if(t2=='end'){form.qs.push(nq);sel=form.qs.length-1}
     else{const at=lastEnd?form.qs.length-1:form.qs.length;form.qs.splice(at,0,nq);sel=at}
   }
-  else if(d.imgdel){q.img=''}
+  else if(d.addtxt!=null||d.addimg!=null){
+    const bl=t.closest('.blk'),idx=bl?q.blocks.findIndex(b=>b.id==bl.dataset.bid)+1:q.blocks.length;
+    if(d.addimg!=null){insAt=idx;$('#imgFile').click();return}
+    q.blocks.splice(idx,0,{id:uid(),kind:'text',text:'',html:''});
+  }
+  else if(d.bdel){q.blocks=q.blocks.filter(b=>b.id!=d.bdel)}
+  else if(t.id=='addlb'){const n=Array.from({length:q.max},(_,i)=>i+1).find(i=>q.labels[i]===undefined);if(!n)return;q.labels[n]=''}
+  else if(d.lbdel){delete q.labels[d.lbdel]}
   else if(d.i!=null)sel=+d.i;
   else if(d.od!=null)q.options.splice(+d.od,1);
   else if(t.id=='addo')q.options.push('옵션 '+(q.options.length+1));
@@ -418,13 +465,40 @@ function readImg(file,cb){
 }
 document.addEventListener('change',e=>{
   const t=e.target;
-  if(t.classList&&t.classList.contains('imgin')){readImg(t.files[0],d=>{form.qs[sel].img=d;save();renderBuild()})}
+  if(t.id=='imgFile'){readImg(t.files[0],d=>{form.qs[sel].blocks.splice(insAt,0,{id:uid(),kind:'img',src:d});save();renderBuild()});t.value=''}
   else if(t.classList&&t.classList.contains('attin')){
     const s=t.closest('.slide'),q=runQs[+s.dataset.i];
     readImg(t.files[0],d=>{ans[q.id+'#img']=d;s.querySelector('.thumbs').innerHTML=`<img class="th" src="${d}"><button class="rmimg" type="button">✕</button>`});
   }
 });
 document.addEventListener('paste',e=>{if(e.target.dataset&&e.target.dataset.rt){e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))}});
+
+/* ---------- content blocks: drag to reorder, score labels ---------- */
+let insAt=0,dragId=null;
+document.addEventListener('mousedown',e=>{const g=e.target.closest&&e.target.closest('.grip');if(g)g.closest('.blk').draggable=true});
+document.addEventListener('dragstart',e=>{
+  const b=e.target.closest&&e.target.closest('.blk');
+  if(!b||!b.draggable)return;
+  dragId=b.dataset.bid;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragId);b.classList.add('dragging');
+});
+document.addEventListener('dragover',e=>{
+  const b=e.target.closest&&e.target.closest('.blk');if(!b||!dragId)return;
+  e.preventDefault();document.querySelectorAll('.blk.over').forEach(x=>x.classList.remove('over'));b.classList.add('over');
+});
+document.addEventListener('drop',e=>{
+  const b=e.target.closest&&e.target.closest('.blk');if(!b||!dragId)return;
+  e.preventDefault();
+  const q=form.qs[sel],from=q.blocks.findIndex(x=>x.id==dragId),to=q.blocks.findIndex(x=>x.id==b.dataset.bid);
+  if(from>=0&&to>=0&&from!=to){const [m]=q.blocks.splice(from,1);q.blocks.splice(to,0,m);save()}
+  dragId=null;renderBuild();
+});
+document.addEventListener('dragend',()=>{dragId=null;document.querySelectorAll('.blk').forEach(x=>{x.draggable=false;x.classList.remove('dragging','over')})});
+document.addEventListener('change',e=>{
+  const t=e.target;if(!t.dataset||t.dataset.lbsel==null)return;
+  const q=form.qs[sel],o=t.dataset.lbsel,n=t.value;
+  if(o!=n&&q.labels[n]===undefined){q.labels[n]=q.labels[o];delete q.labels[o]}
+  save();renderBuild();
+});
 
 /* ---------- runner ---------- */
 let ans={},cur=0,runQs=[],submitted=false;
@@ -447,7 +521,7 @@ function slideHTML(q,i){
   else if(q.type=='long')body='<textarea class="ans" rows="3" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>';
   else if(q.type=='choice'||q.type=='multi')body=q.options.map((o,j)=>`<button class="choice" data-v="${esc(o)}"><kbd>${kbdOf(q,j)}</kbd>${esc(o)}</button>`).join('');
   else if(q.type=='yesno')body=YN[q.yn].map((o,j)=>`<button class="choice" data-v="${o}"><kbd>${kbdOf(q,j)}</kbd>${o}</button>`).join('');
-  else if(q.type=='scale')body=`<div class="scale">${Array.from({length:q.max},(_,j)=>`<button data-v="${j+1}">${j+1}</button>`).join('')}</div><div class="lbls"><span>${esc(q.left)}</span><span>${esc(q.right)}</span></div>`;
+  else if(q.type=='scale')body=`<div class="scale">${Array.from({length:q.max},(_,j)=>`<div class="sc"><button data-v="${j+1}">${j+1}</button><span>${esc(q.labels[j+1]||'')}</span></div>`).join('')}</div>`;
   const extra=isQ?`<div class="extra">${q.type=='text'?'':'<textarea class="note" rows="1" placeholder="추가 의견 (선택)"></textarea>'}<label class="attach">📎 이미지 첨부<input type="file" class="attin" accept="image/*" hidden></label><span class="thumbs"></span></div>`:'';
   const last=!runQs[i+1]||runQs[i+1].type=='end';
   const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
@@ -455,8 +529,7 @@ function slideHTML(q,i){
     :`<div class="go"><button class="btn go-btn">${last&&isQ?'제출':'확인 ✓'}</button><span>Enter ↵ 키를 누르세요</span></div>`;
   return `<section class="slide below" data-i="${i}"><div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
-    <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${q.desc?`<div class="qdesc">${q.descHtml||esc(q.desc)}</div>`:''}
-    ${q.img?`<img class="qimg" src="${q.img}">`:''}
+    <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${q.blocks.map(b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`:(b.text||b.html?`<div class="qdesc">${b.html||esc(b.text)}</div>`:'')).join('')}
     ${body}${extra}<div class="err"></div>${foot}</div></section>`;
 }
 function show(i){
