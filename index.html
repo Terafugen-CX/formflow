@@ -126,6 +126,14 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .gbtn:disabled{opacity:.6;cursor:default}
 .agate .err{margin-top:10px}
 .agate .err:empty{display:none}
+#editor{position:relative;container-type:inline-size}
+.slide{container-type:inline-size}
+.tbox{position:absolute;z-index:3;min-width:60px;resize:horizontal;overflow:hidden;border:1px dashed color-mix(in srgb,var(--accent) 60%,transparent);border-radius:6px;padding:4px 8px;line-height:1.3}
+.tbox:hover,.tbox:focus-within{border-style:solid}
+.tgrip{position:absolute;left:3px;top:0;cursor:move;font-size:12px;opacity:.6;user-select:none;touch-action:none}
+.tdel{position:absolute;right:3px;top:0;border:0;background:none;cursor:pointer;font-size:11px;opacity:.6;color:inherit}
+.tbox .rt{padding:14px 2px 2px;min-height:1.4em}
+.tx{position:absolute;z-index:0;line-height:1.3;pointer-events:none;word-break:break-word}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
 .field input,.field select{padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0;width:100%}
@@ -200,7 +208,7 @@ th{background:var(--card);font-weight:600}
     <div id="list"></div>
   </div>
   <div id="editor"></div>
-  <div class="props"><div class="sec">글씨 서식 <span style="text-transform:none;font-weight:400">· 글씨를 드래그해서 선택</span></div>
+  <div class="props"><div class="sec">글씨 서식</div>
     <div class="tb" id="tb">
       <button data-cmd="bold" title="굵게"><b>B</b></button>
       <button data-cmd="underline" title="밑줄"><u>U</u></button>
@@ -258,13 +266,14 @@ th{background:var(--card);font-weight:600}
 const APP_GCID='355286319137-2cipbd76d4dd9159429q5cd7jbvkm8cd.apps.googleusercontent.com';
 // legacy types (choice/email/number/date) stay renderable for old forms but can no longer be added
 const TYPES={welcome:'시작 화면',text:'본문',short:'짧은 글',long:'긴 글',mc:'객관식',scale:'점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
+const TXTYPES=['welcome','end'];
 const ADDABLE=['welcome','text','mc','scale','statement','end']
 const IMGRE=/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/;;
 const NOQ=['welcome','statement','end'];
 const YN={ko:['예','아니오'],ox:['O','X']};
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
-const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',bg:'',bgimg:'',labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
+const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',bg:'',bgimg:'',texts:[],labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
 const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('text'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('mc'),{title:'다시 이용하실 의향이 있나요?',options:[{id:uid(),text:'예',img:''},{id:uid(),text:'아니오',img:''}]}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',labels:{1:'전혀 아니다',10:'매우 그렇다'}}),mk('end')]});
 // migrate old question types (rating / nps -> scale)
 function normalize(f){
@@ -297,6 +306,9 @@ function normalize(f){
     r.labels=(r.labels&&typeof r.labels=='object'&&!Array.isArray(r.labels))?Object.fromEntries(Object.entries(r.labels).filter(([k])=>/^\d{1,2}$/.test(k)).map(([k,v])=>[k,String(v)])):{};
     const cid=v=>String(v||'').replace(/[^\w-]/g,'')||uid();
     r.blocks=r.blocks.map(b=>b&&b.kind=='img'?{id:cid(b.id),kind:'img',src:String(b.src||'')}:{id:cid(b&&b.id),kind:'text',text:String((b&&b.text)||''),html:b&&b.html?cleanHtml(b.html):''}).filter(b=>b.kind=='text'||/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(b.src));
+    // free text boxes on welcome/end pages (position/size in % of the page, font size in cqw)
+    const clamp=(v,a,b,d)=>{v=+v;return Number.isFinite(v)?Math.max(a,Math.min(b,v)):d};
+    r.texts=TXTYPES.includes(r.type)&&Array.isArray(r.texts)?r.texts.slice(0,20).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,5,95,40),fs:clamp(t&&t.fs,0.8,12,3),html:t&&t.html?cleanHtml(t.html):'',text:String((t&&t.text)||'')})):[];
     return r;
   });
   // older forms had one form-wide background: copy it onto each page once, then drop it
@@ -369,6 +381,10 @@ const BADD='<button class="btn ghost sm" data-addtxt="1" title="내용 추가">�
 function mcEditor(q){
   return q.options.map((o,j)=>`<div class="opt mcrow"><span class="num">${j+1}</span><input data-ot="${o.id}" value="${esc(o.text)}" placeholder="선택지 문구">${o.img?`<span class="othumb"><img src="${o.img}" draggable="false"><button class="ico" data-oimgdel="${o.id}" title="이미지 삭제">✕</button></span>`:`<button class="btn ghost sm" data-oimg="${o.id}" title="이미지 추가">🖼</button>`}<button class="btn ghost sm" data-oadd="${o.id}" title="선택지 추가">＋</button><button class="btn ghost sm" data-odel="${o.id}" title="삭제">✕</button></div>`).join('');
 }
+function textBoxes(q){
+  if(!TXTYPES.includes(q.type))return '';
+  return q.texts.map(t=>`<div class="tbox" data-tid="${t.id}" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw"><span class="tgrip" title="드래그해서 이동">⠿</span><button class="tdel" data-tdel="${t.id}" title="삭제">✕</button><div class="rt" contenteditable="true" data-rt="t:${t.id}" data-ph="텍스트">${t.html||esc(t.text)}</div></div>`).join('');
+}
 function blocksEditor(q){
   const rows=q.blocks.map(b=>b.kind=='img'
     ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div style="flex:1"><img class="qimg" draggable="false" src="${b.src}" style="max-height:160px;margin:0"></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
@@ -394,11 +410,11 @@ function renderBuild(){
     ${q.type=='mc'?mcEditor(q):blocksEditor(q)}
     ${q.type=='scale'?scaleEditor(q):''}
     ${q.type=='welcome'?`<div class="field"><label>버튼 글자</label><input value="${esc(q.btn)}" data-k="btn"></div>`:''}
-    ${previewHTML(q)}</div>`;
+    ${previewHTML(q)}</div>${textBoxes(q)}`;
   $('#propsBody').innerHTML=`
     ${NOQ.includes(q.type)?'':`<div class="row"><input type="checkbox" id="req" ${q.required?'checked':''}><label for="req">필수 응답</label></div>`}
-    ${q.type=='welcome'||q.type=='end'?`<div class="row" style="color:var(--muted);font-size:13px">${q.type=='welcome'?'시작 화면은 항상 맨 앞에 고정됩니다':'끝 화면은 항상 맨 뒤에 고정됩니다'}</div>`:'<div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>'}
-    <label class="f">폼 이름</label><input type="text" value="${esc(form.title)}" data-fp="title">
+    ${q.type=='welcome'||q.type=='end'?'':'<div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>'}
+    ${TXTYPES.includes(q.type)?'<button class="btn ghost sm" id="addText" style="margin-top:12px;width:100%">＋ 텍스트 추가</button>':''}
     <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
     <div class="crow"><span>배경 색</span><input type="color" value="${q.bg||'#ffffff'}" data-k="bg"></div>
     <div class="crow"><span>배경 이미지</span><span class="bgctl">${q.bgimg?`<img class="bgth" src="${q.bgimg}"><button class="ico" id="bgdel" title="배경 이미지 삭제">✕</button>`:'<button class="btn ghost sm" id="bgpick">이미지 선택</button>'}</span></div>
@@ -416,7 +432,8 @@ document.addEventListener('input',e=>{
   else if(t.dataset.lb!=null)q.labels[t.dataset.lb]=t.value;
   else if(t.dataset.rt){
     const k=t.dataset.rt;
-    if(k.startsWith('b:')){const b=q.blocks.find(x=>x.id==k.slice(2));if(b){b.html=cleanHtml(t.innerHTML);b.text=t.innerText.trim()}}
+    if(k.startsWith('t:')){const tb=(q.texts||[]).find(x=>x.id==k.slice(2));if(tb){tb.html=cleanHtml(t.innerHTML);tb.text=t.innerText.trim()}}
+    else if(k.startsWith('b:')){const b=q.blocks.find(x=>x.id==k.slice(2));if(b){b.html=cleanHtml(t.innerHTML);b.text=t.innerText.trim()}}
     else{q.titleHtml=cleanHtml(t.innerHTML);q.title=t.innerText.trim();const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=q.title}
   }
   else if(t.dataset.ot!=null){const o=q.options.find(x=>x.id==t.dataset.ot);if(o)o.text=t.value}
@@ -597,6 +614,44 @@ document.addEventListener('change',e=>{
   if(o!=n&&q.labels[n]===undefined){q.labels[n]=q.labels[o];delete q.labels[o]}
   save();renderBuild();
 });
+
+/* ---------- text boxes on welcome/end pages: add, move (grip), resize (drag corner scales the text) ---------- */
+document.addEventListener('click',e=>{
+  const q=form.qs[sel];
+  if(e.target.closest('#addText')&&q&&TXTYPES.includes(q.type)){
+    q.texts.push({id:uid(),x:25,y:18+(q.texts.length%5)*12,w:40,fs:3,html:'',text:''});save();renderBuild();
+    const last=[...document.querySelectorAll('.tbox .rt')].pop();if(last)last.focus();
+  }else if(e.target.closest('.tdel')){
+    const id=e.target.closest('.tdel').dataset.tdel;q.texts=q.texts.filter(t=>t.id!=id);save();renderBuild();
+  }
+});
+document.addEventListener('pointerdown',e=>{
+  const g=e.target.closest&&e.target.closest('.tgrip');if(!g)return;
+  e.preventDefault();
+  const box=g.closest('.tbox'),ed=$('#editor'),t=form.qs[sel].texts.find(x=>x.id==box.dataset.tid);
+  const sx=e.clientX,sy=e.clientY,x0=t.x,y0=t.y;
+  const mv=ev=>{
+    t.x=Math.max(0,Math.min(95,x0+(ev.clientX-sx)/ed.clientWidth*100));
+    t.y=Math.max(0,Math.min(95,y0+(ev.clientY-sy)/ed.clientHeight*100));
+    box.style.left=t.x+'%';box.style.top=t.y+'%';
+  };
+  const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);save()};
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);
+});
+let boxRO=null;
+// dragging the corner changes the box width; the text scales with it
+function applyBoxSize(box){
+  const t=(form.qs[sel].texts||[]).find(x=>x.id==box.dataset.tid);if(!t)return;
+  const w=box.offsetWidth/$('#editor').clientWidth*100;
+  if(Math.abs(w-t.w)<0.3)return;
+  t.fs=Math.max(0.8,Math.min(12,t.fs*w/t.w));t.w=w;box.style.fontSize=t.fs+'cqw';save();
+}
+function watchBoxes(){
+  if(boxRO)boxRO.disconnect();
+  boxRO=new ResizeObserver(es=>es.forEach(en=>applyBoxSize(en.target)));
+  $('#editor').querySelectorAll('.tbox').forEach(b=>boxRO.observe(b));
+}
+{const rb=renderBuild;renderBuild=function(){rb();watchBoxes()}}
 
 /* ---------- background image ---------- */
 document.addEventListener('click',e=>{
@@ -779,7 +834,7 @@ function slideHTML(q,i){
     :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
     :`<div class="go"><button class="btn go-btn">${last&&isQ?'제출':'확인 ✓'}</button><span>Enter ↵ 키를 누르세요</span></div>`;
   const sbg=`${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
-  return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}" style="${sbg}"><div class="in">
+  return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}" style="${sbg}">${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
     <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${(q.type=='mc'?[]:q.blocks).map(b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`:(b.text||b.html?`<div class="qdesc">${b.html||esc(b.text)}</div>`:'')).join('')}
     ${body}${extra}<div class="err"></div>${foot}</div></section>`;
