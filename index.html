@@ -696,8 +696,11 @@ function startRun(){
   if(needGate())gate();else addWho();
 }
 // respondent Google sign-in (ID token only; decoded in the browser, not verified by a server)
-let runUser=null;try{runUser=JSON.parse(sessionStorage.ff_user||'null')}catch{}
-const needGate=()=>form.loginRequired&&!(runUser&&runUser.cid==form.gcid);
+// login is remembered for 3 days (localStorage), then the respondent must sign in again
+const LOGIN_TTL=3*24*3600*1000;
+let runUser=null;try{runUser=JSON.parse(localStorage.ff_user||'null')}catch{}
+const userOk=()=>!!(runUser&&runUser.cid==form.gcid&&runUser.exp>Date.now());
+const needGate=()=>form.loginRequired&&!userOk();
 function addWho(){
   if(!form.loginRequired||!runUser)return;
   const d=document.createElement('div');d.className='who';d.innerHTML=`${esc(runUser.email)} · <button id="signout">로그아웃</button>`;
@@ -714,8 +717,8 @@ async function gate(){
       try{
         const p=JSON.parse(decodeURIComponent(escape(atob(r.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))));
         if(p.aud!=form.gcid||p.exp*1000<Date.now()||!p.email)throw 0;
-        runUser={email:p.email,name:p.name||'',cid:form.gcid};
-        try{sessionStorage.ff_user=JSON.stringify(runUser)}catch{}
+        runUser={email:p.email,name:p.name||'',cid:form.gcid,exp:Date.now()+LOGIN_TTL};
+        try{localStorage.ff_user=JSON.stringify(runUser)}catch{}
         g.remove();addWho();
       }catch{$('#gateErr').textContent='로그인 정보를 확인하지 못했습니다. 다시 시도해 주세요.'}
     }});
@@ -724,7 +727,7 @@ async function gate(){
 }
 document.addEventListener('click',e=>{
   if(e.target.id=='signout'){
-    runUser=null;try{sessionStorage.removeItem('ff_user')}catch{}
+    runUser=null;try{localStorage.removeItem('ff_user')}catch{}
     try{google.accounts.id.disableAutoSelect()}catch{}
     startRun();
   }
@@ -777,7 +780,7 @@ function next(){
 }
 function submit(){
   const a=Object.fromEntries(Object.entries(ans).filter(([,v])=>v!==''&&v!=null));
-  const rec={at:new Date().toISOString(),a,user:form.loginRequired&&runUser?{email:runUser.email,name:runUser.name}:undefined};
+  const rec={at:new Date().toISOString(),a,user:form.loginRequired&&userOk()?{email:runUser.email,name:runUser.name}:undefined};
   if(!shared){const r=getRes();r.push(rec);try{localStorage[resKey()]=JSON.stringify(r)}catch{alert('저장 공간이 부족해 응답을 저장하지 못했습니다. 응답 탭에서 CSV로 내보낸 뒤 삭제해 주세요.')}}
   if(form.webhook){
     const label=k=>{const [id,x]=k.split('#'),q=runQs.find(z=>z.id==id);return (q?q.title:id)+(x=='note'?' (의견)':x=='img'?' (이미지)':'')};
@@ -864,6 +867,7 @@ function setView(v){
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v));
 $('#play').onclick=startRun;
 $('#share').onclick=async()=>{
+  if(form.loginRequired&&!form.gcid){alert('구글 로그인을 쓰려면 먼저 오른쪽 패널에 구글 클라이언트 ID를 입력해 주세요.');return}
   const {id,sheetUrl,...f}=form;
   const url=location.href.split('#')[0]+'#f='+btoa(unescape(encodeURIComponent(JSON.stringify(f))));
   try{await navigator.clipboard.writeText(url);alert('링크가 복사되었습니다.\n링크를 열면 응답자 화면이 바로 시작됩니다.')}catch{prompt('링크 복사:',url)}
