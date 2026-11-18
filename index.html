@@ -94,8 +94,9 @@ header .crumb b{color:#191919;font-weight:600}
 .badd{display:flex;gap:4px;flex:none;padding-top:6px}
 .badd .btn{white-space:nowrap;font-size:12px;padding:5px 9px}
 .blk .ico{margin-top:8px}
-.crow{display:flex;align-items:center;justify-content:space-between;margin-top:14px;font-size:12px;font-weight:600;color:var(--muted)}
-.props .crow input[type=color]{width:56px;height:30px;padding:2px}
+.crow span{width:56px}
+.crow{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;font-size:12px;font-weight:600;color:var(--muted)}
+.props .crow input[type=color]{width:112px;height:30px;padding:2px}
 .num{width:26px;height:26px;border:1px solid color-mix(in srgb,var(--accent) 60%,transparent);border-radius:4px;display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--accent);flex:none}
 .mcrow{align-items:center;margin-top:10px}
 .mcrow .btn{flex:none}
@@ -105,6 +106,13 @@ header .crumb b{color:#191919;font-weight:600}
 dialog{border:1px solid var(--line);border-radius:12px;max-width:660px;width:92vw;padding:22px;color:#191919}
 dialog::backdrop{background:rgba(0,0,0,.4)}
 dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-size:12px;max-height:220px;margin:0}
+.gate{position:absolute;inset:0;z-index:20;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}
+.run .close{z-index:25}
+.who{position:absolute;left:18px;top:12px;font-size:13px;z-index:21;color:color-mix(in srgb,var(--fg) 60%,transparent)}
+.who button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:13px}
+#editor,.run{background-size:cover;background-position:center}
+.bgctl{width:112px;display:flex;align-items:center;gap:4px}
+.bgth{height:30px;width:80px;object-fit:cover;border-radius:4px}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
 .field input,.field select{padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0;width:100%}
@@ -193,6 +201,7 @@ th{background:var(--card);font-weight:600}
 <div id="vResults" class="res hide"></div>
 <div id="run" class="run hide"></div>
 <input type="file" id="imgFile" accept="image/*" hidden>
+<input type="file" id="bgFile" accept="image/*" hidden>
 <dialog id="sheetGuide">
   <h3 style="margin:0 0 4px">구글 시트 · 엑셀 실시간 연동</h3>
   <p style="color:var(--muted);margin:0 0 12px;font-size:14px">응답이 제출될 때마다 구글 시트에 한 줄씩 자동으로 쌓입니다. 구글 시트는 엑셀로 바로 열 수 있습니다. (무료)</p>
@@ -243,6 +252,9 @@ const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff
 // migrate old question types (rating / nps -> scale)
 function normalize(f){
   f.id=f.id||uid();
+  f.gcid=/^[\w.-]+\.apps\.googleusercontent\.com$/.test(f.gcid||'')?f.gcid:'';
+  f.loginRequired=!!f.loginRequired;
+  f.bgimg=IMGRE.test(f.bgimg||'')?f.bgimg:'';
   f.qs=f.qs.map(q=>{
     if(q.type=='rating'){q.type='scale';q.max=q.max||5}
     else if(q.type=='nps'){q.type='scale';q.max=10}
@@ -302,7 +314,7 @@ let shared=false;
 if(location.hash.startsWith('#f=')){try{form=normalize(JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3))))));shared=true}catch{}}
 
 // theme only the canvas and runner, not the builder chrome
-function theme(){for(const el of [$('#editor'),$('#run')]){const r=el.style;r.setProperty('--accent',form.accent);r.setProperty('--bg',form.bg);r.setProperty('--fg',form.fg)}}
+function theme(){for(const el of [$('#editor'),$('#run')]){const r=el.style;r.backgroundImage=form.bgimg?`url(${form.bgimg})`:'';r.setProperty('--accent',form.accent);r.setProperty('--bg',form.bg);r.setProperty('--fg',form.fg)}}
 
 /* ---------- builder ---------- */
 function treeHTML(fs,d){
@@ -360,7 +372,9 @@ function renderBuild(){
     <label class="f">폼 이름</label><input type="text" value="${esc(form.title)}" data-fp="title">
     <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
     <div class="crow"><span>배경 색</span><input type="color" value="${form.bg}" data-fp="bg"></div>
-    <div class="crow"><span>글자 색</span><input type="color" value="${form.fg}" data-fp="fg"></div>
+    <div class="crow"><span>배경 이미지</span><span class="bgctl">${form.bgimg?`<img class="bgth" src="${form.bgimg}"><button class="ico" id="bgdel" title="배경 이미지 삭제">✕</button>`:'<button class="btn ghost sm" id="bgpick">이미지 선택</button>'}</span></div>
+    <div class="row"><input type="checkbox" id="loginreq" ${form.loginRequired?'checked':''}><label for="loginreq">응답자 구글 로그인 필요</label></div>
+    <label class="f">구글 클라이언트 ID (로그인·시트 연동용)</label><input type="text" placeholder="…apps.googleusercontent.com" value="${esc(form.gcid)}" data-fp="gcid">
     <label class="f">구글 시트 연동 URL (선택)</label><button class="btn ghost sm" id="gs2" style="margin-bottom:6px">연동 방법 · 코드 보기</button><input type="text" placeholder="https://..." value="${esc(form.webhook)}" data-fp="webhook">`;
 }
 document.addEventListener('input',e=>{
@@ -380,6 +394,7 @@ document.addEventListener('input',e=>{
   else if(t.dataset.ot!=null){const o=q.options.find(x=>x.id==t.dataset.ot);if(o)o.text=t.value}
   else if(t.dataset.fp){form[t.dataset.fp]=t.value;theme();if(t.dataset.fp=='title')renderNav()}
   else if(t.id=='req')q.required=t.checked;
+  else if(t.id=='loginreq')form.loginRequired=t.checked;
   else return;
   save();
 });
@@ -504,11 +519,11 @@ $('#tbSize').addEventListener('change',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&e.target.dataset.rt=='title')e.preventDefault()});
 // downscale uploaded images so they fit in localStorage
-function readImg(file,cb){
+function readImg(file,cb,max=800){
   if(!file||!file.type.startsWith('image/'))return;
   const fr=new FileReader();
   fr.onload=()=>{const im=new Image();
-    im.onload=()=>{const k=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');
+    im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');
       c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
       const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
       cb(c.toDataURL('image/jpeg',.7))};
@@ -559,6 +574,17 @@ document.addEventListener('change',e=>{
   const q=form.qs[sel],o=t.dataset.lbsel,n=t.value;
   if(o!=n&&q.labels[n]===undefined){q.labels[n]=q.labels[o];delete q.labels[o]}
   save();renderBuild();
+});
+
+/* ---------- background image ---------- */
+document.addEventListener('click',e=>{
+  if(e.target.closest('#bgpick'))$('#bgFile').click();
+  else if(e.target.closest('#bgdel')){form.bgimg='';save();renderBuild()}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;if(t.id!='bgFile')return;
+  readImg(t.files[0],d=>{form.bgimg=d;save();renderBuild()},1600);
+  t.value='';
 });
 
 /* ---------- google sheets / excel link ---------- */
@@ -635,13 +661,14 @@ async function createLink(){
   const say=m=>$('#gsStatus').textContent=m,btn=$('#gsMake'),cid=$('#gcid').value.trim();
   if(!/\.apps\.googleusercontent\.com$/.test(cid)){say('클라이언트 ID를 입력하세요 (…apps.googleusercontent.com)');return}
   try{localStorage.ff_gcid=cid}catch{}
+  form.gcid=cid;save();
   btn.disabled=true;
   try{
     say('구글 로그인 중…');await loadGIS();const tok=await gToken(cid);
     say('① 새 구글 시트를 만드는 중…');
     const sh=await gapi(tok,'https://sheets.googleapis.com/v4/spreadsheets','POST',{properties:{title:form.title+' 응답'}});
     const titles=form.qs.filter(q=>!NOQ.includes(q.type)).map(q=>q.title);
-    await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/A1?valueInputOption=RAW`,'PUT',{values:[['시간',...titles]]});
+    await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/A1?valueInputOption=RAW`,'PUT',{values:[['시간',...(form.loginRequired?['이메일','이름']:[]),...titles]]});
     say('② 응답 수집 스크립트를 만드는 중…');
     const pr=await gapi(tok,'https://script.googleapis.com/v1/projects','POST',{title:'FormFlow 연동 - '+form.title});
     await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/content`,'PUT',{files:[
@@ -659,7 +686,7 @@ async function createLink(){
 }
 document.addEventListener('click',e=>{
   if(e.target.id=='gsMake')createLink();
-  else if(e.target.closest('#gs')||e.target.closest('#gs2')){try{$('#gcid').value=localStorage.ff_gcid||''}catch{}$('#gsStatus').textContent='';showSheetState()}
+  else if(e.target.closest('#gs')||e.target.closest('#gs2')){try{$('#gcid').value=form.gcid||localStorage.ff_gcid||''}catch{}$('#gsStatus').textContent='';showSheetState()}
 });
 
 /* ---------- runner ---------- */
@@ -669,7 +696,42 @@ function startRun(){
   const R=$('#run');R.classList.remove('hide');
   R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up">▲</button><button id="dn">▼</button></div>';
   show(0);
+  if(needGate())gate();else addWho();
 }
+// respondent Google sign-in (ID token only; decoded in the browser, not verified by a server)
+let runUser=null;try{runUser=JSON.parse(sessionStorage.ff_user||'null')}catch{}
+const needGate=()=>form.loginRequired&&!(runUser&&runUser.cid==form.gcid);
+function addWho(){
+  if(!form.loginRequired||!runUser)return;
+  const d=document.createElement('div');d.className='who';d.innerHTML=`${esc(runUser.email)} · <button id="signout">로그아웃</button>`;
+  $('#run').append(d);
+}
+async function gate(){
+  const g=document.createElement('section');g.id='gate';g.className='gate';
+  g.innerHTML=`<div class="in" style="text-align:center"><h2 class="qtitle">${esc(form.title)}</h2><p class="qdesc">응답하려면 구글 계정으로 로그인해 주세요.</p><div id="gsiBtn" style="display:inline-block"></div><div class="err" id="gateErr"></div></div>`;
+  $('#run').append(g);
+  if(!form.gcid){$('#gateErr').textContent='이 폼에 구글 클라이언트 ID가 설정되지 않았습니다. (편집 화면 오른쪽 패널에서 입력)';return}
+  try{
+    await loadGIS();
+    google.accounts.id.initialize({client_id:form.gcid,callback:r=>{
+      try{
+        const p=JSON.parse(decodeURIComponent(escape(atob(r.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))));
+        if(p.aud!=form.gcid||p.exp*1000<Date.now()||!p.email)throw 0;
+        runUser={email:p.email,name:p.name||'',cid:form.gcid};
+        try{sessionStorage.ff_user=JSON.stringify(runUser)}catch{}
+        g.remove();addWho();
+      }catch{$('#gateErr').textContent='로그인 정보를 확인하지 못했습니다. 다시 시도해 주세요.'}
+    }});
+    google.accounts.id.renderButton($('#gsiBtn'),{theme:'outline',size:'large',locale:'ko'});
+  }catch(e){$('#gateErr').textContent=e.message}
+}
+document.addEventListener('click',e=>{
+  if(e.target.id=='signout'){
+    runUser=null;try{sessionStorage.removeItem('ff_user')}catch{}
+    try{google.accounts.id.disableAutoSelect()}catch{}
+    startRun();
+  }
+});
 const kbdOf=(q,j)=>String(j+1);
 function slideHTML(q,i){
   const isQ=!NOQ.includes(q.type);
@@ -718,12 +780,12 @@ function next(){
 }
 function submit(){
   const a=Object.fromEntries(Object.entries(ans).filter(([,v])=>v!==''&&v!=null));
-  const rec={at:new Date().toISOString(),a};
+  const rec={at:new Date().toISOString(),a,user:form.loginRequired&&runUser?{email:runUser.email,name:runUser.name}:undefined};
   if(!shared){const r=getRes();r.push(rec);try{localStorage[resKey()]=JSON.stringify(r)}catch{alert('저장 공간이 부족해 응답을 저장하지 못했습니다. 응답 탭에서 CSV로 내보낸 뒤 삭제해 주세요.')}}
   if(form.webhook){
     const label=k=>{const [id,x]=k.split('#'),q=runQs.find(z=>z.id==id);return (q?q.title:id)+(x=='note'?' (의견)':x=='img'?' (이미지)':'')};
     // images stay local: sheet cells can't hold them
-    const body={at:rec.at,form:form.title,answers:Object.fromEntries(Object.entries(a).map(([k,v])=>[label(k),k.endsWith('#img')?'[이미지 첨부]':v]))};
+    const body={at:rec.at,form:form.title,answers:Object.fromEntries([...(rec.user?[['이메일',rec.user.email],['이름',rec.user.name]]:[]),...Object.entries(a).map(([k,v])=>[label(k),k.endsWith('#img')?'[이미지 첨부]':v])])};
     fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).catch(()=>{});
   }
 }
@@ -753,6 +815,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('keydown',e=>{
   if($('#run').classList.contains('hide'))return;
   if(e.key=='Escape'&&!shared){closeRun();return}
+  if($('#gate'))return;
   const q=runQs[cur],s=document.querySelector(`.slide[data-i="${cur}"]`);
   if(e.key=='Enter'){
     if(e.target.tagName=='TEXTAREA'&&e.shiftKey)return;
@@ -770,23 +833,24 @@ document.addEventListener('keydown',e=>{
 function renderResults(){
   const rs=getRes(),qs=form.qs.filter(q=>!NOQ.includes(q.type));
   const fmt=v=>Array.isArray(v)?v.join(', '):v??'';
+  const hasU=rs.some(r=>r.user);
   const okImg=s=>/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(s||'');
   const txt=(r,q)=>fmt(r.a[q.id])+(r.a[q.id+'#note']?' / 의견: '+r.a[q.id+'#note']:'')+(r.a[q.id+'#img']?' [이미지]':'');
   const cell=(r,q)=>esc(fmt(r.a[q.id]))+(r.a[q.id+'#note']?`<div style="color:var(--muted)">💬 ${esc(r.a[q.id+'#note'])}</div>`:'')+(okImg(r.a[q.id+'#img'])?`<img src="${r.a[q.id+'#img']}" style="max-height:64px;display:block;margin-top:6px;border-radius:4px">`:'');
   $('#vResults').innerHTML=`<h2>${esc(form.title)} — 응답 ${rs.length}건</h2>
   <p style="color:var(--muted)">이 브라우저에 저장된 응답입니다. 다른 기기 응답을 모으려면 웹훅 URL을 설정하세요.</p>
   <button class="btn sm" id="xlsx">엑셀(.xlsx) 내보내기</button> <button class="btn ghost sm" id="csv">CSV</button> <button class="btn ghost sm" id="gs">구글 시트 실시간 연동</button> <button class="btn ghost sm" id="clr">응답 삭제</button>
-  <div style="overflow:auto;margin-top:16px"><table><tr><th>시간</th>${qs.map(q=>`<th>${esc(q.title)}</th>`).join('')}</tr>
-  ${rs.map(r=>`<tr><td>${new Date(r.at).toLocaleString()}</td>${qs.map(q=>`<td>${cell(r,q)}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="99">아직 응답이 없습니다</td></tr>'}</table></div>`;
+  <div style="overflow:auto;margin-top:16px"><table><tr><th>시간</th>${hasU?'<th>이메일</th><th>이름</th>':''}${qs.map(q=>`<th>${esc(q.title)}</th>`).join('')}</tr>
+  ${rs.map(r=>`<tr><td>${new Date(r.at).toLocaleString()}</td>${hasU?`<td>${esc(r.user&&r.user.email||'')}</td><td>${esc(r.user&&r.user.name||'')}</td>`:''}${qs.map(q=>`<td>${cell(r,q)}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="99">아직 응답이 없습니다</td></tr>'}</table></div>`;
   $('#csv').onclick=()=>{
     const c=v=>'"'+String(v).replace(/"/g,'""')+'"';
-    const out=[['시간',...qs.map(q=>q.title)].map(c).join(','),...rs.map(r=>[r.at,...qs.map(q=>txt(r,q))].map(c).join(','))].join('\n');
+    const out=[['시간',...(hasU?['이메일','이름']:[]),...qs.map(q=>q.title)].map(c).join(','),...rs.map(r=>[r.at,...(hasU?[r.user&&r.user.email||'',r.user&&r.user.name||'']:[]),...qs.map(q=>txt(r,q))].map(c).join(','))].join('\n');
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+out],{type:'text/csv'}));a.download=form.title+'.csv';a.click();
   };
   $('#xlsx').onclick=async()=>{
     try{
       if(!window.XLSX)await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=ok;s.onerror=no;document.head.append(s)});
-      const aoa=[['시간',...qs.map(q=>q.title)],...rs.map(r=>[new Date(r.at).toLocaleString(),...qs.map(q=>txt(r,q))])];
+      const aoa=[['시간',...(hasU?['이메일','이름']:[]),...qs.map(q=>q.title)],...rs.map(r=>[new Date(r.at).toLocaleString(),...(hasU?[r.user&&r.user.email||'',r.user&&r.user.name||'']:[]),...qs.map(q=>txt(r,q))])];
       const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'응답');
       XLSX.writeFile(wb,form.title+'.xlsx');
     }catch{alert('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하거나 CSV로 내보내세요.')}
