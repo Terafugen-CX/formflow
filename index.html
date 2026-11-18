@@ -727,7 +727,7 @@ const G_LOGO='<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"
 function adminGate(){
   const old=document.getElementById('adminGate');if(old)old.remove();
   const g=document.createElement('div');g.id='adminGate';g.className='agate';
-  g.innerHTML=`<div class="acard"><h2>FormFlow</h2><p>폼을 만들려면 구글 계정으로 로그인하세요.</p><button class="gbtn" id="agLogin">${G_LOGO}<span>Google로 로그인</span></button><div class="err" id="agErr"></div></div>`;
+  g.innerHTML=`<div class="acard"><h2>테라퓨젠 바이오 Form</h2><p>로그인 정보는 3일 동안 유지됩니다.</p><button class="gbtn" id="agLogin">${G_LOGO}<span>Google로 로그인</span></button><div class="err" id="agErr"></div></div>`;
   document.body.append(g);
   loadGIS().catch(()=>{});
 }
