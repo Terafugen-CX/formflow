@@ -94,9 +94,9 @@ header .crumb b{color:#191919;font-weight:600}
 .badd{display:flex;gap:4px;flex:none;padding-top:6px}
 .badd .btn{white-space:nowrap;font-size:12px;padding:5px 9px}
 .blk .ico{margin-top:8px}
-.crow span{width:56px}
-.crow{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;font-size:12px;font-weight:600;color:var(--muted)}
-.props .crow input[type=color]{width:112px;height:30px;padding:2px}
+.crow>span:first-child{width:72px;flex:none;text-align:left}
+.crow{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;font-weight:600;color:var(--muted)}
+.props .crow input[type=color]{width:112px;height:30px;padding:2px;margin:0 auto}
 .num{width:26px;height:26px;border:1px solid color-mix(in srgb,var(--accent) 60%,transparent);border-radius:4px;display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--accent);flex:none}
 .mcrow{align-items:center;margin-top:10px}
 .mcrow .btn{flex:none}
@@ -111,7 +111,8 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .who{position:absolute;left:18px;top:12px;font-size:13px;z-index:21;color:color-mix(in srgb,var(--fg) 60%,transparent)}
 .who button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:13px}
 #editor,.run{background-size:cover;background-position:center}
-.bgctl{width:112px;display:flex;align-items:center;gap:4px}
+.bgctl{width:112px;display:flex;align-items:center;gap:4px;margin:0 auto}
+.bgctl .btn{white-space:nowrap;font-size:11px;padding:5px 6px;width:100%}
 .bgth{height:30px;width:80px;object-fit:cover;border-radius:4px}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
