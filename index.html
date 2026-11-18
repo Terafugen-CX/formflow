@@ -134,6 +134,21 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .tdel{position:absolute;right:3px;top:0;border:0;background:none;cursor:pointer;font-size:11px;opacity:.6;color:inherit}
 .tbox .rt{padding:14px 2px 2px;min-height:1.4em}
 .tx{position:absolute;z-index:0;line-height:1.3;pointer-events:none;word-break:break-word}
+.ibox{position:absolute;z-index:2;border:1px dashed color-mix(in srgb,var(--accent) 60%,transparent);box-sizing:border-box}
+.ibox:hover{border-style:solid}
+.ibox img{width:100%;height:100%;object-fit:fill;display:block;pointer-events:none}
+.igrip,.idel{position:absolute;top:2px;background:rgba(255,255,255,.85);border-radius:4px;font-size:12px;line-height:1;padding:2px 4px;cursor:pointer;border:0;color:#333;z-index:3}
+.igrip{left:2px;cursor:move;touch-action:none;user-select:none}
+.idel{right:2px}
+.ih{position:absolute;z-index:3;touch-action:none}
+.ih::after{content:"";position:absolute;background:var(--accent);border-radius:3px;opacity:.85}
+.ih[data-dir=l],.ih[data-dir=r]{top:0;width:10px;height:100%;cursor:ew-resize}
+.ih[data-dir=l]{left:-5px}.ih[data-dir=r]{right:-5px}
+.ih[data-dir=t],.ih[data-dir=b]{left:0;height:10px;width:100%;cursor:ns-resize}
+.ih[data-dir=t]{top:-5px}.ih[data-dir=b]{bottom:-5px}
+.ih[data-dir=l]::after,.ih[data-dir=r]::after{left:3px;top:calc(50% - 12px);width:4px;height:24px}
+.ih[data-dir=t]::after,.ih[data-dir=b]::after{top:3px;left:calc(50% - 12px);height:4px;width:24px}
+.ix{position:absolute;z-index:0;object-fit:fill;pointer-events:none}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
 .field input,.field select{padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0;width:100%}
@@ -224,6 +239,7 @@ th{background:var(--card);font-weight:600}
 <div id="run" class="run hide"></div>
 <input type="file" id="imgFile" accept="image/*" hidden>
 <input type="file" id="bgFile" accept="image/*" hidden>
+<input type="file" id="boxImgFile" accept="image/*" hidden>
 <dialog id="sheetGuide">
   <h3 style="margin:0 0 4px">구글 시트 · 엑셀 실시간 연동</h3>
   <p style="color:var(--muted);margin:0 0 12px;font-size:14px">응답이 제출될 때마다 구글 시트에 한 줄씩 자동으로 쌓입니다. 구글 시트는 엑셀로 바로 열 수 있습니다. (무료)</p>
@@ -244,7 +260,7 @@ th{background:var(--card);font-weight:600}
       </ol>
     </details>
   </div>
-  <details style="margin-top:14px"><summary style="cursor:pointer;font-size:14px;color:var(--muted)">수동 방식 (Apps Script 직접 붙여넣기)</summary>
+  <details hidden style="margin-top:14px"><summary style="cursor:pointer;font-size:14px;color:var(--muted)">수동 방식 (Apps Script 직접 붙여넣기)</summary>
   <ol style="padding-left:20px;line-height:1.7;font-size:14px;margin:8px 0 10px">
     <li>구글 시트를 새로 만들고 <b>확장 프로그램 → Apps Script</b>를 엽니다.</li>
     <li>아래 코드를 복사해 기존 내용을 지우고 붙여넣은 뒤 저장합니다.</li>
@@ -255,7 +271,6 @@ th{background:var(--card);font-weight:600}
   <pre id="gsCode"></pre></details>
   <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
     <button class="btn ghost sm" id="gsTest">테스트 전송</button>
-    <button class="btn ghost sm" id="gsCopy">코드 복사</button>
     <button class="btn sm" id="gsClose">닫기</button>
   </div>
 </dialog>
@@ -267,13 +282,14 @@ const APP_GCID='355286319137-2cipbd76d4dd9159429q5cd7jbvkm8cd.apps.googleusercon
 // legacy types (choice/email/number/date) stay renderable for old forms but can no longer be added
 const TYPES={welcome:'시작 화면',text:'본문',short:'짧은 글',long:'긴 글',mc:'객관식',scale:'점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
 const TXTYPES=['welcome','end'];
+const SHEET_ICON='<svg width="18" height="16" viewBox="60 190 1110 820" aria-hidden="true"><defs><linearGradient id="sheetG" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#78c7fb"/><stop offset="1" stop-color="#78c7fb" stop-opacity="0"/></linearGradient></defs><rect x="75" y="290" width="200" height="620" rx="110" fill="#009b52"/><rect x="172" y="208" width="978" height="782" rx="120" fill="#10bc5f"/><rect x="172" y="288" width="640" height="622" fill="url(#sheetG)"/><rect x="869" y="440" width="73" height="465" rx="36" fill="#fff"/><rect x="478" y="716" width="587" height="73" rx="36" fill="#fff"/></svg>';
 const ADDABLE=['welcome','text','mc','scale','statement','end']
 const IMGRE=/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/;;
 const NOQ=['welcome','statement','end'];
 const YN={ko:['예','아니오'],ox:['O','X']};
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
-const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',bg:'',bgimg:'',texts:[],labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
+const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',bg:'',bgimg:'',texts:[],images:[],labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
 const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('text'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('mc'),{title:'다시 이용하실 의향이 있나요?',options:[{id:uid(),text:'예',img:''},{id:uid(),text:'아니오',img:''}]}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',labels:{1:'전혀 아니다',10:'매우 그렇다'}}),mk('end')]});
 // migrate old question types (rating / nps -> scale)
 function normalize(f){
@@ -309,6 +325,7 @@ function normalize(f){
     // free text boxes on welcome/end pages (position/size in % of the page, font size in cqw)
     const clamp=(v,a,b,d)=>{v=+v;return Number.isFinite(v)?Math.max(a,Math.min(b,v)):d};
     r.texts=TXTYPES.includes(r.type)&&Array.isArray(r.texts)?r.texts.slice(0,20).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,5,95,40),fs:clamp(t&&t.fs,0.8,12,3),html:t&&t.html?cleanHtml(t.html):'',text:String((t&&t.text)||'')})):[];
+    r.images=TXTYPES.includes(r.type)&&Array.isArray(r.images)?r.images.slice(0,10).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,3,95,30),h:clamp(t&&t.h,3,95,20),src:String((t&&t.src)||'')})).filter(t=>IMGRE.test(t.src)):[];
     return r;
   });
   // older forms had one form-wide background: copy it onto each page once, then drop it
@@ -385,6 +402,11 @@ function textBoxes(q){
   if(!TXTYPES.includes(q.type))return '';
   return q.texts.map(t=>`<div class="tbox" data-tid="${t.id}" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw"><span class="tgrip" title="드래그해서 이동">⠿</span><button class="tdel" data-tdel="${t.id}" title="삭제">✕</button><div class="rt" contenteditable="true" data-rt="t:${t.id}" data-ph="텍스트">${t.html||esc(t.text)}</div></div>`).join('');
 }
+// image boxes: x/y in % of the page, w/h in cqw (so the shape stays the same at any page size)
+function imageBoxes(q){
+  if(!TXTYPES.includes(q.type))return '';
+  return q.images.map(t=>`<div class="ibox" data-iid="${t.id}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw"><img src="${t.src}" draggable="false"><span class="igrip" title="드래그해서 이동">⠿</span><button class="idel" data-idel="${t.id}" title="삭제">✕</button><i class="ih" data-dir="l"></i><i class="ih" data-dir="r"></i><i class="ih" data-dir="t"></i><i class="ih" data-dir="b"></i></div>`).join('');
+}
 function blocksEditor(q){
   const rows=q.blocks.map(b=>b.kind=='img'
     ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div style="flex:1"><img class="qimg" draggable="false" src="${b.src}" style="max-height:160px;margin:0"></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
@@ -410,16 +432,16 @@ function renderBuild(){
     ${q.type=='mc'?mcEditor(q):blocksEditor(q)}
     ${q.type=='scale'?scaleEditor(q):''}
     ${q.type=='welcome'?`<div class="field"><label>버튼 글자</label><input value="${esc(q.btn)}" data-k="btn"></div>`:''}
-    ${previewHTML(q)}</div>${textBoxes(q)}`;
+    ${previewHTML(q)}</div>${textBoxes(q)}${imageBoxes(q)}`;
   $('#propsBody').innerHTML=`
     ${NOQ.includes(q.type)?'':`<div class="row"><input type="checkbox" id="req" ${q.required?'checked':''}><label for="req">필수 응답</label></div>`}
     ${q.type=='welcome'||q.type=='end'?'':'<div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>'}
-    ${TXTYPES.includes(q.type)?'<button class="btn ghost sm" id="addText" style="margin-top:12px;width:100%">＋ 텍스트 추가</button>':''}
+    ${TXTYPES.includes(q.type)?'<button class="btn ghost sm" id="addText" style="margin-top:12px;width:100%">＋ 텍스트 추가</button><button class="btn ghost sm" id="addBoxImg" style="margin-top:8px;width:100%">＋ 이미지 추가</button>':''}
     <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
     <div class="crow"><span>배경 색</span><input type="color" value="${q.bg||'#ffffff'}" data-k="bg"></div>
     <div class="crow"><span>배경 이미지</span><span class="bgctl">${q.bgimg?`<img class="bgth" src="${q.bgimg}"><button class="ico" id="bgdel" title="배경 이미지 삭제">✕</button>`:'<button class="btn ghost sm" id="bgpick">이미지 선택</button>'}</span></div>
     <div style="font-size:11px;color:var(--muted);margin-top:6px">배경 색·이미지는 지금 선택한 질문 페이지에만 적용됩니다</div>
-    <label class="f">구글 시트 연동 URL (선택)</label><button class="btn ghost sm" id="gs2" style="margin-bottom:6px">연동 방법 · 코드 보기</button><input type="text" placeholder="https://..." value="${esc(form.webhook)}" data-fp="webhook">`;
+    <button class="btn ghost sm" id="gs2" style="margin-top:16px;display:inline-flex;align-items:center;gap:8px">${SHEET_ICON}Sheet 연결</button>`;
 }
 document.addEventListener('input',e=>{
   const t=e.target,q=form.qs[sel];
@@ -638,6 +660,42 @@ document.addEventListener('pointerdown',e=>{
   const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);save()};
   addEventListener('pointermove',mv);addEventListener('pointerup',up);
 });
+/* image boxes on welcome/end pages: add, move (grip), stretch from any of the 4 edges */
+document.addEventListener('click',e=>{
+  const q=form.qs[sel];if(!q||!TXTYPES.includes(q.type))return;
+  if(e.target.closest('#addBoxImg'))$('#boxImgFile').click();
+  else if(e.target.closest('.idel')){const id=e.target.closest('.idel').dataset.idel;q.images=q.images.filter(t=>t.id!=id);save();renderBuild()}
+});
+document.addEventListener('change',e=>{
+  if(e.target.id!='boxImgFile')return;
+  const q=form.qs[sel],f=e.target.files[0];e.target.value='';
+  if(!q||!TXTYPES.includes(q.type))return;
+  readImg(f,d=>{
+    const im=new Image();
+    im.onload=()=>{
+      const w=30;q.images.push({id:uid(),x:30,y:25+(q.images.length%4)*8,w,h:Math.max(3,Math.min(90,w*im.height/im.width)),src:d});
+      save();renderBuild();
+    };
+    im.src=d;
+  },1200);
+});
+document.addEventListener('pointerdown',e=>{
+  const h=e.target.closest&&e.target.closest('.ih,.igrip');if(!h)return;
+  e.preventDefault();
+  const box=h.closest('.ibox'),ed=$('#editor'),im=form.qs[sel].images.find(x=>x.id==box.dataset.iid);
+  const dir=h.dataset.dir||'m',sx=e.clientX,sy=e.clientY,o={...im},W=ed.clientWidth,H=ed.clientHeight,MIN=3;
+  const mv=ev=>{
+    const dx=(ev.clientX-sx)/W*100,dy=(ev.clientY-sy)/H*100,dyw=(ev.clientY-sy)/W*100;
+    if(dir=='m'){im.x=Math.max(0,Math.min(95,o.x+dx));im.y=Math.max(0,Math.min(95,o.y+dy))}
+    else if(dir=='r')im.w=Math.max(MIN,o.w+dx);
+    else if(dir=='l'){const nw=Math.max(MIN,o.w-dx);im.x=o.x+(o.w-nw);im.w=nw}
+    else if(dir=='b')im.h=Math.max(MIN,o.h+dyw);
+    else if(dir=='t'){const nh=Math.max(MIN,o.h-dyw);im.y=o.y+(o.h-nh)*W/H;im.h=nh}
+    box.style.left=im.x+'%';box.style.top=im.y+'%';box.style.width=im.w+'cqw';box.style.height=im.h+'cqw';
+  };
+  const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);save()};
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);
+});
 let boxRO=null;
 // dragging the corner changes the box width; the text scales with it
 function applyBoxSize(box){
@@ -834,7 +892,7 @@ function slideHTML(q,i){
     :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
     :`<div class="go"><button class="btn go-btn">${last&&isQ?'제출':'확인 ✓'}</button><span>Enter ↵ 키를 누르세요</span></div>`;
   const sbg=`${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
-  return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}" style="${sbg}">${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
+  return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}" style="${sbg}">${(q.images||[]).map(t=>`<img class="ix" src="${t.src}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw">`).join('')}${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
     <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${(q.type=='mc'?[]:q.blocks).map(b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`:(b.text||b.html?`<div class="qdesc">${b.html||esc(b.text)}</div>`:'')).join('')}
     ${body}${extra}<div class="err"></div>${foot}</div></section>`;
