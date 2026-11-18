@@ -196,14 +196,32 @@ th{background:var(--card);font-weight:600}
 <dialog id="sheetGuide">
   <h3 style="margin:0 0 4px">구글 시트 · 엑셀 실시간 연동</h3>
   <p style="color:var(--muted);margin:0 0 12px;font-size:14px">응답이 제출될 때마다 구글 시트에 한 줄씩 자동으로 쌓입니다. 구글 시트는 엑셀로 바로 열 수 있습니다. (무료)</p>
-  <ol style="padding-left:20px;line-height:1.7;font-size:14px;margin:0 0 10px">
+  <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:#fafafa">
+    <div style="font-weight:600;margin-bottom:8px">버튼 한 번으로 새 시트를 만들고 자동 연동</div>
+    <label style="font-size:12px;color:var(--muted)">구글 OAuth 클라이언트 ID (처음 한 번만 입력)</label>
+    <input id="gcid" placeholder="123456-abc.apps.googleusercontent.com" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px">
+    <button class="btn sm" id="gsMake">구글 시트 만들고 연동</button>
+    <div id="gsStatus" style="font-size:13px;margin-top:8px;color:#444"></div>
+    <div id="gsLinks" style="font-size:13px;margin-top:6px;display:flex;gap:14px;flex-wrap:wrap"></div>
+    <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:var(--muted)">클라이언트 ID 만드는 법 (무료, 약 5분)</summary>
+      <ol style="padding-left:20px;line-height:1.7;font-size:13px;margin:6px 0 0">
+        <li><b>console.cloud.google.com</b>에서 프로젝트를 만듭니다.</li>
+        <li>API 및 서비스 → 라이브러리에서 <b>Google Sheets API</b>와 <b>Apps Script API</b>를 사용 설정합니다.</li>
+        <li>OAuth 동의 화면: 사용자 유형 <b>외부</b>, 본인 계정을 <b>테스트 사용자</b>로 추가합니다.</li>
+        <li>사용자 인증 정보 → OAuth 클라이언트 ID → <b>웹 애플리케이션</b>, 승인된 JavaScript 원본에 이 페이지 주소를 추가합니다. (예: https://terafugen-cx.github.io)</li>
+        <li><b>script.google.com/home/usersettings</b>에서 Google Apps Script API를 켭니다.</li>
+      </ol>
+    </details>
+  </div>
+  <details style="margin-top:14px"><summary style="cursor:pointer;font-size:14px;color:var(--muted)">수동 방식 (Apps Script 직접 붙여넣기)</summary>
+  <ol style="padding-left:20px;line-height:1.7;font-size:14px;margin:8px 0 10px">
     <li>구글 시트를 새로 만들고 <b>확장 프로그램 → Apps Script</b>를 엽니다.</li>
     <li>아래 코드를 복사해 기존 내용을 지우고 붙여넣은 뒤 저장합니다.</li>
     <li><b>배포 → 새 배포 → 웹 앱</b>: 실행 사용자 <b>나</b>, 액세스 권한 <b>모든 사용자</b>로 배포하고 승인합니다.</li>
     <li>나온 웹 앱 URL을 편집 화면 오른쪽 <b>구글 시트 연동 URL</b>에 붙여넣습니다.</li>
     <li>엑셀에서 쓰려면 시트의 <b>파일 → 다운로드 → .xlsx</b>, 또는 <b>파일 → 공유 → 웹에 게시 → CSV</b> 링크를 엑셀 <b>데이터 → 웹에서</b>로 연결하면 갱신됩니다.</li>
   </ol>
-  <pre id="gsCode"></pre>
+  <pre id="gsCode"></pre></details>
   <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
     <button class="btn ghost sm" id="gsTest">테스트 전송</button>
     <button class="btn ghost sm" id="gsCopy">코드 복사</button>
@@ -573,6 +591,77 @@ document.addEventListener('click',e=>{
   }
 });
 
+/* ---------- one-click Google Sheet + collector script (Google OAuth) ---------- */
+const gsCode=id=>`function doGet(){return ContentService.createTextOutput('FormFlow 연동 정상')}
+function doPost(e){
+  var d=JSON.parse(e.postData.contents);
+  var sh=SpreadsheetApp.openById('${id}').getSheets()[0];
+  if(!sh.getLastRow())sh.getRange(1,1).setValue('시간');
+  var head=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  Object.keys(d.answers).forEach(function(k){
+    if(head.indexOf(k)<0){head.push(k);sh.getRange(1,head.length).setValue(k)}
+  });
+  var row=head.map(function(h){
+    if(h==='시간')return new Date(d.at);
+    var v=d.answers[h];
+    return v===undefined?'':String(v).slice(0,5000);
+  });
+  sh.appendRow(row);
+  return ContentService.createTextOutput('ok');
+}`;
+const GSCOPE='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/script.projects https://www.googleapis.com/auth/script.deployments';
+const loadGIS=()=>new Promise((ok,no)=>{
+  if(window.google&&google.accounts&&google.accounts.oauth2)return ok();
+  const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';
+  s.onload=ok;s.onerror=()=>no(new Error('구글 로그인 스크립트를 불러오지 못했습니다'));document.head.append(s);
+});
+const gToken=cid=>new Promise((ok,no)=>{
+  google.accounts.oauth2.initTokenClient({client_id:cid,scope:GSCOPE,
+    callback:r=>r.access_token?ok(r.access_token):no(new Error(r.error_description||r.error||'로그인 실패')),
+    error_callback:e=>no(new Error(e.type||'로그인이 취소되었습니다'))}).requestAccessToken({prompt:'consent'});
+});
+async function gapi(tok,url,method,body){
+  const r=await fetch(url,{method,headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));
+  return j;
+}
+function showSheetState(){
+  const L=$('#gsLinks');L.innerHTML='';
+  if(/^https:\/\/docs\.google\.com\//.test(form.sheetUrl||''))L.innerHTML+=`<a href="${form.sheetUrl}" target="_blank" rel="noopener">📄 연동된 시트 열기</a>`;
+  if(/^https:\/\/script\.google\.com\//.test(form.webhook||'')&&form.sheetUrl)L.innerHTML+=`<a href="${form.webhook}" target="_blank" rel="noopener">✅ 최초 1회 승인하기</a>`;
+}
+async function createLink(){
+  const say=m=>$('#gsStatus').textContent=m,btn=$('#gsMake'),cid=$('#gcid').value.trim();
+  if(!/\.apps\.googleusercontent\.com$/.test(cid)){say('클라이언트 ID를 입력하세요 (…apps.googleusercontent.com)');return}
+  try{localStorage.ff_gcid=cid}catch{}
+  btn.disabled=true;
+  try{
+    say('구글 로그인 중…');await loadGIS();const tok=await gToken(cid);
+    say('① 새 구글 시트를 만드는 중…');
+    const sh=await gapi(tok,'https://sheets.googleapis.com/v4/spreadsheets','POST',{properties:{title:form.title+' 응답'}});
+    const titles=form.qs.filter(q=>!NOQ.includes(q.type)).map(q=>q.title);
+    await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/A1?valueInputOption=RAW`,'PUT',{values:[['시간',...titles]]});
+    say('② 응답 수집 스크립트를 만드는 중…');
+    const pr=await gapi(tok,'https://script.googleapis.com/v1/projects','POST',{title:'FormFlow 연동 - '+form.title});
+    await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/content`,'PUT',{files:[
+      {name:'Code',type:'SERVER_JS',source:gsCode(sh.spreadsheetId)},
+      {name:'appsscript',type:'JSON',source:JSON.stringify({timeZone:'Asia/Seoul',runtimeVersion:'V8',exceptionLogging:'STACKDRIVER',webapp:{access:'ANYONE_ANONYMOUS',executeAs:'USER_DEPLOYING'}})}]});
+    say('③ 배포하는 중…');
+    const ver=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/versions`,'POST',{description:'FormFlow'});
+    const dep=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/deployments`,'POST',{versionNumber:ver.versionNumber,manifestFileName:'appsscript',description:'FormFlow'});
+    const ep=(dep.entryPoints||[]).find(x=>x.webApp);
+    form.webhook=(ep&&ep.webApp.url)||`https://script.google.com/macros/s/${dep.deploymentId}/exec`;
+    form.sheetUrl=sh.spreadsheetUrl;save();renderBuild();showSheetState();
+    say('✓ 시트 생성과 연동이 끝났습니다. 아래 "최초 1회 승인하기"를 눌러 권한을 승인하면 응답이 시트에 쌓입니다.');
+  }catch(e){say('실패: '+e.message+' — Apps Script API가 꺼져 있다면 script.google.com/home/usersettings 에서 켜 주세요.')}
+  finally{btn.disabled=false}
+}
+document.addEventListener('click',e=>{
+  if(e.target.id=='gsMake')createLink();
+  else if(e.target.closest('#gs')||e.target.closest('#gs2')){try{$('#gcid').value=localStorage.ff_gcid||''}catch{}$('#gsStatus').textContent='';showSheetState()}
+});
+
 /* ---------- runner ---------- */
 let ans={},cur=0,runQs=[],submitted=false;
 function startRun(){
@@ -715,7 +804,7 @@ function setView(v){
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v));
 $('#play').onclick=startRun;
 $('#share').onclick=async()=>{
-  const {id,...f}=form;
+  const {id,sheetUrl,...f}=form;
   const url=location.href.split('#')[0]+'#f='+btoa(unescape(encodeURIComponent(JSON.stringify(f))));
   try{await navigator.clipboard.writeText(url);alert('링크가 복사되었습니다.\n링크를 열면 응답자 화면이 바로 시작됩니다.')}catch{prompt('링크 복사:',url)}
 };
