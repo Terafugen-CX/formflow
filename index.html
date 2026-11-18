@@ -38,7 +38,7 @@ header .crumb b{color:#191919;font-weight:600}
 .sec:first-child{margin-top:2px}
 .proj{display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500}
 .proj:hover{background:#efeff0}
-.proj.on{background:#eaeaec;font-weight:600}
+.proj .ico{width:auto;padding:0 5px;font-size:12px}
 .proj .nm{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .proj .acts{display:none}.proj:hover .acts{display:flex}
 .fitem{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 28px;border-radius:8px;cursor:pointer;font-size:13px;color:#3b3b40}
@@ -167,9 +167,13 @@ if(!store){
   const f=old?normalize(old):blankForm();
   store={projects:[{id:uid(),name:'내 프로젝트',forms:[f]}],pid:null,fid:f.id};
 }
-store.projects.forEach(p=>p.forms.forEach(normalize));
-const curProj=()=>store.projects.find(p=>p.id==store.pid)||store.projects[0];
-{const p=curProj();store.pid=p.id;form=p.forms.find(f=>f.id==store.fid)||p.forms[0];store.fid=form.id}
+const walk=(fs,fn,parent=null)=>fs.forEach(f=>{fn(f,parent);walk(f.folders,fn,f)});
+walk(store.projects,f=>{f.folders=f.folders||[];f.forms=f.forms||[];f.forms.forEach(normalize)});
+const findForm=id=>{let r;walk(store.projects,f=>{const m=f.forms.find(x=>x.id==id);if(m)r={form:m,folder:f}});return r};
+const findFolder=id=>{let r;walk(store.projects,(f,p)=>{if(f.id==id)r={f,p}});return r};
+const allForms=()=>{const a=[];walk(store.projects,f=>a.push(...f.forms));return a};
+const pathOf=fid=>{const r=findForm(fid);if(!r)return'';const n=[];let c=r.folder;while(c){n.unshift(c.name);c=findFolder(c.id).p}return n.join(' / ')};
+form=(findForm(store.fid)||{}).form||allForms()[0];store.fid=form.id;
 const save=()=>{try{localStorage.ff_store=JSON.stringify(store)}catch{}};
 const resKey=()=>'ff_res_'+form.id;
 const getRes=()=>{try{return JSON.parse(localStorage[resKey()]||'[]')}catch{return[]}};
@@ -181,13 +185,16 @@ if(location.hash.startsWith('#f=')){try{form=normalize(JSON.parse(decodeURICompo
 function theme(){for(const el of [$('#editor'),$('#run')]){const r=el.style;r.setProperty('--accent',form.accent);r.setProperty('--bg',form.bg);r.setProperty('--fg',form.fg)}}
 
 /* ---------- builder ---------- */
-function renderNav(){
-  $('#crumb').innerHTML=`${esc(curProj().name)} / <b>${esc(form.title)}</b>`;
-  $('#projs').innerHTML=store.projects.map(p=>{
-    const on=p.id==store.pid;
-    return `<div class="proj ${on?'on':''}" data-pid="${p.id}"><span>${on?'📂':'📁'}</span><span class="nm">${esc(p.name)}</span><span class="acts"><button class="ico" data-pren="${p.id}" title="이름 변경">✎</button><button class="ico" data-pdel="${p.id}" title="삭제">✕</button></span></div>`
-    +(on?p.forms.map(f=>`<div class="fitem ${f.id==form.id?'on':''}" data-fid="${f.id}"><span class="nm">${esc(f.title)}</span><button class="ico" data-fdel="${f.id}" title="삭제">✕</button></div>`).join('')+'<button class="addf" id="addform">＋ 새 폼</button>':'');
+function treeHTML(fs,d){
+  return fs.map(f=>{
+    const open=f.open!==false;
+    return `<div class="proj" style="padding-left:${8+d*14}px" data-pid="${f.id}"><span>${open?'📂':'📁'}</span><span class="nm">${esc(f.name)}</span><span class="acts"><button class="ico" data-addfm="${f.id}" title="폼 추가">＋📄</button><button class="ico" data-addsub="${f.id}" title="하위 폴더 추가">＋📁</button><button class="ico" data-pren="${f.id}" title="이름 변경">✎</button><button class="ico" data-pdel="${f.id}" title="삭제">✕</button></span></div>`
+    +(open?f.forms.map(m=>`<div class="fitem ${m.id==form.id?'on':''}" style="padding-left:${30+d*14}px" data-fid="${m.id}"><span class="nm">${esc(m.title)}</span><button class="ico" data-fren="${m.id}" title="이름 변경">✎</button><button class="ico" data-fdel="${m.id}" title="삭제">✕</button></div>`).join('')+treeHTML(f.folders,d+1):'');
   }).join('');
+}
+function renderNav(){
+  $('#crumb').innerHTML=`${esc(pathOf(form.id))} / <b>${esc(form.title)}</b>`;
+  $('#projs').innerHTML=treeHTML(store.projects,0);
 }
 function renderQs(){
   $('#list').innerHTML=form.qs.map((q,i)=>`<div class="qitem ${i==sel?'on':''}" data-i="${i}"><span class="n">${i+1}</span><span class="t">${esc(q.title)}</span><button class="ico" data-del="${i}">✕</button></div>`).join('');
@@ -239,31 +246,35 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{if(e.target.dataset.pv){renderBuild()}});
 document.addEventListener('click',e=>{
   if(view!='build'||!$('#run').classList.contains('hide'))return;
-  const t=e.target.closest('[data-i],[data-del],[data-add],[data-od],[data-mv],#addo,[data-pid],[data-pren],[data-pdel],[data-fid],[data-fdel],#addform,#addproj');
+  const t=e.target.closest('[data-i],[data-del],[data-add],[data-od],[data-mv],#addo,[data-pid],[data-pren],[data-pdel],[data-addfm],[data-addsub],[data-fid],[data-fren],[data-fdel],#addproj');
   if(!t)return;
   const q=form.qs[sel],d=t.dataset;
-  if(t.id=='addproj'){const n=prompt('프로젝트 이름');if(!n)return;const f=blankForm();const p={id:uid(),name:n,forms:[f]};store.projects.push(p);store.pid=p.id;store.fid=f.id;form=f;sel=0}
-  else if(d.pren){const p=store.projects.find(x=>x.id==d.pren);const n=prompt('프로젝트 이름 변경',p.name);if(!n)return;p.name=n}
+  const pickForm=id=>{form=findForm(id).form;store.fid=id;sel=0};
+  const newIn=folder=>{const f=blankForm();folder.forms.push(f);folder.open=true;pickForm(f.id)};
+  const mkFolder=n=>({id:uid(),name:n,forms:[],folders:[],open:true});
+  if(t.id=='addproj'){const n=prompt('폴더 이름');if(!n)return;const f=mkFolder(n);store.projects.push(f);newIn(f)}
+  else if(d.addsub){const n=prompt('하위 폴더 이름');if(!n)return;const p=findFolder(d.addsub).f;const f=mkFolder(n);p.folders.push(f);p.open=true;newIn(f)}
+  else if(d.addfm){newIn(findFolder(d.addfm).f)}
+  else if(d.pren){const f=findFolder(d.pren).f;const n=prompt('폴더 이름 변경',f.name);if(!n)return;f.name=n}
   else if(d.pdel){
-    if(store.projects.length<2){alert('프로젝트는 최소 1개가 필요합니다.');return}
-    const p=store.projects.find(x=>x.id==d.pdel);
-    if(!confirm(`"${p.name}" 프로젝트와 안의 폼 ${p.forms.length}개를 삭제할까요?`))return;
-    p.forms.forEach(f=>localStorage.removeItem('ff_res_'+f.id));
-    store.projects=store.projects.filter(x=>x!=p);
-    if(store.pid==p.id){const n=store.projects[0];store.pid=n.id;form=n.forms[0];store.fid=form.id;sel=0}
+    const {f,p}=findFolder(d.pdel);const ids=[];walk([f],x=>ids.push(...x.forms.map(m=>m.id)));
+    if(ids.length>=allForms().length){alert('폼이 최소 1개는 남아야 합니다.');return}
+    if(!confirm('"'+f.name+'" 폴더와 하위 폴더, 폼 '+ids.length+'개를 삭제할까요? 응답도 함께 삭제됩니다.'))return;
+    ids.forEach(id=>localStorage.removeItem('ff_res_'+id));
+    const arr=p?p.folders:store.projects;arr.splice(arr.indexOf(f),1);
+    if(ids.includes(form.id)){form=allForms()[0];store.fid=form.id;sel=0}
   }
-  else if(d.pid){if(d.pid==store.pid)return;const p=store.projects.find(x=>x.id==d.pid);store.pid=p.id;form=p.forms[0];store.fid=form.id;sel=0}
-  else if(t.id=='addform'){const f=blankForm();curProj().forms.push(f);form=f;store.fid=f.id;sel=0}
+  else if(d.pid){const f=findFolder(d.pid).f;f.open=f.open===false}
+  else if(d.fren){const r=findForm(d.fren);const n=prompt('폼 이름 변경',r.form.title);if(!n)return;r.form.title=n}
   else if(d.fdel){
-    const p=curProj();
-    if(p.forms.length<2){alert('프로젝트에는 최소 1개의 폼이 필요합니다.');return}
-    const f=p.forms.find(x=>x.id==d.fdel);
-    if(!confirm(`"${f.title}" 폼을 삭제할까요? 응답도 함께 삭제됩니다.`))return;
-    localStorage.removeItem('ff_res_'+f.id);
-    p.forms=p.forms.filter(x=>x!=f);
-    if(form==f){form=p.forms[0];store.fid=form.id;sel=0}
+    if(allForms().length<2){alert('폼이 최소 1개는 남아야 합니다.');return}
+    const r=findForm(d.fdel);
+    if(!confirm('"'+r.form.title+'" 폼을 삭제할까요? 응답도 함께 삭제됩니다.'))return;
+    localStorage.removeItem('ff_res_'+r.form.id);
+    r.folder.forms.splice(r.folder.forms.indexOf(r.form),1);
+    if(form==r.form){form=allForms()[0];store.fid=form.id;sel=0}
   }
-  else if(d.fid){if(d.fid==form.id)return;form=curProj().forms.find(x=>x.id==d.fid);store.fid=form.id;sel=0}
+  else if(d.fid){if(d.fid==form.id)return;pickForm(d.fid)}
   else if(d.del!=null){form.qs.splice(+d.del,1);sel=Math.max(0,Math.min(sel,form.qs.length-1))}
   else if(d.add){form.qs.push(mk(d.add));sel=form.qs.length-1}
   else if(d.i!=null)sel=+d.i;
@@ -271,6 +282,11 @@ document.addEventListener('click',e=>{
   else if(t.id=='addo')q.options.push('옵션 '+(q.options.length+1));
   else if(d.mv){const j=sel+ +d.mv;if(j>=0&&j<form.qs.length){[form.qs[sel],form.qs[j]]=[form.qs[j],form.qs[sel]];sel=j}}
   save();renderBuild();
+});
+document.addEventListener('dblclick',e=>{
+  const t=e.target.closest('.fitem');if(!t||view!='build')return;
+  const r=findForm(t.dataset.fid);const n=prompt('폼 이름 변경',r.form.title);
+  if(n){r.form.title=n;save();renderBuild()}
 });
 
 /* ---------- runner ---------- */
