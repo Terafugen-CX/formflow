@@ -196,10 +196,12 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .ogrip{cursor:grab;color:#888}
 .odrag{opacity:.45}
 .odrop{outline:2px dashed var(--accent);outline-offset:3px;border-radius:8px}
+.runmsg{margin:auto;color:#666;font-size:16px;text-align:center;padding:40px}
 .oslot{display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:4/3;border:1.5px dashed #d6d9e0;border-radius:6px;background:none;color:#c4c8d0;font-size:28px;cursor:pointer}.oslot:hover{color:var(--accent);border-color:var(--accent)}.oslot.oslotS{width:36px;height:28px;aspect-ratio:auto;font-size:16px;margin-left:auto;flex:none}#stage [data-oi] img[data-oimg]{cursor:pointer}
 .ob.obw{width:auto;padding:0 8px;font-size:12px;white-space:nowrap}
 .choice.card.ed{position:relative}
-.choice.card .otools{position:absolute;top:6px;right:6px}
+/* card tools sit in their own row above the label so they never cover it; images sink to the card bottom so a row lines up */
+.choice.card .otools{order:-1;align-self:flex-end;margin:-4px -4px -4px 0}.mcgrid .choice .cimg,.mcgrid .choice .oslot{margin-top:auto}.mcgrid .choice .ctop{align-items:flex-start}.mcgrid .choice .ctop kbd{flex:none}
 .laybar{position:absolute;top:10px;right:10px;z-index:4}
 #stage .in .ansE{pointer-events:auto;cursor:text}
 .ansE .rt{color:color-mix(in srgb,var(--fg) 45%,transparent);min-height:1.2em;outline:0}
@@ -408,10 +410,12 @@ const uid=()=>Math.random().toString(36).slice(2,9);
 const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',bg:'',bgimg:'',texts:[],images:[],jumps:{},fx:null,fy:null,layout:'list',labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''},...(t=='text'?[{id:uid(),kind:'answer',low:true,text:'',html:''}]:[])]});
 const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('text'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('mc'),{title:'다시 이용하실 의향이 있나요?',options:[{id:uid(),text:'예',img:''},{id:uid(),text:'아니오',img:''}]}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',labels:{1:'전혀 아니다',10:'매우 그렇다'}}),mk('end')]});
 // migrate old question types (rating / nps -> scale)
+const WEBHOOKRE=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/;
 function normalize(f){
   f.id=f.id||uid();
   f.gcid=/^[\w.-]+\.apps\.googleusercontent\.com$/.test(f.gcid||'')?f.gcid:'';
   f.loginRequired=!!f.loginRequired;
+  f.webhook=WEBHOOKRE.test(f.webhook||'')?f.webhook:'';
   f.bgimg=IMGRE.test(f.bgimg||'')?f.bgimg:'';
   f.qs=f.qs.map(q=>{
     if(q.type=='rating'){q.type='scale';q.max=q.max||5}
@@ -486,8 +490,18 @@ const save=()=>{try{localStorage.ff_store=JSON.stringify(store)}catch{}};
 const resKey=()=>'ff_res_'+form.id;
 const getRes=()=>{try{return JSON.parse(localStorage[resKey()]||'[]')}catch{return[]}};
 
-let shared=false;
-if(location.hash.startsWith('#f=')){try{form=normalize(JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3))))));shared=true}catch{}}
+// share links: #s=<Apps Script deployment id> (form stored in the linked sheet), #z= deflate+base64url, #f= old plain base64
+async function zip(t){const u=new Uint8Array(await new Response(new Blob([t]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode(...u.subarray(i,i+8192));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+async function unzip(z){const b=Uint8Array.from(atob(z.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));return new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text()}
+const H=location.hash;
+let shared=/^#[szf]=/.test(H);
+async function loadShared(){
+  if(H.startsWith('#f='))return JSON.parse(decodeURIComponent(escape(atob(H.slice(3)))));
+  if(H.startsWith('#z='))return JSON.parse(await unzip(H.slice(3)));
+  const id=H.slice(3);if(!/^[\w-]{10,120}$/.test(id))throw 0;
+  const url='https://script.google.com/macros/s/'+id+'/exec',f=await (await fetch(url+'?form=1')).json();
+  if(!f)throw 0;f.webhook=url;return f;
+}
 
 // theme only the canvas and runner, not the builder chrome
 // the canvas shows the selected question's own background; the runner sets each slide's background itself
@@ -1161,9 +1175,26 @@ document.addEventListener('click',e=>{
 });
 
 /* ---------- one-click Google Sheet + collector script (Google OAuth) ---------- */
-const gsCode=id=>`function doGet(){return ContentService.createTextOutput('FormFlow 연동 정상')}
+const gsCode=(id,key)=>`var KEY='${key}';
+function doGet(e){
+  if(e&&e.parameter&&e.parameter.form){
+    var fs=SpreadsheetApp.openById('${id}').getSheetByName('_form');
+    var j=fs&&fs.getLastRow()?fs.getRange(1,1,fs.getLastRow(),1).getValues().map(function(r){return r[0]}).join(''):'';
+    return ContentService.createTextOutput(j||'null').setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService.createTextOutput('FormFlow 연동 정상');
+}
 function doPost(e){
   var d=JSON.parse(e.postData.contents);
+  if(d.saveForm){
+    if(d.key!==KEY)return ContentService.createTextOutput('denied');
+    var ss=SpreadsheetApp.openById('${id}'),fs=ss.getSheetByName('_form')||ss.insertSheet('_form',ss.getSheets().length);
+    fs.clear();fs.hideSheet();
+    var j=JSON.stringify(d.form),rows=[];
+    for(var i=0;i<j.length;i+=40000)rows.push([j.slice(i,i+40000)]);
+    fs.getRange(1,1,rows.length,1).setNumberFormat('@').setValues(rows);
+    return ContentService.createTextOutput('ok');
+  }
   var sh=SpreadsheetApp.openById('${id}').getSheets()[0];
   if(!sh.getLastRow())sh.getRange(1,1).setValue('시간');
   var head=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
@@ -1205,6 +1236,7 @@ async function createLink(){
   if(!/\.apps\.googleusercontent\.com$/.test(cid)){say('클라이언트 ID를 입력하세요 (…apps.googleusercontent.com)');return}
   try{localStorage.ff_gcid=cid}catch{}
   form.gcid=cid;save();
+  form.wkey=Array.from(crypto.getRandomValues(new Uint8Array(18)),b=>(b%36).toString(36)).join('');save();
   btn.disabled=true;
   try{
     say('구글 로그인 중…');await loadGIS();const tok=await gToken(cid);
@@ -1217,7 +1249,7 @@ async function createLink(){
     await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/A1?valueInputOption=RAW`,'PUT',{values:[['시간',...(form.loginRequired?['이메일','이름']:[]),...titles]]});
     say('③ 스크립트를 시트에 연결하는 중…');
     await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/content`,'PUT',{files:[
-      {name:'Code',type:'SERVER_JS',source:gsCode(sh.spreadsheetId)},
+      {name:'Code',type:'SERVER_JS',source:gsCode(sh.spreadsheetId,form.wkey)},
       {name:'appsscript',type:'JSON',source:JSON.stringify({timeZone:'Asia/Seoul',runtimeVersion:'V8',exceptionLogging:'STACKDRIVER',webapp:{access:'ANYONE_ANONYMOUS',executeAs:'USER_DEPLOYING'}})}]});
     say('④ 배포하는 중…');
     const ver=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/versions`,'POST',{description:'FormFlow'});
@@ -1451,11 +1483,17 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v))
 $('#play').onclick=startRun;
 $('#share').onclick=async()=>{
   if(form.loginRequired&&!form.gcid){alert('구글 로그인을 쓰려면 먼저 오른쪽 패널에 구글 클라이언트 ID를 입력해 주세요.');return}
-  const {id,sheetUrl,...f}=form;
-  const url=location.href.split('#')[0]+'#f='+btoa(unescape(encodeURIComponent(JSON.stringify(f))));
+  const {id,sheetUrl,wkey,...f}=form,base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
+  let url;
+  if(dep&&wkey){
+    try{await fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({saveForm:1,key:wkey,form:f})})}
+    catch{alert('폼을 구글 시트에 저장하지 못했습니다. 인터넷 연결을 확인해 주세요.');return}
+    url=base+'#s='+dep[1];
+  }else url=base+'#z='+await zip(JSON.stringify(f));
   try{await navigator.clipboard.writeText(url);alert('링크가 복사되었습니다.\n링크를 열면 응답자 화면이 바로 시작됩니다.')}catch{prompt('링크 복사:',url)}
 };
-if(shared){document.querySelector('header').classList.add('hide');$('#vBuild').classList.add('hide');startRun()}
+if(shared){document.querySelector('header').classList.add('hide');$('#vBuild').classList.add('hide');$('#run').classList.remove('hide');$('#run').innerHTML='<p class="runmsg">불러오는 중…</p>';
+  loadShared().then(f=>{form=normalize(f);startRun()},()=>{$('#run').innerHTML='<p class="runmsg">폼을 불러오지 못했습니다. 링크를 다시 확인해 주세요.</p>'})}
 else{save();setView('build');adminInit()}
 </script>
 </body>
