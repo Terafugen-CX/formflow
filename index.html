@@ -183,6 +183,12 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 #stage .blk>.ico{position:absolute;right:-30px;top:0;opacity:0}
 #stage .blk:hover>.grip,#stage .blk:hover>.badd,#stage .blk:hover>.ico{opacity:1}
 #stage .in>.badd{opacity:0}#stage .in:hover>.badd{opacity:1}
+.chk{display:flex;gap:12px;align-items:flex-start;margin:0 0 18px;cursor:pointer}
+.chk input{width:22px;height:22px;margin:3px 0 0;flex:none;accent-color:var(--accent);cursor:pointer}
+.chk .qdesc{margin:0}
+.chkprev{width:22px;height:22px;margin:3px 0 0;flex:none;accent-color:var(--accent)}
+#stage .blk:has(.chkprev){display:flex;gap:12px;align-items:flex-start}
+#stage .blk:has(.chkprev) .rt.desc{flex:1;margin:0 0 18px}
 .fcard{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px;background:#fff}
 .fh{display:flex;align-items:center;gap:10px;font-weight:600}
 .fh small{color:var(--muted);font-weight:400;flex:none}
@@ -325,10 +331,10 @@ th{background:var(--card);font-weight:600}
 // Create it once in Google Cloud Console and paste it here; leave empty to run without login.
 const APP_GCID='355286319137-2cipbd76d4dd9159429q5cd7jbvkm8cd.apps.googleusercontent.com';
 // legacy types (choice/email/number/date) stay renderable for old forms but can no longer be added
-const TYPES={welcome:'시작 화면',text:'본문',short:'짧은 글',long:'긴 글',mc:'객관식',scale:'점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',end:'끝 화면'};
+const TYPES={welcome:'시작 화면',text:'본문',short:'짧은 글',long:'긴 글',mc:'객관식',scale:'점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',check:'체크박스',end:'끝 화면'};
 const TXTYPES=['welcome','end'];
 const SHEET_ICON='<svg width="18" height="16" viewBox="60 190 1110 820" aria-hidden="true"><defs><linearGradient id="sheetG" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#78c7fb"/><stop offset="1" stop-color="#78c7fb" stop-opacity="0"/></linearGradient></defs><rect x="75" y="290" width="200" height="620" rx="110" fill="#009b52"/><rect x="172" y="208" width="978" height="782" rx="120" fill="#10bc5f"/><rect x="172" y="288" width="640" height="622" fill="url(#sheetG)"/><rect x="869" y="440" width="73" height="465" rx="36" fill="#fff"/><rect x="478" y="716" width="587" height="73" rx="36" fill="#fff"/></svg>';
-const ADDABLE=['welcome','text','mc','scale','statement','end']
+const ADDABLE=['welcome','text','mc','scale','check','end']
 const IMGRE=/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/;;
 const NOQ=['welcome','statement','end'];
 const YN={ko:['예','아니오'],ox:['O','X']};
@@ -455,7 +461,7 @@ function imageBoxes(q){
 function blocksEditor(q){
   const rows=q.blocks.map(b=>b.kind=='img'
     ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div style="flex:1"><img class="qimg" draggable="false" src="${b.src}" style="max-height:160px;margin:0"></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
-    :`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div class="rt desc" contenteditable="true" data-rt="b:${b.id}" data-ph="내용">${b.html||esc(b.text)}</div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`).join('');
+    :`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${q.type=='check'?'<input type="checkbox" class="chkprev" disabled>':''}<div class="rt desc" contenteditable="true" data-rt="b:${b.id}" data-ph="내용">${b.html||esc(b.text)}</div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`).join('');
   return rows||`<div class="badd" style="margin-top:12px">${BADD}</div>`;
 }
 function scaleEditor(q){
@@ -853,6 +859,14 @@ document.addEventListener('change',e=>{
   save();
 });
 
+// checkbox page: answer = texts of the ticked items
+document.addEventListener('change',e=>{
+  const cb=e.target.closest&&e.target.closest('.chk input');if(!cb)return;
+  const s=cb.closest('.slide');if(!s)return;
+  const q=runQs[+s.dataset.i];
+  ans[q.id]=[...s.querySelectorAll('.chk input:checked')].map(x=>x.closest('.chk').textContent.trim());
+});
+
 /* ---------- background image ---------- */
 document.addEventListener('click',e=>{
   if(e.target.closest('#bgpick'))$('#bgFile').click();
@@ -1029,7 +1043,7 @@ function slideHTML(q,i){
   else if(q.type=='long')body='<textarea class="ans" rows="3" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>';
   else if(q.type=='mc')body=q.options.map((o,j)=>`<button class="choice" data-v="${esc(o.text)}"><kbd>${kbdOf(q,j)}</kbd>${o.img?`<img class="oimgv" src="${o.img}">`:''}<span>${esc(o.text)}</span></button>`).join('');
   else if(q.type=='scale')body=`<div class="scale">${Array.from({length:q.max},(_,j)=>`<div class="sc"><button data-v="${j+1}">${j+1}</button><span>${esc(q.labels[j+1]||'')}</span></div>`).join('')}</div>`;
-  const extra=isQ&&q.type!='text'?'<div class="extra"><textarea class="note" rows="1" placeholder="추가 의견 (선택)"></textarea></div>':'';
+  const extra=isQ&&q.type!='text'&&q.type!='check'?'<div class="extra"><textarea class="note" rows="1" placeholder="추가 의견 (선택)"></textarea></div>':'';
   const last=!runQs[i+1]||runQs[i+1].type=='end';
   const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
     :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
@@ -1037,7 +1051,7 @@ function slideHTML(q,i){
   const sbg=`${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
   return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}" style="${sbg}">${(q.images||[]).map(t=>`<img class="ix" src="${t.src}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw">`).join('')}${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
-    <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${(q.type=='mc'?[]:q.blocks).map(b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`:(b.text||b.html?`<div class="qdesc">${b.html||esc(b.text)}</div>`:'')).join('')}
+    <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${(q.type=='mc'?[]:q.blocks).map(b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`:(b.text||b.html?(q.type=='check'?`<label class="chk"><input type="checkbox"><span class="qdesc">${b.html||esc(b.text)}</span></label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'')).join('')}
     ${body}${extra}<div class="err"></div>${foot}</div></section>`;
 }
 function show(i){
@@ -1053,6 +1067,8 @@ function validate(i){
   err.textContent='';
   if(NOQ.includes(q.type))return true;
   if(empty){if(q.required){err.textContent='이 질문은 필수입니다';return false}return true}
+  // required checkbox page = every item must be ticked (agreement)
+  if(q.type=='check'&&q.required&&v.length<q.blocks.filter(b=>b.kind=='text'&&(b.text||b.html)).length){err.textContent='모든 항목에 체크해 주세요';return false}
   if(q.type=='email'&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){err.textContent='올바른 이메일을 입력하세요';return false}
   return true;
 }
