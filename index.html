@@ -183,6 +183,15 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 #stage .blk>.ico{position:absolute;right:-30px;top:0;opacity:0}
 #stage .blk:hover>.grip,#stage .blk:hover>.badd,#stage .blk:hover>.ico{opacity:1}
 #stage .in>.badd{opacity:0}#stage .in:hover>.badd{opacity:1}
+.kindrow{display:flex;align-items:center;justify-content:space-between}
+.lay{display:flex;gap:6px}
+.lay button{width:34px;height:30px;border:1px solid var(--line);background:#fff;border-radius:6px;color:#777;cursor:pointer;display:grid;place-items:center;padding:0}
+.lay button.on{border-color:var(--ui);color:var(--ui);background:#eef3fc}
+.lay svg{fill:currentColor}
+.mcgrid{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
+.mcgrid .choice{flex-direction:column;align-items:stretch;gap:10px;width:calc((100% - 24px)/3);min-width:150px;max-width:none;margin:0;padding:12px}
+.choice .ctop{display:flex;align-items:center;gap:8px}
+.choice .cimg{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;display:block}
 .chk{display:flex;gap:12px;align-items:flex-start;margin:0 0 18px;cursor:pointer}
 .chk input{width:22px;height:22px;margin:3px 0 0;flex:none;accent-color:var(--accent);cursor:pointer}
 .chk .qdesc{margin:0}
@@ -340,7 +349,7 @@ const NOQ=['welcome','statement','end'];
 const YN={ko:['예','아니오'],ox:['O','X']};
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
-const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',bg:'',bgimg:'',texts:[],images:[],jumps:{},labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
+const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',bg:'',bgimg:'',texts:[],images:[],jumps:{},layout:'list',labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
 const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('text'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('mc'),{title:'다시 이용하실 의향이 있나요?',options:[{id:uid(),text:'예',img:''},{id:uid(),text:'아니오',img:''}]}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',labels:{1:'전혀 아니다',10:'매우 그렇다'}}),mk('end')]});
 // migrate old question types (rating / nps -> scale)
 function normalize(f){
@@ -377,6 +386,7 @@ function normalize(f){
     const clamp=(v,a,b,d)=>{v=+v;return Number.isFinite(v)?Math.max(a,Math.min(b,v)):d};
     r.texts=TXTYPES.includes(r.type)&&Array.isArray(r.texts)?r.texts.slice(0,20).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,5,95,40),fs:clamp(t&&t.fs,0.8,12,3),html:t&&t.html?cleanHtml(t.html):'',text:String((t&&t.text)||'')})):[];
     r.images=TXTYPES.includes(r.type)&&Array.isArray(r.images)?r.images.slice(0,10).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,3,95,30),h:clamp(t&&t.h,3,95,20),src:String((t&&t.src)||''),orig:String((t&&t.orig)||''),tol:clamp(t&&t.tol,10,120,48)})).filter(t=>IMGRE.test(t.src)).map(t=>({...t,orig:IMGRE.test(t.orig)?t.orig:''})):[];
+    r.layout=r.layout=='grid'?'grid':'list';
     // workflow: answer key (option id / score / "*") -> target question id
     r.jumps=(r.jumps&&typeof r.jumps=='object'&&!Array.isArray(r.jumps))?Object.fromEntries(Object.entries(r.jumps).filter(([k,v])=>/^[\w*-]{1,40}$/.test(k)&&/^[\w-]{1,40}$/.test(String(v))).map(([k,v])=>[k,String(v)])):{};
     return r;
@@ -446,6 +456,8 @@ function renderQs(){
   }).join('');
 }
 const BADD='<button class="btn ghost sm" data-addtxt="1" title="내용 추가">＋</button><button class="btn ghost sm" data-addimg="1" title="이미지 추가">＋ 이미지</button>';
+// two layout switches for 객관식: 세로 목록 / 카드(텍스트 위, 이미지 아래)
+const layBtns=q=>`<span class="lay"><button data-lay="list" class="${q.layout!='grid'?'on':''}" title="세로 목록"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="3" width="14" height="3" rx="1"/><rect x="2" y="7.5" width="14" height="3" rx="1"/><rect x="2" y="12" width="14" height="3" rx="1"/></svg></button><button data-lay="grid" class="${q.layout=='grid'?'on':''}" title="카드"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="10" y="2" width="6" height="6" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/><rect x="10" y="10" width="6" height="6" rx="1"/></svg></button></span>`;
 function mcEditor(q){
   return q.options.map((o,j)=>`<div class="opt mcrow"><span class="num">${j+1}</span><input data-ot="${o.id}" value="${esc(o.text)}" placeholder="선택지 문구">${o.img?`<span class="othumb"><img src="${o.img}" draggable="false"><button class="ico" data-oimgdel="${o.id}" title="이미지 삭제">✕</button></span>`:`<button class="btn ghost sm" data-oimg="${o.id}" title="이미지 추가">🖼</button>`}<button class="btn ghost sm" data-oadd="${o.id}" title="선택지 추가">＋</button><button class="btn ghost sm" data-odel="${o.id}" title="삭제">✕</button></div>`).join('');
 }
@@ -527,7 +539,7 @@ function renderBuild(){
   theme();renderNav();renderQs();
   const q=form.qs[sel];
   if(!q){$('#editor').innerHTML='';$('#propsBody').innerHTML='';return}
-  $('#editor').innerHTML=`<div id="stageWrap"><div id="stage"></div></div><div class="edit epanel"><div class="kind">${sel+1} · ${TYPES[q.type]}</div>
+  $('#editor').innerHTML=`<div id="stageWrap"><div id="stage"></div></div><div class="edit epanel"><div class="kind kindrow"><span>${sel+1} · ${TYPES[q.type]}</span>${q.type=='mc'?layBtns(q):''}</div>
     ${q.type=='mc'?mcEditor(q):''}
     ${q.type=='scale'?scaleEditor(q):''}
     ${q.type=='welcome'?`<div class="field"><label>버튼 글자</label><input value="${esc(q.btn)}" data-k="btn"></div>`:''}
@@ -566,7 +578,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{if(e.target.dataset.pv){renderBuild()}});
 document.addEventListener('click',e=>{
   if(view!='build'||!$('#run').classList.contains('hide'))return;
-  const t=e.target.closest('[data-i],[data-del],[data-add],[data-oadd],[data-odel],[data-oimg],[data-oimgdel],[data-mv],[data-pid],[data-pren],[data-pdel],[data-addfm],[data-addsub],[data-fid],[data-fren],[data-fdel],#addproj,[data-addtxt],[data-addimg],[data-bdel],#addlb,[data-lbdel]');
+  const t=e.target.closest('[data-i],[data-del],[data-add],[data-oadd],[data-odel],[data-oimg],[data-oimgdel],[data-mv],[data-pid],[data-pren],[data-pdel],[data-addfm],[data-addsub],[data-fid],[data-fren],[data-fdel],#addproj,[data-addtxt],[data-addimg],[data-bdel],#addlb,[data-lbdel],[data-lay]');
   if(!t)return;
   const q=form.qs[sel],d=t.dataset;
   const pickForm=id=>{form=findForm(id).form;store.fid=id;sel=0};
@@ -612,6 +624,7 @@ document.addEventListener('click',e=>{
   else if(d.bdel){q.blocks=q.blocks.filter(b=>b.id!=d.bdel)}
   else if(t.id=='addlb'){const n=Array.from({length:q.max},(_,i)=>i+1).find(i=>q.labels[i]===undefined);if(!n)return;q.labels[n]=''}
   else if(d.lbdel){delete q.labels[d.lbdel]}
+  else if(d.lay){q.layout=d.lay=='grid'?'grid':'list'}
   else if(d.i!=null)sel=+d.i;
   else if(d.oadd){const i=q.options.findIndex(o=>o.id==d.oadd);q.options.splice(i+1,0,{id:uid(),text:'옵션 '+(q.options.length+1),img:''})}
   else if(d.odel){if(q.options.length<2)return;q.options=q.options.filter(o=>o.id!=d.odel)}
@@ -1041,7 +1054,13 @@ function slideHTML(q,i){
   else if(q.type=='number')body='<input class="ans" type="number" placeholder="0">';
   else if(q.type=='date')body='<input class="ans" type="date">';
   else if(q.type=='long')body='<textarea class="ans" rows="3" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>';
-  else if(q.type=='mc')body=q.options.map((o,j)=>`<button class="choice" data-v="${esc(o.text)}"><kbd>${kbdOf(q,j)}</kbd>${o.img?`<img class="oimgv" src="${o.img}">`:''}<span>${esc(o.text)}</span></button>`).join('');
+  else if(q.type=='mc'){
+    const card=q.layout=='grid';   // grid = one square card per option: text on top, image below
+    const items=q.options.map((o,j)=>card
+      ?`<button class="choice card" data-v="${esc(o.text)}"><span class="ctop"><kbd>${kbdOf(q,j)}</kbd><span>${esc(o.text)}</span></span>${o.img?`<img class="cimg" src="${o.img}">`:''}</button>`
+      :`<button class="choice" data-v="${esc(o.text)}"><kbd>${kbdOf(q,j)}</kbd>${o.img?`<img class="oimgv" src="${o.img}">`:''}<span>${esc(o.text)}</span></button>`).join('');
+    body=card?`<div class="mcgrid">${items}</div>`:items;
+  }
   else if(q.type=='scale')body=`<div class="scale">${Array.from({length:q.max},(_,j)=>`<div class="sc"><button data-v="${j+1}">${j+1}</button><span>${esc(q.labels[j+1]||'')}</span></div>`).join('')}</div>`;
   const extra=isQ&&q.type!='text'&&q.type!='check'?'<div class="extra"><textarea class="note" rows="1" placeholder="추가 의견 (선택)"></textarea></div>':'';
   const last=!runQs[i+1]||runQs[i+1].type=='end';
