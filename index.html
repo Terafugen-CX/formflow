@@ -1248,9 +1248,11 @@ document.addEventListener('click',e=>{
   else if(t.id=='gsClose')$('#sheetGuide').close();
   else if(t.id=='gsCopy')navigator.clipboard.writeText(GS_CODE).then(()=>{t.textContent='복사됨 ✓';setTimeout(()=>t.textContent='코드 복사',1500)},()=>prompt('코드 복사:',GS_CODE));
   else if(t.id=='gsTest'){
-    if(!form.webhook){alert('먼저 오른쪽 "구글 시트 연동 URL"에 웹 앱 URL을 붙여넣어 주세요.');return}
-    fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({at:new Date().toISOString(),form:form.title,answers:{'테스트':'연동 확인'}})})
-      .then(()=>alert('테스트 행을 보냈습니다. 구글 시트를 확인하세요.'),()=>alert('전송에 실패했습니다. URL을 확인하세요.'));
+    if(!form.webhook){alert('먼저 구글 시트를 연동해 주세요.');return}
+    // one row through the same path as a real answer: "(테스트)" in every column of this form, hidden columns stay blank
+    const at=new Date().toISOString(),items=sheetKeys().map(([k,l])=>[k,l,k=='at'?at:'(테스트)']);
+    fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({at,form:form.title,items,answers:{}})})
+      .then(()=>alert('테스트 행을 보냈습니다. 시트 맨 아래에 "(테스트)" 줄이 생겼는지 확인하세요. 확인 후 그 줄은 지워도 됩니다.'),()=>alert('전송에 실패했습니다.'));
   }
 });
 
