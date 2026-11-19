@@ -1059,6 +1059,9 @@ document.addEventListener('change',e=>{
   const s=cb.closest('.slide');if(!s)return;
   const q=runQs[+s.dataset.i];
   ans[q.id+'#chk']=[...s.querySelectorAll('.chk input:checked')].map(x=>x.closest('.chk').querySelector('.qdesc').textContent.trim());
+  // agreement-style page (only checkboxes to answer): ticking the last box moves on by itself
+  if(cb.checked&&!s.querySelector('.chk input:not(:checked)')&&!s.querySelector('.ans,.choice,.scale'))
+    setTimeout(()=>{if(runQs[cur]===q)next()},400);
 });
 
 /* ---------- background image ---------- */
