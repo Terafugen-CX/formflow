@@ -880,6 +880,8 @@ document.addEventListener('selectionchange',()=>{
 });
 function fmt(fn){
   if(!lastRt||!document.contains(lastRt)||!lastRange)return;
+  // caret only (nothing selected): format the whole text box instead of doing nothing
+  if(lastRange.collapsed||!lastRt.contains(lastRange.commonAncestorContainer)){lastRange=document.createRange();lastRange.selectNodeContents(lastRt)}
   lastRt.focus();const s=getSelection();s.removeAllRanges();s.addRange(lastRange);
   document.execCommand('styleWithCSS',false,true);fn();
   lastRt.dispatchEvent(new Event('input',{bubbles:true}));
