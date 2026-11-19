@@ -191,6 +191,12 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .otools{display:flex;gap:4px;flex:none}
 .ob{width:30px;height:30px;border:1px solid #e4e4e7;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;padding:0;display:grid;place-items:center;color:#444}
 .ob:hover{background:#f4f4f5}
+#stage [data-oi]{cursor:grab;touch-action:none}
+#stage [data-oi] .ot{cursor:text}
+.ogrip{cursor:grab;color:#888}
+.odrag{opacity:.45}
+.odrop{outline:2px dashed var(--accent);outline-offset:3px;border-radius:8px}
+.oslot{display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:4/3;border:1.5px dashed #d6d9e0;border-radius:6px;background:none;color:#c4c8d0;font-size:28px;cursor:pointer}.oslot:hover{color:var(--accent);border-color:var(--accent)}.oslot.oslotS{width:36px;height:28px;aspect-ratio:auto;font-size:16px;margin-left:auto;flex:none}#stage [data-oi] img[data-oimg]{cursor:pointer}
 .ob.obw{width:auto;padding:0 8px;font-size:12px;white-space:nowrap}
 .choice.card.ed{position:relative}
 .choice.card .otools{position:absolute;top:6px;right:6px}
@@ -520,10 +526,10 @@ const layBtns=q=>`<span class="lay"><button data-lay="list" class="${q.layout!='
 // 객관식 on the canvas: edit each choice's text in place; its image / add / delete tools sit to the right of it
 function mcStage(q){
   const card=q.layout=='grid';
-  const tools=o=>`<span class="otools"><button class="ob obw" data-oimg="${o.id}" title="이미지 추가">이미지 등록</button>${o.img?`<button class="ob" data-oimgdel="${o.id}" title="이미지 삭제">🗑</button>`:''}<button class="ob" data-oadd="${o.id}" title="선택지 추가">＋</button><button class="ob" data-odel="${o.id}" title="삭제">✕</button></span>`;
+  const tools=o=>`<span class="otools"><span class="ob ogrip" title="드래그해서 위치 이동">⠿</span><button class="ob" data-oadd="${o.id}" title="선택지 추가">＋</button><button class="ob" data-odel="${o.id}" title="삭제">✕</button></span>`;
   const items=q.options.map((o,j)=>card
-    ?`<div class="choice card ed"><span class="ctop"><kbd>${j+1}</kbd><span class="ot" contenteditable="true" data-ot="${o.id}" data-ph="선택지">${esc(o.text)}</span></span>${o.img?`<img class="cimg" src="${o.img}">`:''}${tools(o)}</div>`
-    :`<div class="oline"><div class="choice ed"><kbd>${j+1}</kbd>${o.img?`<img class="oimgv" src="${o.img}">`:''}<span class="ot" contenteditable="true" data-ot="${o.id}" data-ph="선택지">${esc(o.text)}</span></div>${tools(o)}</div>`).join('');
+    ?`<div class="choice card ed" data-oi="${j}"><span class="ctop"><kbd>${j+1}</kbd><span class="ot" contenteditable="true" data-ot="${o.id}" data-ph="선택지">${esc(o.text)}</span></span>${o.img?`<img class="cimg" src="${o.img}" data-oimg="${o.id}" draggable="false" title="클릭해서 이미지 바꾸기">`:`<button class="oslot" data-oimg="${o.id}" title="이미지 등록">＋</button>`}${tools(o)}</div>`
+    :`<div class="oline" data-oi="${j}"><div class="choice ed"><kbd>${j+1}</kbd>${o.img?`<img class="oimgv" src="${o.img}" data-oimg="${o.id}" draggable="false" title="클릭해서 이미지 바꾸기">`:''}<span class="ot" contenteditable="true" data-ot="${o.id}" data-ph="선택지">${esc(o.text)}</span>${o.img?'':`<button class="oslot oslotS" data-oimg="${o.id}" title="이미지 등록">＋</button>`}</div>${tools(o)}</div>`).join('');
   return card?`<div class="mcgrid">${items}</div>`:items;
 }
 function textBoxes(q){
@@ -1069,6 +1075,25 @@ document.addEventListener('change',e=>{
   // agreement-style page (only checkboxes to answer): ticking the last box moves on by itself
   if(cb.checked&&!s.querySelector('.chk input:not(:checked)')&&!s.querySelector('.ans,.choice,.scale'))
     setTimeout(()=>{if(runQs[cur]===q)next()},400);
+});
+
+// drag a choice (its card or ⠿) onto another choice to reorder: works left/right and up/down
+document.addEventListener('pointerdown',e=>{
+  const it=e.target.closest&&e.target.closest('#stagePage [data-oi]');if(!it||e.target.closest('.ot,button'))return;
+  e.preventDefault();
+  const q=form.qs[sel],from=+it.dataset.oi;let to=from;
+  it.classList.add('odrag');
+  const mv=ev=>{
+    document.querySelectorAll('#stagePage .odrop').forEach(x=>x.classList.remove('odrop'));
+    const el=document.elementFromPoint(ev.clientX,ev.clientY),t=el&&el.closest('#stagePage [data-oi]');
+    to=t?+t.dataset.oi:from;if(t&&to!=from)t.classList.add('odrop');
+  };
+  const up=()=>{
+    removeEventListener('pointermove',mv);removeEventListener('pointerup',up);
+    if(to!=from){const [m]=q.options.splice(from,1);q.options.splice(to,0,m);save();renderBuild()}
+    else{it.classList.remove('odrag');document.querySelectorAll('#stagePage .odrop').forEach(x=>x.classList.remove('odrop'))}
+  };
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);
 });
 
 /* ---------- background image ---------- */
