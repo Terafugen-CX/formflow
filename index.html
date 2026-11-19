@@ -453,6 +453,7 @@ function normalize(f){
     r.texts=TXTYPES.includes(r.type)&&Array.isArray(r.texts)?r.texts.slice(0,20).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,5,95,40),fs:clamp(t&&t.fs,0.8,12,3),html:t&&t.html?cleanHtml(t.html):'',text:String((t&&t.text)||'')})):[];
     r.images=TXTYPES.includes(r.type)&&Array.isArray(r.images)?r.images.slice(0,10).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,3,95,30),h:clamp(t&&t.h,3,95,20),src:String((t&&t.src)||''),orig:String((t&&t.orig)||''),tol:clamp(t&&t.tol,10,120,48)})).filter(t=>IMGRE.test(t.src)).map(t=>({...t,orig:IMGRE.test(t.orig)?t.orig:''})):[];
     r.layout=r.layout=='grid'?'grid':'list';
+    r.endBtn=String(r.endBtn||'종료').slice(0,40);
     r.fx=(r.fx==null||r.fx==='')?null:clamp(r.fx,0,4000,0);r.fy=(r.fy==null||r.fy==='')?null:clamp(r.fy,0,4000,0);   // workflow node position
     // workflow: answer key (option id / score / "*") -> target question id
     r.jumps=(r.jumps&&typeof r.jumps=='object'&&!Array.isArray(r.jumps))?Object.fromEntries(Object.entries(r.jumps).filter(([k,v])=>/^[\w*-]{1,40}$/.test(k)&&/^[\w-]{1,40}$/.test(String(v))).map(([k,v])=>[k,String(v)])):{};
@@ -695,6 +696,8 @@ function stageSection(q){
   if(q.type=='mc')anchor.insertAdjacentHTML('beforebegin',mcStage(q)+blocksEditor({...q,blocks:q.blocks.filter(b=>b.kind=='button')},true));
   else{title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',blocksEditor(q,true))}
   sec.insertAdjacentHTML('beforeend',textBoxes(q)+imageBoxes(q));
+  const fin=sec.querySelector('#finish');   // 끝 화면 button: its label is edited in place
+  if(fin)fin.outerHTML=`<span class="btn go-btnE"><span class="rt" contenteditable="true" data-rt="endbtn" data-ph="버튼 글자">${esc(q.endBtn||'종료')}</span></span>`;
   return sec;
 }
 function fitStage(){
@@ -747,6 +750,7 @@ document.addEventListener('input',e=>{
   else if(t.dataset.rt){
     const k=t.dataset.rt;
     if(k.startsWith('t:')){const tb=(q.texts||[]).find(x=>x.id==k.slice(2));if(tb){tb.html=cleanHtml(t.innerHTML);tb.text=t.innerText.trim()}}
+    else if(k=='endbtn')q.endBtn=t.innerText.trim().slice(0,40);
     else if(k.startsWith('b:')){const b=q.blocks.find(x=>x.id==k.slice(2));if(b){b.html=cleanHtml(t.innerHTML);b.text=t.innerText.trim()}}
     else{q.titleHtml=cleanHtml(t.innerHTML);q.title=t.innerText.trim();const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=q.title}
   }
@@ -1395,7 +1399,7 @@ function slideHTML(q,i){
   const extra='';   // no "추가 의견" box on the respondent page
   const last=!runQs[i+1]||runQs[i+1].type=='end';
   const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
-    :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
+    :q.type=='end'?`<p class="qdesc">응답이 제출되었습니다.</p><button class="btn" id="finish">${esc(q.endBtn||'종료')}</button>`
     :'';   // question pages get a button only when one is added as a line
   // lines above the page's main control (low=false) and below it (low=true: answer box, checkboxes)
   const need=q.required&&!NOQ.includes(q.type);
@@ -1463,7 +1467,11 @@ document.addEventListener('click',e=>{
   if($('#run').classList.contains('hide'))return;
   const t=e.target;
   if(t.closest('.close')){shared?startRun():closeRun();return}
-  if(t.id=='again'){startRun();return}
+  if(t.id=='finish'){
+    if(!shared){closeRun();return}   // builder preview: just close it
+    try{window.close()}catch{}       // only works for tabs a script opened; otherwise show a done screen
+    $('#run').innerHTML='<p class="runmsg">응답이 완료되었습니다.<br>이 창을 닫으셔도 됩니다.</p>';return;
+  }
   if(t.closest('#up')){back();return}
   if(t.closest('#dn')||t.closest('.go-btn')){next();return}
   const c=t.closest('.choice,.scale button');
