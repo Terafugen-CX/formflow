@@ -194,6 +194,8 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .choice.card.ed{position:relative}
 .choice.card .otools{position:absolute;top:6px;right:6px}
 .laybar{position:absolute;top:10px;right:10px;z-index:20}
+#stage .go-btnE{display:inline-block;margin-top:24px;background:var(--accent);color:var(--bg);font-size:18px;padding:8px 18px;border-radius:6px;font-weight:600;cursor:text}
+#stage .go-btnE .rt{min-width:2em;display:inline-block}
 .kindrow{display:flex;align-items:center;justify-content:space-between}
 .qitem .qty{flex:none;color:#b3b6bd;font-size:11px;margin-left:2px}
 .lay{display:flex;gap:6px}
@@ -383,10 +385,10 @@ th{background:var(--card);font-weight:600}
 // Create it once in Google Cloud Console and paste it here; leave empty to run without login.
 const APP_GCID='355286319137-2cipbd76d4dd9159429q5cd7jbvkm8cd.apps.googleusercontent.com';
 // legacy types (choice/email/number/date) stay renderable for old forms but can no longer be added
-const TYPES={welcome:'시작 화면',text:'본문',short:'짧은 글',long:'긴 글',mc:'객관식',scale:'점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',check:'체크박스',end:'끝 화면'};
+const TYPES={welcome:'시작 화면',text:'본문',short:'짧은 글',long:'긴 글',mc:'객관식',scale:'점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',check:'체크박스',button:'버튼',end:'끝 화면'};
 const TXTYPES=['welcome','end'];
 const SHEET_ICON='<svg width="18" height="16" viewBox="60 190 1110 820" aria-hidden="true"><defs><linearGradient id="sheetG" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#78c7fb"/><stop offset="1" stop-color="#78c7fb" stop-opacity="0"/></linearGradient></defs><rect x="75" y="290" width="200" height="620" rx="110" fill="#009b52"/><rect x="172" y="208" width="978" height="782" rx="120" fill="#10bc5f"/><rect x="172" y="288" width="640" height="622" fill="url(#sheetG)"/><rect x="869" y="440" width="73" height="465" rx="36" fill="#fff"/><rect x="478" y="716" width="587" height="73" rx="36" fill="#fff"/></svg>';
-const ADDABLE=['welcome','text','mc','scale','check','end']
+const ADDABLE=['welcome','text','mc','scale','check','button','end']
 const IMGRE=/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/;;
 const NOQ=['welcome','statement','end'];
 const YN={ko:['예','아니오'],ox:['O','X']};
@@ -427,7 +429,7 @@ function normalize(f){
     }
     r.labels=(r.labels&&typeof r.labels=='object'&&!Array.isArray(r.labels))?Object.fromEntries(Object.entries(r.labels).filter(([k])=>/^\d{1,2}$/.test(k)).map(([k,v])=>[k,String(v)])):{};
     const cid=v=>String(v||'').replace(/[^\w-]/g,'')||uid();
-    r.blocks=r.blocks.map(b=>b&&b.kind=='img'?{id:cid(b.id),kind:'img',low:!!b.low,src:String(b.src||'')}:{id:cid(b&&b.id),kind:(b&&(b.kind=='check'||b.kind=='answer')?b.kind:'text'),low:!!(b&&(b.low||b.kind=='check'||b.kind=='answer')),req:!!(b&&b.req),text:String((b&&b.text)||''),html:b&&b.html?cleanHtml(b.html):''}).filter(b=>b.kind!='img'||/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(b.src));
+    r.blocks=r.blocks.map(b=>b&&b.kind=='img'?{id:cid(b.id),kind:'img',low:!!b.low,src:String(b.src||'')}:{id:cid(b&&b.id),kind:(b&&['check','answer','button'].includes(b.kind)?b.kind:'text'),low:!!(b&&(b.low||['check','answer','button'].includes(b.kind))),req:!!(b&&b.req),text:String((b&&b.text)||''),html:b&&b.html?cleanHtml(b.html):''}).filter(b=>b.kind!='img'||/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(b.src));
     if(needAns&&!r.blocks.some(b=>b.kind=='answer'))r.blocks.push({id:uid(),kind:'answer',low:true,text:'',html:''});
     if(r.type=='text')r.am=true;
     // free text boxes on welcome/end pages (position/size in % of the page, font size in cqw)
@@ -501,8 +503,10 @@ function renderQs(){
   const has=t=>form.qs.some(x=>x.type==t);
   $('#types').innerHTML=ADDABLE.map(k=>{
     // "체크박스" is not a page: it adds a checkbox line to the selected page (not possible on 객관식 pages)
-    const noChk=k=='check'&&form.qs[sel]&&form.qs[sel].type=='mc',off=((k=='welcome'||k=='end')&&has(k))||noChk;
-    return `<button data-add="${k}" ${off?`disabled title="${noChk?'객관식 페이지에는 넣을 수 없습니다':'이미 있습니다 (1개만 가능)'}"`:''}>${TYPES[k]}</button>`;
+    // "버튼" adds a button line to the selected page (시작/끝 화면 already have their own button)
+    const cur=form.qs[sel],noChk=k=='check'&&cur&&cur.type=='mc',noBtn=k=='button'&&cur&&(cur.type=='welcome'||cur.type=='end');
+    const off=((k=='welcome'||k=='end')&&has(k))||noChk||noBtn;
+    return `<button data-add="${k}" ${off?`disabled title="${noChk?'객관식 페이지에는 넣을 수 없습니다':noBtn?'시작·끝 화면에는 이미 버튼이 있습니다':'이미 있습니다 (1개만 가능)'}"`:''}>${TYPES[k]}</button>`;
   }).join('');
 }
 const BADD='<button class="btn ghost sm" data-addtxt="1" title="내용 추가">＋</button><button class="btn ghost sm" data-addimg="1" title="이미지 추가">＋ 이미지</button>';
@@ -530,6 +534,8 @@ function imageBoxes(q){
 function blocksEditor(q,low){
   const rows=q.blocks.filter(b=>low===undefined||!!b.low===!!low).map(b=>b.kind=='img'
     ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div style="flex:1"><img class="qimg" draggable="false" src="${b.src}" style="max-height:160px;margin:0"></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
+    :b.kind=='button'
+    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><span class="btn go-btnE"><span class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="버튼 글자">${b.html||esc(b.text)}</span></span><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :b.kind=='answer'
     ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><textarea class="ans" rows="2" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)" disabled></textarea><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${b.kind=='check'?'<input type="checkbox" class="chkprev" disabled>':''}<div class="rt desc" contenteditable="true" data-rt="b:${b.id}" data-ph="내용">${b.html||esc(b.text)}</div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`).join('');
@@ -648,7 +654,7 @@ function stageSection(q){
   // not a ".slide": the runner's show()/validate() look slides up by class + data-i across the whole document
   sec.classList.remove('slide','below');sec.classList.add('spage');sec.removeAttribute('data-i');sec.id='stagePage';
   sec.querySelectorAll(':scope > .tx,:scope > .ix').forEach(e=>e.remove());
-  inn.querySelectorAll(':scope > .qdesc,:scope > .qimg,:scope > .chk').forEach(e=>e.remove());
+  inn.querySelectorAll(':scope > .qdesc,:scope > .qimg,:scope > .chk,:scope > .go').forEach(e=>e.remove());
   if(q.type=='text')inn.querySelectorAll(':scope > .ans').forEach(e=>e.remove());   // the answer box is one of the editable lines
   if(q.type=='mc')inn.querySelectorAll(':scope > .choice,:scope > .mcgrid').forEach(e=>e.remove());
   const title=inn.querySelector('.qtitle');
@@ -656,7 +662,7 @@ function stageSection(q){
   title.contentEditable='true';title.dataset.rt='title';title.dataset.ph='질문을 입력하세요';
   title.classList.add('rt');if(q.required)title.classList.add('req');
   const anchor=inn.querySelector(':scope > .extra')||inn.querySelector(':scope > .err');
-  if(q.type=='mc')anchor.insertAdjacentHTML('beforebegin',mcStage(q));
+  if(q.type=='mc')anchor.insertAdjacentHTML('beforebegin',mcStage(q)+blocksEditor({...q,blocks:q.blocks.filter(b=>b.kind=='button')},true));
   else{title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',blocksEditor(q,true))}
   sec.insertAdjacentHTML('beforeend',textBoxes(q)+imageBoxes(q));
   return sec;
@@ -759,6 +765,11 @@ document.addEventListener('click',e=>{
       const last=[...document.querySelectorAll('#stagePage .blk .rt')].pop();if(last)last.focus();
       return;
     }
+    if(t2=='button'){   // a "next" button line at the bottom of the current page
+      if(!q||q.type=='welcome'||q.type=='end')return;
+      q.blocks.push({id:uid(),kind:'button',low:true,text:'확인',html:''});save();renderBuild();
+      return;
+    }
     if((t2=='welcome'||t2=='end')&&has(t2))return;
     const nq=mk(t2),lastEnd=form.qs.length&&form.qs[form.qs.length-1].type=='end';
     if(t2=='welcome'){form.qs.unshift(nq);sel=0}
@@ -852,7 +863,7 @@ $('#tbSizeNum').addEventListener('change',e=>{
   if(!v){return}
   const px=Math.max(6,Math.min(300,v));e.target.value=px;applySize(px);
 });
-document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&(e.target.dataset.rt=='title'||e.target.dataset.ot!=null))e.preventDefault()});
+document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&(e.target.dataset.rt=='title'||e.target.dataset.ot!=null||e.target.closest('.go-btnE')))e.preventDefault()});
 // downscale uploaded images so they fit in localStorage
 function readImg(file,cb,max=800,keepAlpha=false){
   if(!file||!file.type.startsWith('image/'))return;
@@ -1224,13 +1235,14 @@ function slideHTML(q,i){
   const last=!runQs[i+1]||runQs[i+1].type=='end';
   const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
     :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
-    :`<div class="go"><button class="btn go-btn">${last&&isQ?'제출':'확인 ✓'}</button><span>Enter ↵ 키를 누르세요</span></div>`;
+    :'';   // question pages get a button only when one is added as a line
   // lines above the page's main control (low=false) and below it (low=true: answer box, checkboxes)
   const need=q.required&&!NOQ.includes(q.type);
   const one=b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`
     :b.kind=='answer'?'<textarea class="ans" rows="2" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>'
+    :b.kind=='button'?`<div class="go"><button class="btn go-btn">${b.html||esc(b.text)||'확인'}</button></div>`
     :(b.text||b.html)?(b.kind=='check'?`<label class="chk"><input type="checkbox"${b.req||need?' data-req':''}><span class="qdesc">${b.html||esc(b.text)}</span>${b.req||need?'<span class="rq"> *</span>':''}</label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'';
-  const blk=low=>(q.type=='mc'?[]:q.blocks).filter(b=>!!b.low==low).map(one).join('');
+  const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'):q.blocks).filter(b=>!!b.low==low).map(one).join('');
   const sbg=`${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
   return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}" style="${sbg}">${(q.images||[]).map(t=>`<img class="ix" src="${t.src}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw">`).join('')}${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
