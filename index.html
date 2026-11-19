@@ -835,7 +835,15 @@ document.addEventListener('selectionchange',()=>{
   const rt=n&&n.closest&&n.closest('.rt');
   if(rt){
     lastRt=rt;lastRange=s.getRangeAt(0).cloneRange();
-    const nb=$('#tbSizeNum');if(nb&&document.activeElement!==nb)nb.value=Math.round(parseFloat(getComputedStyle(n).fontSize))||'';   // show the size at the caret
+    // show the size of the selected text: walk from the range start down to its first text node
+    const nb=$('#tbSizeNum');
+    if(nb&&document.activeElement!==nb){
+      const r=s.getRangeAt(0);let el=r.startContainer;
+      if(el.nodeType==1&&el.childNodes[r.startOffset])el=el.childNodes[r.startOffset];
+      while(el&&el.nodeType==1&&el.firstChild)el=el.firstChild;
+      el=el&&el.nodeType==3?el.parentElement:el;
+      if(el&&el.nodeType==1)nb.value=Math.round(parseFloat(getComputedStyle(el).fontSize))||'';
+    }
   }
 });
 function fmt(fn){
@@ -863,7 +871,8 @@ $('#tbSize').addEventListener('change',e=>{const px=e.target.value;e.target.valu
 $('#tbSizeNum').addEventListener('change',e=>{
   const v=Math.round(+e.target.value);
   if(!v){return}
-  const px=Math.max(6,Math.min(300,v));e.target.value=px;applySize(px);
+  const px=Math.max(6,Math.min(300,v));applySize(px);
+  e.target.value=px;e.target.focus();   // stay in the box so the ▲▼ arrows keep stepping from this size
 });
 document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&(e.target.dataset.rt=='title'||e.target.dataset.ot!=null||e.target.closest('.go-btnE')))e.preventDefault()});
 // downscale uploaded images so they fit in localStorage
