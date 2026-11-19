@@ -613,9 +613,11 @@ function stageSection(q){
 }
 function fitStage(){
   const wrap=$('#stageWrap'),st=$('#stage');if(!wrap||!st)return;
-  const W=window.innerWidth,H=window.innerHeight,s=Math.min(1,($('#editor').clientWidth-48)/W);
+  // fit the whole page inside the visible canvas (width and height) and centre it, so the gap above equals the gap below
+  const ed=$('#editor'),W=window.innerWidth,H=window.innerHeight,s=Math.min(1,(ed.clientWidth-48)/W,(ed.clientHeight-48)/H);
+  const hs=Math.round(H*s),gap=Math.max(0,Math.round((ed.clientHeight-hs)/2)-24);   // 24px = #editor padding
   st.style.width=W+'px';st.style.height=H+'px';st.style.transform=`scale(${s})`;
-  wrap.style.width=Math.round(W*s)+'px';wrap.style.height=Math.round(H*s)+'px';
+  wrap.style.width=Math.round(W*s)+'px';wrap.style.height=hs+'px';wrap.style.margin=`${gap}px auto ${gap}px`;
 }
 function refreshStage(){
   const st=$('#stage'),q=form.qs[sel];if(!st||!q)return;
