@@ -1306,7 +1306,8 @@ function doPost(e){
     var lock=LockService.getScriptLock();lock.waitLock(20000);
     try{
       var h=heads(sh),cells={};
-      d.items.forEach(function(it){cells[colOf(sh,String(it[0]),String(it[1]),h)]=it[0]==='at'?new Date(it[2]):String(it[2]).slice(0,5000)});
+      // a column the user hid in the sheet is left blank: hiding it means "don't record this answer"
+      d.items.forEach(function(it){var c=colOf(sh,String(it[0]),String(it[1]),h);if(!sh.isColumnHiddenByUser(c))cells[c]=it[0]==='at'?new Date(it[2]):String(it[2]).slice(0,5000)});
       var n=Math.max(sh.getLastColumn(),1),row=[];
       for(var c=1;c<=n;c++)row.push(cells[c]===undefined?'':cells[c]);
       sh.appendRow(row);
@@ -1392,7 +1393,7 @@ document.addEventListener('click',e=>{
   document.querySelectorAll('input[name=gsMode]').forEach(r=>r.checked=false);$('#gsStatus').textContent='연동을 해제했습니다.';showSheetState();
 });
 // linked by an older script that can't store the form for short links
-const needsUpgrade=()=>!!(form.webhook&&form.sheetUrl&&(!form.wkey||(form.sv||1)<4));   // sv 2: fills the header row; sv 3: columns tagged by answer id
+const needsUpgrade=()=>!!(form.webhook&&form.sheetUrl&&(!form.wkey||(form.sv||1)<5));   // sv 2: fills the header row; sv 3: columns tagged by answer id
 // keepSheet: replace only the script (adds short-link storage) and keep writing to the sheet already linked
 async function createLink(keepSheet){
   const say=m=>$('#gsStatus').textContent=m,btn=$('#gsMake'),cid=savedCid()||$('#gcid').value.trim();
@@ -1436,7 +1437,7 @@ async function createLink(keepSheet){
     const dep=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/deployments`,'POST',{versionNumber:ver.versionNumber,manifestFileName:'appsscript',description:'FormFlow'});
     const ep=(dep.entryPoints||[]).find(x=>x.webApp);
     form.webhook=(ep&&ep.webApp.url)||`https://script.google.com/macros/s/${dep.deploymentId}/exec`;
-    form.sheetUrl=sh.spreadsheetUrl;form.sheetTab=tab;form.wkey=key;form.sv=4;save();renderBuild();showSheetState();
+    form.sheetUrl=sh.spreadsheetUrl;form.sheetTab=tab;form.wkey=key;form.sv=5;save();renderBuild();showSheetState();
     say(oldId?'✓ 연동을 업데이트했습니다. 아래 "최초 1회 승인하기"를 눌러 승인한 뒤 "공유 링크 복사"를 다시 눌러 주세요. 응답은 기존 시트에 계속 쌓입니다.':'✓ 시트 생성과 연동이 끝났습니다. 아래 "최초 1회 승인하기"를 눌러 권한을 승인하면 응답이 시트에 쌓입니다.');
   }catch(e){say('실패: '+e.message+' — Apps Script API가 꺼져 있다면 script.google.com/home/usersettings 에서 켜 주세요.')}
   finally{btn.disabled=false}
