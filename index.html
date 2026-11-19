@@ -429,7 +429,7 @@ function normalize(f){
     }
     r.labels=(r.labels&&typeof r.labels=='object'&&!Array.isArray(r.labels))?Object.fromEntries(Object.entries(r.labels).filter(([k])=>/^\d{1,2}$/.test(k)).map(([k,v])=>[k,String(v)])):{};
     const cid=v=>String(v||'').replace(/[^\w-]/g,'')||uid();
-    r.blocks=r.blocks.map(b=>b&&b.kind=='img'?{id:cid(b.id),kind:'img',low:!!b.low,src:String(b.src||'')}:{id:cid(b&&b.id),kind:(b&&['check','answer','button'].includes(b.kind)?b.kind:'text'),low:!!(b&&(b.low||['check','answer','button'].includes(b.kind))),req:!!(b&&b.req),text:String((b&&b.text)||''),html:b&&b.html?cleanHtml(b.html):''}).filter(b=>b.kind!='img'||/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(b.src));
+    r.blocks=r.blocks.map(b=>b&&b.kind=='img'?{id:cid(b.id),kind:'img',low:!!b.low,src:String(b.src||'')}:{id:cid(b&&b.id),kind:(b&&['check','answer','button'].includes(b.kind)?b.kind:'text'),low:!!(b&&(b.low!==undefined?b.low:['check','answer','button'].includes(b.kind))),req:!!(b&&b.req),text:String((b&&b.text)||''),html:b&&b.html?cleanHtml(b.html):''}).filter(b=>b.kind!='img'||/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(b.src));
     if(needAns&&!r.blocks.some(b=>b.kind=='answer'))r.blocks.push({id:uid(),kind:'answer',low:true,text:'',html:''});
     if(r.type=='text')r.am=true;
     // free text boxes on welcome/end pages (position/size in % of the page, font size in cqw)
@@ -780,7 +780,9 @@ document.addEventListener('click',e=>{
     const bl=t.closest('.blk'),idx=bl?q.blocks.findIndex(b=>b.id==bl.dataset.bid)+1:q.blocks.length;
     if(d.addimg!=null){insAt=idx;optTarget=null;$('#imgFile').click();return}
     const from=bl&&q.blocks.find(b=>b.id==bl.dataset.bid);   // new plain line stays in the same area (above/below) as the clicked one
-    q.blocks.splice(idx,0,{id:uid(),kind:'text',low:!!(from&&from.low),text:'',html:''});
+    // ＋ on an answer box adds another answer box, on a checkbox line another checkbox line, otherwise a content line
+    const nk=from&&(from.kind=='answer'||from.kind=='check')?from.kind:'text';
+    q.blocks.splice(idx,0,{id:uid(),kind:nk,low:!!(from&&from.low),text:'',html:''});
   }
   else if(d.bdel){q.blocks=q.blocks.filter(b=>b.id!=d.bdel);q.am=true}
   else if(t.id=='addlb'){const n=Array.from({length:q.max},(_,i)=>i+1).find(i=>q.labels[i]===undefined);if(!n)return;q.labels[n]=''}
@@ -909,7 +911,7 @@ document.addEventListener('drop',e=>{
   const b=e.target.closest&&e.target.closest('.blk');if(!b||!dragId)return;
   e.preventDefault();
   const q=form.qs[sel],from=q.blocks.findIndex(x=>x.id==dragId),to=q.blocks.findIndex(x=>x.id==b.dataset.bid);
-  if(from>=0&&to>=0&&from!=to){const tl=!!q.blocks[to].low,[m]=q.blocks.splice(from,1);if(m.kind=='text'||m.kind=='img')m.low=tl;q.blocks.splice(to,0,m);save()}
+  if(from>=0&&to>=0&&from!=to){const tl=!!q.blocks[to].low,[m]=q.blocks.splice(from,1);m.low=tl;/* moved line joins the target's area so answer/content can swap */q.blocks.splice(to,0,m);save()}
   dragId=null;renderBuild();
 });
 document.addEventListener('dragend',()=>{dragId=null;document.querySelectorAll('.blk').forEach(x=>{x.draggable=false;x.classList.remove('dragging','over')})});
@@ -1239,7 +1241,7 @@ function slideHTML(q,i){
   // lines above the page's main control (low=false) and below it (low=true: answer box, checkboxes)
   const need=q.required&&!NOQ.includes(q.type);
   const one=b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`
-    :b.kind=='answer'?'<textarea class="ans" rows="2" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>'
+    :b.kind=='answer'?`<textarea class="ans" data-bid="${b.id}" rows="2" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>`
     :b.kind=='button'?`<div class="go"><button class="btn go-btn">${b.html||esc(b.text)||'확인'}</button></div>`
     :(b.text||b.html)?(b.kind=='check'?`<label class="chk"><input type="checkbox"${b.req||need?' data-req':''}><span class="qdesc">${b.html||esc(b.text)}</span>${b.req||need?'<span class="rq"> *</span>':''}</label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'';
   const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'):q.blocks).filter(b=>!!b.low==low).map(one).join('');
@@ -1291,7 +1293,7 @@ function submit(){
   const rec={at:new Date().toISOString(),a};
   if(!shared){const r=getRes();r.push(rec);try{localStorage[resKey()]=JSON.stringify(r)}catch{alert('저장 공간이 부족해 응답을 저장하지 못했습니다. 응답 탭에서 CSV로 내보낸 뒤 삭제해 주세요.')}}
   if(form.webhook){
-    const label=k=>{const [id,x]=k.split('#'),q=runQs.find(z=>z.id==id);return (q?q.title:id)+(x=='note'?' (의견)':x=='img'?' (이미지)':x=='chk'?' (체크)':'')};
+    const label=k=>{const [id,x]=k.split('#'),q=runQs.find(z=>z.id==id);return (q?q.title:id)+(x=='note'?' (의견)':x=='img'?' (이미지)':x=='chk'?' (체크)':x&&q?' (답변 '+(q.blocks.filter(b=>b.kind=='answer').findIndex(b=>b.id==x)+1)+')':'')};
     // images stay local: sheet cells can't hold them
     const body={at:rec.at,form:form.title,answers:Object.fromEntries([...(rec.user?[['이메일',rec.user.email],['이름',rec.user.name]]:[]),...Object.entries(a).map(([k,v])=>[label(k),k.endsWith('#img')?'[이미지 첨부]':v])])};
     fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).catch(()=>{});
@@ -1316,7 +1318,10 @@ function pick(c){
 }
 document.addEventListener('input',e=>{
   const c=e.target.classList;if(!runQs[cur]||!c)return;
-  if(c.contains('ans'))ans[runQs[cur].id]=e.target.value;
+  if(c.contains('ans')){   // first answer box -> the question's answer; extra boxes -> "<id>#<box id>"
+    const q=runQs[cur],bid=e.target.dataset.bid,first=(q.blocks||[]).find(b=>b.kind=='answer');
+    ans[!bid||!first||first.id==bid?q.id:q.id+'#'+bid]=e.target.value;
+  }
   else if(c.contains('note'))ans[runQs[cur].id+'#note']=e.target.value;
 });
 document.addEventListener('keydown',e=>{
@@ -1340,8 +1345,9 @@ function renderResults(){
   const fmt=v=>Array.isArray(v)?v.join(', '):v??'';
   const hasU=rs.some(r=>r.user);
   const okImg=s=>/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(s||'');
-  const txt=(r,q)=>fmt(r.a[q.id])+(r.a[q.id+'#note']?' / 의견: '+r.a[q.id+'#note']:'')+(r.a[q.id+'#img']?' [이미지]':'')+(r.a[q.id+'#chk']?' / 체크: '+fmt(r.a[q.id+'#chk']):'');
-  const cell=(r,q)=>esc(fmt(r.a[q.id]))+(r.a[q.id+'#chk']?`<div>☑ ${esc(fmt(r.a[q.id+'#chk']))}</div>`:'')+(r.a[q.id+'#note']?`<div style="color:var(--muted)">💬 ${esc(r.a[q.id+'#note'])}</div>`:'')+(okImg(r.a[q.id+'#img'])?`<img src="${r.a[q.id+'#img']}" style="max-height:64px;display:block;margin-top:6px;border-radius:4px">`:'');
+  const xa=(r,q)=>(q.blocks||[]).filter(b=>b.kind=='answer').slice(1).map(b=>r.a[q.id+'#'+b.id]).filter(v=>v);
+  const txt=(r,q)=>fmt(r.a[q.id])+xa(r,q).map(v=>' / '+v).join('')+(r.a[q.id+'#note']?' / 의견: '+r.a[q.id+'#note']:'')+(r.a[q.id+'#img']?' [이미지]':'')+(r.a[q.id+'#chk']?' / 체크: '+fmt(r.a[q.id+'#chk']):'');
+  const cell=(r,q)=>esc(fmt(r.a[q.id]))+xa(r,q).map(v=>`<div>${esc(v)}</div>`).join('')+(r.a[q.id+'#chk']?`<div>☑ ${esc(fmt(r.a[q.id+'#chk']))}</div>`:'')+(r.a[q.id+'#note']?`<div style="color:var(--muted)">💬 ${esc(r.a[q.id+'#note'])}</div>`:'')+(okImg(r.a[q.id+'#img'])?`<img src="${r.a[q.id+'#img']}" style="max-height:64px;display:block;margin-top:6px;border-radius:4px">`:'');
   $('#vResults').innerHTML=`<h2>${esc(form.title)} — 응답 ${rs.length}건</h2>
   <p style="color:var(--muted)">이 브라우저에 저장된 응답입니다. 다른 기기 응답을 모으려면 웹훅 URL을 설정하세요.</p>
   <button class="btn sm" id="xlsx">엑셀(.xlsx) 내보내기</button> <button class="btn ghost sm" id="csv">CSV</button> <button class="btn ghost sm" id="gs">구글 시트 실시간 연동</button> <button class="btn ghost sm" id="clr">응답 삭제</button>
