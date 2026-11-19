@@ -50,7 +50,7 @@ header .crumb b{color:#191919;font-weight:600}
 .addf{margin:2px 0 0 28px;background:none;border:0;color:var(--ui);font-size:13px;padding:4px 8px;border-radius:6px;font-weight:600}
 .addf:hover{background:#e3ecfb}
 .qitem{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;cursor:pointer;border:1px solid transparent;background:#fff;margin-bottom:4px}
-.qitem:hover{border-color:var(--line)}
+.qitem:hover{border-color:var(--line)}.qitem{user-select:none;touch-action:none}.qitem.qdropT{box-shadow:0 -3px 0 var(--ui)}.qitem.qdropB{box-shadow:0 3px 0 var(--ui)}
 .qitem.on{border-color:var(--ui);box-shadow:0 0 0 1px var(--ui) inset}
 .qitem .n{width:22px;height:22px;border-radius:5px;background:#dfe8f8;color:var(--ui);font-size:12px;font-weight:700;display:grid;place-items:center;flex:none}
 .qitem .t{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px}
@@ -1150,6 +1150,35 @@ document.addEventListener('pointerdown',e=>{
   };
   addEventListener('pointermove',mv);addEventListener('pointerup',up);
 });
+
+/* ---------- question list: drag a page up/down to reorder (시작 화면 stays first, 끝 화면 last) ---------- */
+let qDragged=false;
+document.addEventListener('pointerdown',e=>{
+  qDragged=false;
+  const it=e.button==0&&e.target.closest&&e.target.closest('#list .qitem');if(!it||e.target.closest('button'))return;
+  const from=+it.dataset.i,m=form.qs[from];if(m.type=='welcome'||m.type=='end')return;
+  const y0=e.clientY;let to=null,on=false;
+  const clear=()=>document.querySelectorAll('#list .qdropT,#list .qdropB').forEach(x=>x.classList.remove('qdropT','qdropB'));
+  const mv=ev=>{
+    if(!on&&Math.abs(ev.clientY-y0)<5)return;
+    on=true;it.classList.add('odrag');clear();to=null;
+    const el=document.elementFromPoint(ev.clientX,ev.clientY),t=el&&el.closest('#list .qitem');if(!t)return;
+    const r=t.getBoundingClientRect(),below=ev.clientY>r.top+r.height/2,ti=+t.dataset.i;
+    const first=form.qs[0].type=='welcome'?1:0,last=form.qs.length-(form.qs[form.qs.length-1].type=='end'?1:0);
+    let k=Math.min(Math.max(ti+(below?1:0),first),last);   // insert position in the list before removal
+    to=k>from?k-1:k;if(to==from){to=null;return}
+    t.classList.add(below?'qdropB':'qdropT');
+  };
+  const up=()=>{
+    removeEventListener('pointermove',mv);removeEventListener('pointerup',up);clear();it.classList.remove('odrag');
+    if(!on)return;
+    qDragged=true;   // swallow the click that follows this drag; cleared by the next press
+    if(to==null)return;
+    const cur=form.qs[sel];form.qs.splice(from,1);form.qs.splice(to,0,m);sel=form.qs.indexOf(cur);save();renderBuild();
+  };
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);
+});
+document.addEventListener('click',e=>{if(qDragged&&e.target.closest&&e.target.closest('#list')){e.stopPropagation();e.preventDefault()}},true);
 
 /* ---------- background image ---------- */
 document.addEventListener('click',e=>{
