@@ -537,7 +537,7 @@ function blocksEditor(q,low){
     :b.kind=='button'
     ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><span class="btn go-btnE"><span class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="버튼 글자">${b.html||esc(b.text)}</span></span><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :b.kind=='answer'
-    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><textarea class="ans" rows="2" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)" disabled></textarea><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
+    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><textarea class="ans" rows="2" placeholder="답변을 입력하세요" disabled></textarea><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${b.kind=='check'?'<input type="checkbox" class="chkprev" disabled>':''}<div class="rt desc" contenteditable="true" data-rt="b:${b.id}" data-ph="내용">${b.html||esc(b.text)}</div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`).join('');
   return rows||(low||q.blocks.length?'':`<div class="badd" style="margin-top:12px">${BADD}</div>`);
 }
@@ -1237,7 +1237,7 @@ function slideHTML(q,i){
   else if(q.type=='email')body='<input class="ans" type="email" placeholder="name@example.com">';
   else if(q.type=='number')body='<input class="ans" type="number" placeholder="0">';
   else if(q.type=='date')body='<input class="ans" type="date">';
-  else if(q.type=='long')body='<textarea class="ans" rows="3" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>';
+  else if(q.type=='long')body='<textarea class="ans" rows="3" placeholder="답변을 입력하세요"></textarea>';
   else if(q.type=='mc'){
     const card=q.layout=='grid';   // grid = one square card per option: text on top, image below
     const items=q.options.map((o,j)=>card
@@ -1254,7 +1254,7 @@ function slideHTML(q,i){
   // lines above the page's main control (low=false) and below it (low=true: answer box, checkboxes)
   const need=q.required&&!NOQ.includes(q.type);
   const one=b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`
-    :b.kind=='answer'?`<textarea class="ans" data-bid="${b.id}" rows="2" placeholder="답변을 입력하세요 (Shift+Enter 줄바꿈)"></textarea>`
+    :b.kind=='answer'?`<textarea class="ans" data-bid="${b.id}" rows="2" placeholder="답변을 입력하세요"></textarea>`
     :b.kind=='button'?`<div class="go"><button class="btn go-btn">${b.html||esc(b.text)||'확인'}</button></div>`
     :(b.text||b.html)?(b.kind=='check'?`<label class="chk"><input type="checkbox"${b.req||need?' data-req':''}><span class="qdesc">${b.html||esc(b.text)}</span>${b.req||need?'<span class="rq"> *</span>':''}</label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'';
   const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'):q.blocks).filter(b=>!!b.low==low).map(one).join('');
