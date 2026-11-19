@@ -73,6 +73,7 @@ header .crumb b{color:#191919;font-weight:600}
 .tb button,.tb .clr{height:32px;min-width:32px;padding:0 8px;border:1px solid var(--line);background:#fff;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;gap:4px;font-weight:700}
 .tb button:hover{background:var(--card)}
 .props .tb input[type=color]{width:20px;height:20px;border:0;padding:0;background:none}
+.props .tb input[type=number]{width:64px;height:32px;border:1px solid var(--line);border-radius:6px;background:#fff;padding:0 6px;font-size:13px;flex:none}
 .tb select{height:32px;border:1px solid var(--line);border-radius:6px;background:#fff;padding:0 6px;font-size:13px;flex:1;min-width:70px}
 .qimg{max-width:100%;max-height:260px;border-radius:8px;display:block;margin:0 0 20px}
 .extra{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
@@ -180,7 +181,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 #stage .blk .qimg{max-height:260px!important;margin:0 0 20px!important}
 #stage .blk>.grip{position:absolute;left:-26px;top:0;padding:2px;opacity:.7}
 #stage .blk>.badd{position:absolute;right:0;top:-32px;z-index:5;background:#fff;border:1px solid #e4e4e7;border-radius:8px;padding:3px;opacity:1}
-#stage .blk>.ico{position:absolute;right:-30px;top:0;opacity:.8}
+#stage .blk>.ico{position:absolute;right:-30px;top:-29px;opacity:.8}
 #stage .in>.badd{opacity:1}
 .kindrow{display:flex;align-items:center;justify-content:space-between}
 .qitem .qty{flex:none;color:#b3b6bd;font-size:11px;margin-left:2px}
@@ -312,6 +313,7 @@ th{background:var(--card);font-weight:600}
       <label class="clr" title="글씨 색">A<input type="color" id="tbColor" value="#d32f2f"></label>
       <button data-cmd="undo" title="되돌리기 (Ctrl+Z)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4v6h6"/><path d="M3.5 13a9 9 0 1 0 2.6-7.4L3 10"/></svg></button>
       <select id="tbSize" title="글씨 크기"><option value="">크기</option><option>14</option><option>18</option><option>24</option><option>32</option><option>44</option><option>60</option></select>
+      <input type="number" id="tbSizeNum" min="6" max="300" step="1" placeholder="px" title="글씨 크기 직접 입력 (px)">
       <select id="tbFont" title="글씨체"><option value="">글씨체</option><option value="Pretendard">Pretendard</option><option value="'Malgun Gothic'">맑은 고딕</option><option value="serif">명조 (Serif)</option><option value="monospace">고정폭</option><option value="cursive">손글씨</option></select>
     </div>
     <div class="sec">질문 추가</div><div class="types" id="types"></div><div id="propsBody"></div></div>
@@ -771,7 +773,10 @@ document.addEventListener('selectionchange',()=>{
   const s=getSelection();if(!s.rangeCount||!s.anchorNode)return;
   const n=s.anchorNode.nodeType==1?s.anchorNode:s.anchorNode.parentElement;
   const rt=n&&n.closest&&n.closest('.rt');
-  if(rt){lastRt=rt;lastRange=s.getRangeAt(0).cloneRange()}
+  if(rt){
+    lastRt=rt;lastRange=s.getRangeAt(0).cloneRange();
+    const nb=$('#tbSizeNum');if(nb&&document.activeElement!==nb)nb.value=Math.round(parseFloat(getComputedStyle(n).fontSize))||'';   // show the size at the caret
+  }
 });
 function fmt(fn){
   if(!lastRt||!document.contains(lastRt)||!lastRange)return;
@@ -784,8 +789,7 @@ $('#tb').addEventListener('mousedown',e=>{if(e.target.closest('button'))e.preven
 $('#tb').addEventListener('click',e=>{const b=e.target.closest('[data-cmd]');if(b)fmt(()=>document.execCommand(b.dataset.cmd))});
 $('#tbColor').addEventListener('input',e=>fmt(()=>document.execCommand('foreColor',false,e.target.value)));
 $('#tbFont').addEventListener('change',e=>{const v=e.target.value;if(v)fmt(()=>document.execCommand('fontName',false,v));e.target.value=''});
-$('#tbSize').addEventListener('change',e=>{
-  const px=e.target.value;if(!px)return;
+function applySize(px){
   fmt(()=>{
     document.execCommand('fontSize',false,'7');
     lastRt.querySelectorAll('font[size="7"],span').forEach(el=>{
@@ -793,7 +797,13 @@ $('#tbSize').addEventListener('change',e=>{
       else if(el.style.fontSize=='xxx-large')el.style.fontSize=px+'px';
     });
   });
-  e.target.value='';
+}
+// preset sizes from the list, or any size typed in the box next to it (6-300px)
+$('#tbSize').addEventListener('change',e=>{const px=e.target.value;e.target.value='';if(px)applySize(px)});
+$('#tbSizeNum').addEventListener('change',e=>{
+  const v=Math.round(+e.target.value);
+  if(!v){return}
+  const px=Math.max(6,Math.min(300,v));e.target.value=px;applySize(px);
 });
 document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&e.target.dataset.rt=='title')e.preventDefault()});
 // downscale uploaded images so they fit in localStorage
