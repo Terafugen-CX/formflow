@@ -213,8 +213,8 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .lay button{width:34px;height:30px;border:1px solid var(--line);background:#fff;border-radius:6px;color:#777;cursor:pointer;display:grid;place-items:center;padding:0}
 .lay button.on{border-color:var(--ui);color:var(--ui);background:#eef3fc}
 .lay svg{fill:currentColor}
-.mcgrid{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
-.mcgrid .choice{flex-direction:column;align-items:stretch;gap:10px;width:calc((100% - 12px)/2);min-width:180px;max-width:none;margin:0;padding:12px}
+.mcgrid{display:flex;flex-direction:column;gap:12px;margin-top:4px}.mrow{display:flex;gap:12px;border-radius:8px}.mnew{display:none;height:56px;border:1.5px dashed #c8ccd6;border-radius:8px;color:#9aa0ab;font-size:13px;align-items:center;justify-content:center}.mcgrid.dragging .mnew{display:flex}.odropL{box-shadow:-5px 0 0 -1px var(--accent)}.odropR{box-shadow:5px 0 0 -1px var(--accent)}
+.mcgrid .choice{flex-direction:column;align-items:stretch;gap:10px;width:calc((100% - (var(--cols) - 1)*12px)/var(--cols));min-width:0;flex:none;max-width:none;margin:0;padding:12px}
 .choice .ctop{display:flex;align-items:center;gap:8px}
 .choice .cimg{width:100%;height:auto;max-height:320px;object-fit:contain;border-radius:6px;display:block}
 .chk{display:flex;gap:12px;align-items:flex-start;margin:0 0 18px;cursor:pointer}
@@ -435,7 +435,7 @@ function normalize(f){
     r.multi=!!r.multi;
     r.bg=/^#[0-9a-f]{6}$/i.test(r.bg||'')?r.bg:'';r.bgimg=IMGRE.test(r.bgimg||'')?r.bgimg:'';
     if(r.type=='mc'){
-      r.options=(Array.isArray(r.options)?r.options:[]).slice(0,30).map(o=>typeof o=='string'?{id:uid(),text:o,img:''}:{id:String(o&&o.id||'').replace(/[^\w-]/g,'')||uid(),text:String((o&&o.text)||''),img:IMGRE.test((o&&o.img)||'')?o.img:''});
+      r.options=(Array.isArray(r.options)?r.options:[]).slice(0,30).map(o=>typeof o=='string'?{id:uid(),text:o,img:''}:{id:String(o&&o.id||'').replace(/[^\w-]/g,'')||uid(),text:String((o&&o.text)||''),img:IMGRE.test((o&&o.img)||'')?o.img:'',nl:!!(o&&o.nl)});
       if(!r.options.length)r.options=[{id:uid(),text:'옵션 1',img:''}];
     }
     r.labels=(r.labels&&typeof r.labels=='object'&&!Array.isArray(r.labels))?Object.fromEntries(Object.entries(r.labels).filter(([k])=>/^\d{1,2}$/.test(k)).map(([k,v])=>[k,String(v)])):{};
@@ -523,14 +523,18 @@ function renderQs(){
 const BADD='<button class="btn ghost sm" data-addtxt="1" title="내용 추가">＋</button><button class="btn ghost sm" data-addimg="1" title="이미지 추가">＋ 이미지</button>';
 // two layout switches for 객관식: 세로 목록 / 카드(텍스트 위, 이미지 아래)
 const layBtns=q=>`<span class="lay"><button data-lay="list" class="${q.layout!='grid'?'on':''}" title="세로 목록"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="3" width="14" height="3" rx="1"/><rect x="2" y="7.5" width="14" height="3" rx="1"/><rect x="2" y="12" width="14" height="3" rx="1"/></svg></button><button data-lay="grid" class="${q.layout=='grid'?'on':''}" title="카드"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="10" y="2" width="6" height="6" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/><rect x="10" y="10" width="6" height="6" rx="1"/></svg></button></span>`;
+// card rows: an option with nl=true starts a new row; a row holds at most ROWMAX cards
+const ROWMAX=5;
+function optRows(q){const rows=[];q.options.forEach((o,j)=>{const r=rows[rows.length-1];if(!r||(o.nl&&j)||r.length>=ROWMAX)rows.push([j]);else r.push(j)});return rows}
+const gridHTML=(q,card,edit)=>{const rows=optRows(q),n=Math.max(2,...rows.map(r=>r.length));
+  return `<div class="mcgrid" style="--cols:${n}">${rows.map((r,ri)=>`<div class="mrow" data-row="${ri}">${r.map(card).join('')}</div>`).join('')}${edit?'<div class="mnew">여기로 끌어서 새 줄 만들기</div>':''}</div>`};
 // 객관식 on the canvas: edit each choice's text in place; its image / add / delete tools sit to the right of it
 function mcStage(q){
   const card=q.layout=='grid';
   const tools=o=>`<span class="otools"><span class="ob ogrip" title="드래그해서 위치 이동">⠿</span><button class="ob" data-oadd="${o.id}" title="선택지 추가">＋</button><button class="ob" data-odel="${o.id}" title="삭제">✕</button></span>`;
-  const items=q.options.map((o,j)=>card
-    ?`<div class="choice card ed" data-oi="${j}"><span class="ctop"><kbd>${j+1}</kbd><span class="ot" contenteditable="true" data-ot="${o.id}" data-ph="선택지">${esc(o.text)}</span></span>${o.img?`<img class="cimg" src="${o.img}" data-oimg="${o.id}" draggable="false" title="클릭해서 이미지 바꾸기">`:`<button class="oslot" data-oimg="${o.id}" title="이미지 등록">＋</button>`}${tools(o)}</div>`
-    :`<div class="oline" data-oi="${j}"><div class="choice ed"><kbd>${j+1}</kbd>${o.img?`<img class="oimgv" src="${o.img}" data-oimg="${o.id}" draggable="false" title="클릭해서 이미지 바꾸기">`:''}<span class="ot" contenteditable="true" data-ot="${o.id}" data-ph="선택지">${esc(o.text)}</span>${o.img?'':`<button class="oslot oslotS" data-oimg="${o.id}" title="이미지 등록">＋</button>`}</div>${tools(o)}</div>`).join('');
-  return card?`<div class="mcgrid">${items}</div>`:items;
+  const cardH=j=>{const o=q.options[j];return `<div class="choice card ed" data-oi="${j}"><span class="ctop"><kbd>${j+1}</kbd><span class="ot" contenteditable="true" data-ot="${o.id}" data-ph="선택지">${esc(o.text)}</span></span>${o.img?`<img class="cimg" src="${o.img}" data-oimg="${o.id}" draggable="false" title="클릭해서 이미지 바꾸기">`:`<button class="oslot" data-oimg="${o.id}" title="이미지 등록">＋</button>`}${tools(o)}</div>`};
+  if(card)return gridHTML(q,cardH,true);
+  return q.options.map((o,j)=>`<div class="oline" data-oi="${j}"><div class="choice ed"><kbd>${j+1}</kbd>${o.img?`<img class="oimgv" src="${o.img}" data-oimg="${o.id}" draggable="false" title="클릭해서 이미지 바꾸기">`:''}<span class="ot" contenteditable="true" data-ot="${o.id}" data-ph="선택지">${esc(o.text)}</span>${o.img?'':`<button class="oslot oslotS" data-oimg="${o.id}" title="이미지 등록">＋</button>`}</div>${tools(o)}</div>`).join('');
 }
 function textBoxes(q){
   if(!TXTYPES.includes(q.type))return '';
@@ -802,7 +806,7 @@ document.addEventListener('click',e=>{
   else if(d.lbdel){delete q.labels[d.lbdel]}
   else if(d.lay){q.layout=d.lay=='grid'?'grid':'list'}  else if(d.i!=null)sel=+d.i;
   else if(d.oadd){const i=q.options.findIndex(o=>o.id==d.oadd);q.options.splice(i+1,0,{id:uid(),text:'옵션 '+(q.options.length+1),img:''})}
-  else if(d.odel){if(q.options.length<2)return;q.options=q.options.filter(o=>o.id!=d.odel)}
+  else if(d.odel){if(q.options.length<2)return;const i=q.options.findIndex(o=>o.id==d.odel),n=q.options[i+1];if(q.options[i].nl&&n)n.nl=true;q.options.splice(i,1)}
   else if(d.oimg){optTarget=d.oimg;$('#imgFile').click();return}
   else if(d.oimgdel){const o=q.options.find(x=>x.id==d.oimgdel);if(o)o.img=''}
   else if(d.mv){const j=sel+ +d.mv;const fixed=x=>x&&(x.type=='welcome'||x.type=='end');if(j>=0&&j<form.qs.length&&!fixed(form.qs[sel])&&!fixed(form.qs[j])){[form.qs[sel],form.qs[j]]=[form.qs[j],form.qs[sel]];sel=j}}
@@ -1081,17 +1085,35 @@ document.addEventListener('change',e=>{
 document.addEventListener('pointerdown',e=>{
   const it=e.target.closest&&e.target.closest('#stagePage [data-oi]');if(!it||e.target.closest('.ot,button'))return;
   e.preventDefault();
-  const q=form.qs[sel],from=+it.dataset.oi;let to=from;
-  it.classList.add('odrag');
+  const q=form.qs[sel],from=+it.dataset.oi,grid=it.closest('.mcgrid');let drop=null;
+  const clear=()=>document.querySelectorAll('#stagePage .odrop,#stagePage .odropL,#stagePage .odropR').forEach(x=>x.classList.remove('odrop','odropL','odropR'));
+  it.classList.add('odrag');if(grid)grid.classList.add('dragging');
   const mv=ev=>{
-    document.querySelectorAll('#stagePage .odrop').forEach(x=>x.classList.remove('odrop'));
-    const el=document.elementFromPoint(ev.clientX,ev.clientY),t=el&&el.closest('#stagePage [data-oi]');
-    to=t?+t.dataset.oi:from;if(t&&to!=from)t.classList.add('odrop');
+    clear();drop=null;
+    const el=document.elementFromPoint(ev.clientX,ev.clientY);if(!el)return;
+    const t=el.closest('#stagePage [data-oi]');
+    if(!grid){if(t&&+t.dataset.oi!=from){drop={to:+t.dataset.oi};t.classList.add('odrop')}return}
+    const rows=optRows(q),rowOf=j=>rows.findIndex(r=>r.includes(j)),full=ri=>rows[ri].length>=ROWMAX&&rowOf(from)!=ri;
+    if(t){const ti=+t.dataset.oi;if(ti==from)return;const ri=rowOf(ti);if(full(ri))return;
+      const rc=t.getBoundingClientRect(),after=ev.clientX>rc.left+rc.width/2;
+      drop={row:ri,pos:rows[ri].indexOf(ti)+(after?1:0)};t.classList.add(after?'odropR':'odropL');return}
+    const r=el.closest('#stagePage .mrow');
+    if(r){const ri=+r.dataset.row;if(full(ri))return;drop={row:ri,pos:rows[ri].length};r.classList.add('odrop');return}
+    const nw=el.closest('#stagePage .mnew');if(nw){drop={row:rows.length,pos:0};nw.classList.add('odrop')}
   };
   const up=()=>{
     removeEventListener('pointermove',mv);removeEventListener('pointerup',up);
-    if(to!=from){const [m]=q.options.splice(from,1);q.options.splice(to,0,m);save();renderBuild()}
-    else{it.classList.remove('odrag');document.querySelectorAll('#stagePage .odrop').forEach(x=>x.classList.remove('odrop'))}
+    if(!drop){clear();it.classList.remove('odrag');if(grid)grid.classList.remove('dragging');return}
+    if(!grid){const [m]=q.options.splice(from,1);q.options.splice(drop.to,0,m)}
+    else{
+      const rows=optRows(q).map(r=>r.map(j=>q.options[j])),m=q.options[from];
+      while(rows.length<=drop.row)rows.push([]);
+      const target=rows[drop.row],src=rows.find(r=>r.includes(m)),k=src.indexOf(m);
+      let pos=drop.pos;if(src==target&&k<pos)pos--;
+      src.splice(k,1);target.splice(pos,0,m);
+      q.options=rows.filter(r=>r.length).flatMap((r,ri)=>r.map((o,p)=>(o.nl=ri>0&&p==0,o)));
+    }
+    save();renderBuild();
   };
   addEventListener('pointermove',mv);addEventListener('pointerup',up);
 });
@@ -1277,10 +1299,9 @@ function slideHTML(q,i){
   else if(q.type=='long')body='<textarea class="ans" rows="3" placeholder="답변을 입력하세요"></textarea>';
   else if(q.type=='mc'){
     const card=q.layout=='grid';   // grid = one square card per option: text on top, image below
-    const items=q.options.map((o,j)=>card
-      ?`<button class="choice card" data-v="${esc(o.text)}"><span class="ctop"><kbd>${kbdOf(q,j)}</kbd><span>${esc(o.text)}</span></span>${o.img?`<img class="cimg" src="${o.img}">`:''}</button>`
-      :`<button class="choice" data-v="${esc(o.text)}"><kbd>${kbdOf(q,j)}</kbd>${o.img?`<img class="oimgv" src="${o.img}">`:''}<span>${esc(o.text)}</span></button>`).join('');
-    body=card?`<div class="mcgrid">${items}</div>`:items;
+    const cardH=j=>{const o=q.options[j];return `<button class="choice card" data-v="${esc(o.text)}"><span class="ctop"><kbd>${kbdOf(q,j)}</kbd><span>${esc(o.text)}</span></span>${o.img?`<img class="cimg" src="${o.img}">`:''}</button>`};
+    const items=card?gridHTML(q,cardH):q.options.map((o,j)=>`<button class="choice" data-v="${esc(o.text)}"><kbd>${kbdOf(q,j)}</kbd>${o.img?`<img class="oimgv" src="${o.img}">`:''}<span>${esc(o.text)}</span></button>`).join('');
+    body=items;
   }
   else if(q.type=='scale')body=`<div class="scale">${Array.from({length:q.max},(_,j)=>`<div class="sc"><button data-v="${j+1}">${j+1}</button><span>${esc(q.labels[j+1]||'')}</span></div>`).join('')}</div>`;
   const extra='';   // no "추가 의견" box on the respondent page
