@@ -366,6 +366,8 @@ th{background:var(--card);font-weight:600}
     <div style="font-weight:600;margin-bottom:8px">버튼 한 번으로 새 시트를 만들고 자동 연동</div>
     <div id="gcidBox"><label style="font-size:12px;color:var(--muted)">구글 OAuth 클라이언트 ID (처음 한 번만 입력)</label>
     <input id="gcid" placeholder="123456-abc.apps.googleusercontent.com" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px"></div>
+    <label style="font-size:12px;color:var(--muted)">기존 시트에 새 탭으로 연결하려면 시트 주소를 붙여넣으세요 (비워 두면 새 시트를 만듭니다)</label>
+    <input id="gsExisting" placeholder="https://docs.google.com/spreadsheets/d/…" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px">
     <button class="btn sm" id="gsMake">구글 시트 만들고 연동</button>
     <div id="gsStatus" style="font-size:13px;margin-top:8px;color:#444"></div>
     <div id="gsLinks" style="font-size:13px;margin-top:6px;display:flex;gap:14px;flex-wrap:wrap"></div>
@@ -1230,7 +1232,9 @@ document.addEventListener('click',e=>{
 });
 
 /* ---------- one-click Google Sheet + collector script (Google OAuth) ---------- */
-const gsCode=(id,key)=>`var KEY='${key}';
+const gsCode=(id,key,tab)=>`var KEY='${key}',TAB=${JSON.stringify(tab||'')};
+// answers go to the form's own tab when linked into an existing spreadsheet, else the first tab
+function ansSheet(ss){return (TAB&&ss.getSheetByName(TAB))||ss.getSheets()[0]}
 function doGet(e){
   if(e&&e.parameter&&e.parameter.form){
     var fs=SpreadsheetApp.openById('${id}').getSheetByName('_form');
@@ -1248,11 +1252,11 @@ function doPost(e){
     var j=JSON.stringify(d.form),rows=[];
     for(var i=0;i<j.length;i+=40000)rows.push([j.slice(i,i+40000)]);
     fs.getRange(1,1,rows.length,1).setNumberFormat('@').setValues(rows);
-    var sh0=ss.getSheets()[0],lc=sh0.getLastColumn(),hd=lc?sh0.getRange(1,1,1,lc).getValues()[0]:[];
+    var sh0=ansSheet(ss),lc=sh0.getLastColumn(),hd=lc?sh0.getRange(1,1,1,lc).getValues()[0]:[];
     (d.cols||[]).forEach(function(c){c=String(c);if(hd.indexOf(c)<0){hd.push(c);sh0.getRange(1,hd.length).setValue(c)}});
     return ContentService.createTextOutput('ok');
   }
-  var sh=SpreadsheetApp.openById('${id}').getSheets()[0];
+  var sh=ansSheet(SpreadsheetApp.openById('${id}'));
   if(!sh.getLastRow())sh.getRange(1,1).setValue('시간');
   var head=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
   Object.keys(d.answers).forEach(function(k){
@@ -1305,32 +1309,42 @@ async function createLink(keepSheet){
     // script first: if Apps Script API is off we fail before leaving an empty sheet in Drive
     say('① 응답 수집 스크립트를 만드는 중…');
     const pr=await gapi(tok,'https://script.googleapis.com/v1/projects','POST',{title:'FormFlow 연동 - '+form.title});
-    let sh={spreadsheetId:oldId,spreadsheetUrl:form.sheetUrl};
-    if(!oldId){
+    let sh={spreadsheetId:oldId,spreadsheetUrl:form.sheetUrl},tab=keepSheet?(form.sheetTab||''):'';
+    const exId=!keepSheet&&(($('#gsExisting').value||'').match(/\/spreadsheets\/d\/([\w-]+)/)||[])[1];
+    if(exId){
+      // existing spreadsheet: answers go to a tab named after the form (reused if it already exists)
+      say('② 기존 시트에 새 탭을 만드는 중…');
+      tab=(form.title||'응답').replace(/[\[\]*?:\/\\']/g,' ').trim().slice(0,90)||'응답';
+      const meta=await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${exId}?fields=sheets.properties`,'GET');
+      let p=(meta.sheets||[]).map(s=>s.properties).find(p=>p.title==tab);
+      if(!p)p=(await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${exId}:batchUpdate`,'POST',{requests:[{addSheet:{properties:{title:tab}}}]})).replies[0].addSheet.properties;
+      sh={spreadsheetId:exId,spreadsheetUrl:`https://docs.google.com/spreadsheets/d/${exId}/edit#gid=${p.sheetId}`};
+    }
+    else if(!oldId){
       say('② 새 구글 시트를 만드는 중…');
       sh=await gapi(tok,'https://sheets.googleapis.com/v4/spreadsheets','POST',{properties:{title:form.title+' 응답'}});
     }
     // header row = every question/answer column now; on an existing sheet keep its columns and add the missing ones
     say('② 시트에 질문 열을 쓰는 중…');
-    const vurl=`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/`;
-    const old=oldId?(((await gapi(tok,vurl+'A1:ZZ1','GET')).values||[])[0]||[]):[];
-    await gapi(tok,vurl+'A1?valueInputOption=RAW','PUT',{values:[[...old,...sheetHead().filter(h=>!old.includes(h))]]});
+    const vurl=`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/`,cell=r=>encodeURIComponent(tab?`'${tab}'!${r}`:r);
+    const old=oldId||exId?(((await gapi(tok,vurl+cell('A1:ZZ1'),'GET')).values||[])[0]||[]):[];
+    await gapi(tok,vurl+cell('A1')+'?valueInputOption=RAW','PUT',{values:[[...old,...sheetHead().filter(h=>!old.includes(h))]]});
     say('③ 스크립트를 시트에 연결하는 중…');
     await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/content`,'PUT',{files:[
-      {name:'Code',type:'SERVER_JS',source:gsCode(sh.spreadsheetId,key)},
+      {name:'Code',type:'SERVER_JS',source:gsCode(sh.spreadsheetId,key,tab)},
       {name:'appsscript',type:'JSON',source:JSON.stringify({timeZone:'Asia/Seoul',runtimeVersion:'V8',exceptionLogging:'STACKDRIVER',webapp:{access:'ANYONE_ANONYMOUS',executeAs:'USER_DEPLOYING'}})}]});
     say('④ 배포하는 중…');
     const ver=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/versions`,'POST',{description:'FormFlow'});
     const dep=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/deployments`,'POST',{versionNumber:ver.versionNumber,manifestFileName:'appsscript',description:'FormFlow'});
     const ep=(dep.entryPoints||[]).find(x=>x.webApp);
     form.webhook=(ep&&ep.webApp.url)||`https://script.google.com/macros/s/${dep.deploymentId}/exec`;
-    form.sheetUrl=sh.spreadsheetUrl;form.wkey=key;form.sv=2;save();renderBuild();showSheetState();
+    form.sheetUrl=sh.spreadsheetUrl;form.sheetTab=tab;form.wkey=key;form.sv=2;save();renderBuild();showSheetState();
     say(oldId?'✓ 연동을 업데이트했습니다. 아래 "최초 1회 승인하기"를 눌러 승인한 뒤 "공유 링크 복사"를 다시 눌러 주세요. 응답은 기존 시트에 계속 쌓입니다.':'✓ 시트 생성과 연동이 끝났습니다. 아래 "최초 1회 승인하기"를 눌러 권한을 승인하면 응답이 시트에 쌓입니다.');
   }catch(e){say('실패: '+e.message+' — Apps Script API가 꺼져 있다면 script.google.com/home/usersettings 에서 켜 주세요.')}
   finally{btn.disabled=false}
 }
 document.addEventListener('click',e=>{
-  if(e.target.id=='gsMake')createLink(needsUpgrade());
+  if(e.target.id=='gsMake')createLink(needsUpgrade()&&!$('#gsExisting').value.trim());
   else if(e.target.closest('#gs')||e.target.closest('#gs2')){try{$('#gcid').value=form.gcid||localStorage.ff_gcid||''}catch{}$('#gsStatus').textContent='';$('#gcidBox').hidden=!!savedCid();showSheetState()}
 });
 
