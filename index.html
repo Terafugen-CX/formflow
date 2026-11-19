@@ -1249,39 +1249,47 @@ function showSheetState(){
   const L=$('#gsLinks');L.innerHTML='';
   if(/^https:\/\/docs\.google\.com\//.test(form.sheetUrl||''))L.innerHTML+=`<a href="${form.sheetUrl}" target="_blank" rel="noopener">📄 연동된 시트 열기</a>`;
   if(/^https:\/\/script\.google\.com\//.test(form.webhook||'')&&form.sheetUrl)L.innerHTML+=`<a href="${form.webhook}" target="_blank" rel="noopener">✅ 최초 1회 승인하기</a>`;
+  $('#gsMake').textContent=needsUpgrade()?'연동 업데이트 (기존 시트 유지)':'구글 시트 만들고 연동';
 }
-async function createLink(){
+// linked by an older script that can't store the form for short links
+const needsUpgrade=()=>!!(form.webhook&&form.sheetUrl&&!form.wkey);
+// keepSheet: replace only the script (adds short-link storage) and keep writing to the sheet already linked
+async function createLink(keepSheet){
   const say=m=>$('#gsStatus').textContent=m,btn=$('#gsMake'),cid=savedCid()||$('#gcid').value.trim();
   if(!/\.apps\.googleusercontent\.com$/.test(cid)){say('클라이언트 ID를 입력하세요 (…apps.googleusercontent.com)');return}
   try{localStorage.ff_gcid=cid}catch{}
   form.gcid=cid;save();
-  form.wkey=Array.from(crypto.getRandomValues(new Uint8Array(18)),b=>(b%36).toString(36)).join('');save();
+  const key=Array.from(crypto.getRandomValues(new Uint8Array(18)),b=>(b%36).toString(36)).join('');
+  const oldId=keepSheet&&((form.sheetUrl||'').match(/\/spreadsheets\/d\/([\w-]+)/)||[])[1];
   btn.disabled=true;
   try{
     say('구글 로그인 중…');await loadGIS();const tok=await gToken(cid);
     // script first: if Apps Script API is off we fail before leaving an empty sheet in Drive
     say('① 응답 수집 스크립트를 만드는 중…');
     const pr=await gapi(tok,'https://script.googleapis.com/v1/projects','POST',{title:'FormFlow 연동 - '+form.title});
-    say('② 새 구글 시트를 만드는 중…');
-    const sh=await gapi(tok,'https://sheets.googleapis.com/v4/spreadsheets','POST',{properties:{title:form.title+' 응답'}});
-    const titles=form.qs.filter(q=>!NOQ.includes(q.type)).map(q=>q.title);
-    await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/A1?valueInputOption=RAW`,'PUT',{values:[['시간',...(form.loginRequired?['이메일','이름']:[]),...titles]]});
+    let sh={spreadsheetId:oldId,spreadsheetUrl:form.sheetUrl};
+    if(!oldId){
+      say('② 새 구글 시트를 만드는 중…');
+      sh=await gapi(tok,'https://sheets.googleapis.com/v4/spreadsheets','POST',{properties:{title:form.title+' 응답'}});
+      const titles=form.qs.filter(q=>!NOQ.includes(q.type)).map(q=>q.title);
+      await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/A1?valueInputOption=RAW`,'PUT',{values:[['시간',...(form.loginRequired?['이메일','이름']:[]),...titles]]});
+    }
     say('③ 스크립트를 시트에 연결하는 중…');
     await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/content`,'PUT',{files:[
-      {name:'Code',type:'SERVER_JS',source:gsCode(sh.spreadsheetId,form.wkey)},
+      {name:'Code',type:'SERVER_JS',source:gsCode(sh.spreadsheetId,key)},
       {name:'appsscript',type:'JSON',source:JSON.stringify({timeZone:'Asia/Seoul',runtimeVersion:'V8',exceptionLogging:'STACKDRIVER',webapp:{access:'ANYONE_ANONYMOUS',executeAs:'USER_DEPLOYING'}})}]});
     say('④ 배포하는 중…');
     const ver=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/versions`,'POST',{description:'FormFlow'});
     const dep=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/deployments`,'POST',{versionNumber:ver.versionNumber,manifestFileName:'appsscript',description:'FormFlow'});
     const ep=(dep.entryPoints||[]).find(x=>x.webApp);
     form.webhook=(ep&&ep.webApp.url)||`https://script.google.com/macros/s/${dep.deploymentId}/exec`;
-    form.sheetUrl=sh.spreadsheetUrl;save();renderBuild();showSheetState();
-    say('✓ 시트 생성과 연동이 끝났습니다. 아래 "최초 1회 승인하기"를 눌러 권한을 승인하면 응답이 시트에 쌓입니다.');
+    form.sheetUrl=sh.spreadsheetUrl;form.wkey=key;save();renderBuild();showSheetState();
+    say(oldId?'✓ 연동을 업데이트했습니다. 아래 "최초 1회 승인하기"를 눌러 승인한 뒤 "공유 링크 복사"를 다시 눌러 주세요. 응답은 기존 시트에 계속 쌓입니다.':'✓ 시트 생성과 연동이 끝났습니다. 아래 "최초 1회 승인하기"를 눌러 권한을 승인하면 응답이 시트에 쌓입니다.');
   }catch(e){say('실패: '+e.message+' — Apps Script API가 꺼져 있다면 script.google.com/home/usersettings 에서 켜 주세요.')}
   finally{btn.disabled=false}
 }
 document.addEventListener('click',e=>{
-  if(e.target.id=='gsMake')createLink();
+  if(e.target.id=='gsMake')createLink(needsUpgrade());
   else if(e.target.closest('#gs')||e.target.closest('#gs2')){try{$('#gcid').value=form.gcid||localStorage.ff_gcid||''}catch{}$('#gsStatus').textContent='';$('#gcidBox').hidden=!!savedCid();showSheetState()}
 });
 
@@ -1503,10 +1511,24 @@ $('#play').onclick=startRun;
 $('#share').onclick=async()=>{
   if(form.loginRequired&&!form.gcid){alert('구글 로그인을 쓰려면 먼저 오른쪽 패널에 구글 클라이언트 ID를 입력해 주세요.');return}
   const {id,sheetUrl,wkey,...f}=form,base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
+  const openSheet=()=>{$('#gs2').click();$('#sheetGuide').open||$('#sheetGuide').showModal()};
+  // linked with an older script that can't store the form: upgrade it once (same sheet), then come back
+  if(dep&&needsUpgrade()){
+    openSheet();$('#gsStatus').textContent='짧은 공유 링크를 쓰려면 아래 "연동 업데이트" 버튼을 한 번 눌러 주세요. 기존 시트와 응답은 그대로 유지됩니다.';
+    return;
+  }
   let url;
   if(dep&&wkey){
-    try{await fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({saveForm:1,key:wkey,form:f})})}
-    catch{alert('폼을 구글 시트에 저장하지 못했습니다. 인터넷 연결을 확인해 주세요.');return}
+    const btn=$('#share'),txt=btn.textContent;btn.disabled=true;btn.textContent='링크 만드는 중…';
+    try{
+      await fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({saveForm:1,key:wkey,form:f})});
+      // read it back the way a respondent will; fails until the script is approved once
+      const back=await (await fetch(form.webhook+'?form=1')).json();
+      if(!back||!Array.isArray(back.qs))throw 0;
+    }catch{
+      alert('구글 시트 연동 승인이 아직 안 되었습니다.\nSheet 연결 창의 "최초 1회 승인하기"를 눌러 승인한 뒤 "공유 링크 복사"를 다시 눌러 주세요.');
+      openSheet();return;
+    }finally{btn.disabled=false;btn.textContent=txt}
     url=base+'#s='+dep[1];
   }else url=base+'#z='+await zip(JSON.stringify(f));
   try{await navigator.clipboard.writeText(url);alert('링크가 복사되었습니다.\n링크를 열면 응답자 화면이 바로 시작됩니다.')}catch{prompt('링크 복사:',url)}
