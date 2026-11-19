@@ -178,11 +178,10 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 #stage .blk{display:block;position:relative;margin:0;padding:0}
 #stage .blk .rt.desc{border:0;padding:0;margin:0 0 24px;min-height:1.4em;font-size:18px}
 #stage .blk .qimg{max-height:260px!important;margin:0 0 20px!important}
-#stage .blk>.grip{position:absolute;left:-26px;top:0;padding:2px;opacity:0}
-#stage .blk>.badd{position:absolute;right:0;top:-32px;z-index:5;background:#fff;border:1px solid #e4e4e7;border-radius:8px;padding:3px;opacity:0}
-#stage .blk>.ico{position:absolute;right:-30px;top:0;opacity:0}
-#stage .blk:hover>.grip,#stage .blk:hover>.badd,#stage .blk:hover>.ico{opacity:1}
-#stage .in>.badd{opacity:0}#stage .in:hover>.badd{opacity:1}
+#stage .blk>.grip{position:absolute;left:-26px;top:0;padding:2px;opacity:.7}
+#stage .blk>.badd{position:absolute;right:0;top:-32px;z-index:5;background:#fff;border:1px solid #e4e4e7;border-radius:8px;padding:3px;opacity:1}
+#stage .blk>.ico{position:absolute;right:-30px;top:0;opacity:.8}
+#stage .in>.badd{opacity:1}
 .kindrow{display:flex;align-items:center;justify-content:space-between}
 .lay{display:flex;gap:6px}
 .lay button{width:34px;height:30px;border:1px solid var(--line);background:#fff;border-radius:6px;color:#777;cursor:pointer;display:grid;place-items:center;padding:0}
@@ -198,7 +197,28 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .chkprev{width:22px;height:22px;margin:3px 0 0;flex:none;accent-color:var(--accent)}
 #stage .blk:has(.chkprev){display:flex;gap:12px;align-items:flex-start}
 #stage .blk:has(.chkprev) .rt.desc{flex:1;margin:0 0 18px}
-.fcard{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px;background:#fff}
+#vFlow.res{max-width:none;margin:0;padding:20px 24px}
+.fhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.fhead h2{margin:0 0 4px}
+.fhead p{margin:0 0 12px;color:var(--muted);font-size:14px}
+#fcanvas{height:calc(100vh - 190px);min-height:320px;overflow:auto;border:1px solid var(--line);border-radius:12px;background-color:#fafafa;background-image:radial-gradient(#dfe2e7 1px,transparent 1px);background-size:20px 20px}
+#fplane{position:relative;min-width:100%;min-height:100%}
+#fsvg{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.fnode{position:absolute;width:220px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);padding-bottom:6px;z-index:1}
+.fnode.drop{outline:2px solid #2f80ed}
+.fnh{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);cursor:grab;border-left:4px solid #2f80ed;border-radius:12px 12px 0 0;touch-action:none;user-select:none}
+.fnode.end .fnh{border-left-color:#9aa0a6}.fnode.welcome .fnh{border-left-color:#10bc5f}
+.fnt{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-weight:600;font-size:13px}
+.fnh small{color:var(--muted);flex:none;font-size:11px}
+.fnr{position:relative;display:flex;align-items:center;padding:6px 20px 6px 14px;font-size:12px;color:#555}
+.fl{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.fdot{position:absolute;right:-8px;top:50%;margin-top:-7px;width:14px;height:14px;border-radius:50%;background:#2f80ed;border:2px solid #fff;box-shadow:0 0 0 1px #2f80ed;cursor:crosshair;touch-action:none}
+.fdot:hover{transform:scale(1.25)}
+.fin{position:absolute;left:-7px;top:19px;width:12px;height:12px;border-radius:50%;background:#c9ced6;border:2px solid #fff;box-shadow:0 0 0 1px #c9ced6}
+.fedge{fill:none;stroke:#c3c8d0;stroke-width:2}
+.fedge.c{stroke:#2f80ed;stroke-width:2.5}
+.fedge.ftmp{stroke-dasharray:6 4}
+.fhit{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke;cursor:pointer}
 .fh{display:flex;align-items:center;gap:10px;font-weight:600}
 .fh small{color:var(--muted);font-weight:400;flex:none}
 .fnote{color:var(--muted);font-size:13px;margin-top:6px}
@@ -349,7 +369,7 @@ const NOQ=['welcome','statement','end'];
 const YN={ko:['예','아니오'],ox:['O','X']};
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
-const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',bg:'',bgimg:'',texts:[],images:[],jumps:{},layout:'list',labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
+const mk=t=>({id:uid(),type:t,title:t=='welcome'?'설문에 오신 것을 환영합니다':t=='end'?'감사합니다!':'질문을 입력하세요',desc:'',required:false,options:[{id:uid(),text:'옵션 1',img:''},{id:uid(),text:'옵션 2',img:''}],multi:false,yn:'ko',max:10,left:'',right:'',btn:'시작하기',img:'',bg:'',bgimg:'',texts:[],images:[],jumps:{},fx:null,fy:null,layout:'list',labels:{},blocks:[{id:uid(),kind:'text',text:'',html:''}]});
 const blankForm=(title='새 폼')=>({id:uid(),title,accent:'#0445af',bg:'#ffffff',fg:'#191919',webhook:'',qs:[mk('welcome'),Object.assign(mk('text'),{title:'이름이 무엇인가요?',required:true}),Object.assign(mk('mc'),{title:'다시 이용하실 의향이 있나요?',options:[{id:uid(),text:'예',img:''},{id:uid(),text:'아니오',img:''}]}),Object.assign(mk('scale'),{title:'추천하실 의향이 얼마나 되나요?',labels:{1:'전혀 아니다',10:'매우 그렇다'}}),mk('end')]});
 // migrate old question types (rating / nps -> scale)
 function normalize(f){
@@ -387,6 +407,7 @@ function normalize(f){
     r.texts=TXTYPES.includes(r.type)&&Array.isArray(r.texts)?r.texts.slice(0,20).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,5,95,40),fs:clamp(t&&t.fs,0.8,12,3),html:t&&t.html?cleanHtml(t.html):'',text:String((t&&t.text)||'')})):[];
     r.images=TXTYPES.includes(r.type)&&Array.isArray(r.images)?r.images.slice(0,10).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,3,95,30),h:clamp(t&&t.h,3,95,20),src:String((t&&t.src)||''),orig:String((t&&t.orig)||''),tol:clamp(t&&t.tol,10,120,48)})).filter(t=>IMGRE.test(t.src)).map(t=>({...t,orig:IMGRE.test(t.orig)?t.orig:''})):[];
     r.layout=r.layout=='grid'?'grid':'list';
+    r.fx=(r.fx==null||r.fx==='')?null:clamp(r.fx,0,4000,0);r.fy=(r.fy==null||r.fy==='')?null:clamp(r.fy,0,4000,0);   // workflow node position
     // workflow: answer key (option id / score / "*") -> target question id
     r.jumps=(r.jumps&&typeof r.jumps=='object'&&!Array.isArray(r.jumps))?Object.fromEntries(Object.entries(r.jumps).filter(([k,v])=>/^[\w*-]{1,40}$/.test(k)&&/^[\w-]{1,40}$/.test(String(v))).map(([k,v])=>[k,String(v)])):{};
     return r;
@@ -492,15 +513,80 @@ function jumpEditor(q,bare){
   const row=(k,lab)=>`<div class="jrow"><span class="jl" title="${esc(lab)}">${esc(lab)}</span><span>→</span><select data-jk="${k}" data-jq="${q.id}">${opts(q.jumps[k]||'')}</select></div>`;
   return `<div class="field">${bare?'':'<label>답변에 따라 이동 (워크플로우)</label>'}${rows.map(([k,l])=>row(k,l)).join('')}${row('*','그 외 / 건너뜀')}</div>`;
 }
-// workflow tab: every page in order, with where each answer leads
-function renderFlow(){
-  const cards=form.qs.map((q,i)=>({q,i})).filter(x=>x.q.type!='welcome').map(({q,i})=>{
-    const ed=jumpEditor(q,true);
-    const note=q.type=='end'?'마지막 화면입니다.':(ed?'':'답변과 상관없이 다음 질문으로 이동합니다. (객관식·점수 질문에서 이동을 정할 수 있습니다)');
-    return `<div class="fcard"><div class="fh"><span class="num">${q.type=='end'?'■':i+1}</span><span class="jl">${esc(q.title)}</span><small>${TYPES[q.type]}</small></div>${ed}${note?`<div class="fnote">${note}</div>`:''}</div>`;
-  }).join('');
-  $('#vFlow').innerHTML=`<h2>워크플로우</h2><p style="color:var(--muted)">답변에 따라 다음에 보여 줄 질문 페이지를 정합니다. 정하지 않으면 순서대로 다음 질문으로 넘어갑니다.</p>${cards}`;
+// workflow tab: a node graph. Every page is a node; each answer has an output dot you drag onto the page it should lead to.
+function flowRows(q){
+  if(q.type=='end')return [];
+  if(q.type=='mc'&&!q.multi)return [...q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`]),['*','그 외 / 건너뜀']];
+  if(q.type=='scale')return [...Array.from({length:q.max},(_,j)=>[String(j+1),`${j+1}점${q.labels[j+1]?' · '+q.labels[j+1]:''}`]),['*','그 외 / 건너뜀']];
+  return [['*','다음 페이지']];
 }
+const flowPos=(q,i)=>[q.fx!=null?q.fx:40+i*270,q.fy!=null?q.fy:40+(i%2?150:0)];
+function renderFlow(){
+  const nodes=form.qs.map((q,i)=>{
+    const [x,y]=flowPos(q,i);
+    const rows=flowRows(q).map(([k,l])=>`<div class="fnr"><span class="fl" title="${esc(l)}">${esc(l)}</span><i class="fdot" data-out="${esc(k)}" title="끌어서 이동할 페이지에 놓기"></i></div>`).join('');
+    const no=q.type=='end'?'■':q.type=='welcome'?'▶':form.qs.slice(0,i+1).filter(z=>!NOQ.includes(z.type)).length;
+    return `<div class="fnode ${q.type}" data-nid="${q.id}" style="left:${x}px;top:${y}px">${q.type=='welcome'?'':'<i class="fin" data-in></i>'}<div class="fnh"><span class="num">${no}</span><span class="fnt">${esc(q.title)}</span><small>${TYPES[q.type]}</small></div>${rows}</div>`;
+  }).join('');
+  $('#vFlow').innerHTML=`<div class="fhead"><div><h2>워크플로우</h2><p>오른쪽 점(●)을 끌어 이동할 페이지에 놓으면 연결됩니다. 연결하지 않은 답변은 다음 페이지로 넘어갑니다. 파란 선을 클릭하면 연결이 해제되고, 페이지 위쪽을 끌면 위치를 옮길 수 있습니다.</p></div><button class="btn ghost sm" id="flowReset">자동 정렬</button></div><div id="fcanvas"><div id="fplane">${nodes}<svg id="fsvg"><defs><marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c3c8d0"/></marker><marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2f80ed"/></marker></defs><g id="fedges"></g></svg></div></div>`;
+  drawFlow();
+}
+function drawFlow(){
+  const plane=$('#fplane');if(!plane)return;
+  let mw=0,mh=0;plane.querySelectorAll('.fnode').forEach(n=>{mw=Math.max(mw,n.offsetLeft+n.offsetWidth);mh=Math.max(mh,n.offsetTop+n.offsetHeight)});
+  plane.style.width=(mw+80)+'px';plane.style.height=(mh+80)+'px';
+  const svg=$('#fsvg');svg.setAttribute('width',mw+80);svg.setAttribute('height',mh+80);
+  const pr=plane.getBoundingClientRect();
+  const ctr=el=>{const r=el.getBoundingClientRect();return[r.left-pr.left+r.width/2,r.top-pr.top+r.height/2]};
+  let h='';
+  form.qs.forEach((q,i)=>{
+    const node=plane.querySelector(`.fnode[data-nid="${q.id}"]`);if(!node)return;
+    node.querySelectorAll('[data-out]').forEach(dot=>{
+      const key=dot.dataset.out,tid=q.jumps[key]||'';
+      const target=tid?form.qs.find(x=>x.id==tid):form.qs[i+1];
+      if(!target||target.type=='welcome'||target===q)return;
+      const tin=plane.querySelector(`.fnode[data-nid="${target.id}"] [data-in]`);if(!tin)return;
+      const [x1,y1]=ctr(dot),[x2,y2]=ctr(tin),dx=Math.max(50,Math.abs(x2-x1)/2);
+      const d=`M${x1} ${y1} C${x1+dx} ${y1},${x2-dx} ${y2},${x2} ${y2}`;
+      h+=`<path class="fedge${tid?' c':''}" d="${d}" marker-end="url(#${tid?'arrB':'arrG'})"/>`;
+      if(tid)h+=`<path class="fhit" d="${d}" data-from="${q.id}" data-key="${esc(key)}"><title>클릭하면 연결 해제</title></path>`;
+    });
+  });
+  $('#fedges').innerHTML=h;
+}
+document.addEventListener('pointerdown',e=>{
+  const plane=$('#fplane');if(!plane||!e.target.closest)return;
+  const dot=e.target.closest('.fdot'),head=e.target.closest('.fnh');
+  if(dot){                                   // draw a connection
+    e.preventDefault();
+    const node=dot.closest('.fnode'),q=form.qs.find(x=>x.id==node.dataset.nid),key=dot.dataset.out;
+    const p0=plane.getBoundingClientRect(),r0=dot.getBoundingClientRect(),x1=r0.left-p0.left+r0.width/2,y1=r0.top-p0.top+r0.height/2;
+    const tmp=document.createElementNS('http://www.w3.org/2000/svg','path');tmp.setAttribute('class','fedge c ftmp');$('#fedges').append(tmp);
+    const over=ev=>{const t=document.elementFromPoint(ev.clientX,ev.clientY),tn=t&&t.closest&&t.closest('.fnode');return tn&&tn!==node&&!tn.classList.contains('welcome')?tn:null};
+    const mv=ev=>{
+      const p=plane.getBoundingClientRect(),x2=ev.clientX-p.left,y2=ev.clientY-p.top,dx=Math.max(50,Math.abs(x2-x1)/2);
+      tmp.setAttribute('d',`M${x1} ${y1} C${x1+dx} ${y1},${x2-dx} ${y2},${x2} ${y2}`);
+      plane.querySelectorAll('.fnode.drop').forEach(n=>n.classList.remove('drop'));const tn=over(ev);if(tn)tn.classList.add('drop');
+    };
+    const up=ev=>{
+      removeEventListener('pointermove',mv);removeEventListener('pointerup',up);tmp.remove();
+      const tn=over(ev);if(tn){q.jumps[key]=tn.dataset.nid;save()}
+      renderFlow();
+    };
+    addEventListener('pointermove',mv);addEventListener('pointerup',up);
+  }else if(head){                            // move a node
+    e.preventDefault();
+    const node=head.closest('.fnode'),q=form.qs.find(x=>x.id==node.dataset.nid),sx=e.clientX,sy=e.clientY,x0=node.offsetLeft,y0=node.offsetTop;
+    const mv=ev=>{q.fx=Math.max(0,x0+ev.clientX-sx);q.fy=Math.max(0,y0+ev.clientY-sy);node.style.left=q.fx+'px';node.style.top=q.fy+'px';drawFlow()};
+    const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);save()};
+    addEventListener('pointermove',mv);addEventListener('pointerup',up);
+  }
+});
+document.addEventListener('click',e=>{
+  const hit=e.target.closest&&e.target.closest('.fhit');
+  if(hit){const q=form.qs.find(x=>x.id==hit.dataset.from);if(q){delete q.jumps[hit.dataset.key];save();renderFlow()}}
+  else if(e.target.closest&&e.target.closest('#flowReset')){form.qs.forEach(q=>{q.fx=null;q.fy=null});save();renderFlow()}
+});
 // the canvas is a live copy of the real page (same markup and CSS as the runner), scaled to fit.
 // title, content, text and image boxes are edited right on it; the panel under it holds settings.
 function stageSection(q){
@@ -1094,10 +1180,10 @@ function validate(i){
 // workflow: the chosen answer can lead to a specific page; hist lets "back" retrace the path actually taken
 function jumpIndex(i){
   const q=runQs[i];
-  if(!q||!q.jumps||(q.type!='mc'&&q.type!='scale')||(q.type=='mc'&&q.multi))return -1;
-  const a=ans[q.id];let key='';
-  if(q.type=='mc'){const o=q.options.find(x=>x.text===a);key=o?o.id:''}
-  else if(a!==undefined&&a!=='')key=String(a);
+  if(!q||!q.jumps)return -1;
+  const a=ans[q.id];let key='';   // any page can route via "*"; mc/scale also route per answer
+  if(q.type=='mc'&&!q.multi){const o=q.options.find(x=>x.text===a);key=o?o.id:''}
+  else if(q.type=='scale'&&a!==undefined&&a!=='')key=String(a);
   const id=(key&&q.jumps[key])||q.jumps['*']||'';
   return id?runQs.findIndex(x=>x.id==id):-1;
 }
