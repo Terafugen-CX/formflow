@@ -183,6 +183,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 #stage .blk>.ico{position:absolute;right:-30px;top:0;opacity:.8}
 #stage .in>.badd{opacity:1}
 .kindrow{display:flex;align-items:center;justify-content:space-between}
+.qitem .qty{flex:none;color:#b3b6bd;font-size:11px;margin-left:2px}
 .lay{display:flex;gap:6px}
 .lay button{width:34px;height:30px;border:1px solid var(--line);background:#fff;border-radius:6px;color:#777;cursor:pointer;display:grid;place-items:center;padding:0}
 .lay button.on{border-color:var(--ui);color:var(--ui);background:#eef3fc}
@@ -469,7 +470,7 @@ function renderNav(){
   $('#projs').innerHTML=treeHTML(store.projects,0);
 }
 function renderQs(){
-  $('#list').innerHTML=form.qs.map((q,i)=>`<div class="qitem ${i==sel?'on':''}" data-i="${i}"><span class="n">${i+1}</span><span class="t">${esc(q.title)}</span><button class="ico" data-del="${i}">✕</button></div>`).join('');
+  $('#list').innerHTML=form.qs.map((q,i)=>`<div class="qitem ${i==sel?'on':''}" data-i="${i}"><span class="n">${i+1}</span><span class="t">${esc(q.title)}</span><span class="qty">${TYPES[q.type]}</span><button class="ico" data-del="${i}">✕</button></div>`).join('');
   const has=t=>form.qs.some(x=>x.type==t);
   $('#types').innerHTML=ADDABLE.map(k=>{
     const off=(k=='welcome'||k=='end')&&has(k);
@@ -625,7 +626,7 @@ function renderBuild(){
   theme();renderNav();renderQs();
   const q=form.qs[sel];
   if(!q){$('#editor').innerHTML='';$('#propsBody').innerHTML='';return}
-  $('#editor').innerHTML=`<div id="stageWrap"><div id="stage"></div></div><div class="edit epanel"><div class="kind kindrow"><span>${sel+1} · ${TYPES[q.type]}</span>${q.type=='mc'?layBtns(q):''}</div>
+  $('#editor').innerHTML=`<div id="stageWrap"><div id="stage"></div></div><div class="edit epanel">${q.type=='mc'?`<div class="kindrow" style="justify-content:flex-end">${layBtns(q)}</div>`:''}
     ${q.type=='mc'?mcEditor(q):''}
     ${q.type=='scale'?scaleEditor(q):''}
     ${q.type=='welcome'?`<div class="field"><label>버튼 글자</label><input value="${esc(q.btn)}" data-k="btn"></div>`:''}
