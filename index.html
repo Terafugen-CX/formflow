@@ -1312,9 +1312,20 @@ function showSheetState(){
   const linked=!!(form.webhook&&form.sheetUrl);
   $('#gsForm').innerHTML=`이 폼: <b>${esc(form.title)}</b> · ${linked?`연동됨${form.sheetTab?` (탭: ${esc(form.sheetTab)})`:''} <button class="btn ghost sm" id="gsUnlink" style="margin-left:6px">연동 해제</button>`:'연동 안 됨'}`;
   $('#gsKeepRow').hidden=!linked;
+  if(linked)checkHook();
   const m=document.querySelector('input[name=gsMode]:checked');
   if(!m||(m.value=='keep'&&!linked))document.querySelector(`input[name=gsMode][value=${linked?'keep':'new'}]`).checked=true;
   gsModeUI();
+}
+// answers are sent blind (no-cors), so ask the script directly: an unapproved deployment answers with a Google sign-in page, which fails here
+async function checkHook(){
+  const el=document.createElement('div');el.id='gsHealth';el.style.cssText='margin-top:6px;font-weight:600';
+  const old=$('#gsHealth');if(old)old.remove();$('#gsForm').append(el);el.textContent='연동 상태 확인 중…';
+  const hook=form.webhook;let ok=false;
+  try{ok=(await (await fetch(hook)).text()).includes('FormFlow')}catch{}
+  if(hook!=form.webhook||!document.contains(el))return;
+  el.style.color=ok?'#1e7e34':'#c0392b';
+  el.innerHTML=ok?'✅ 응답이 시트로 전송됩니다 (승인 완료)':`⚠ 응답이 시트로 전송되지 않습니다. <a href="${form.webhook}" target="_blank" rel="noopener">최초 1회 승인하기</a>를 눌러 승인한 뒤 이 창을 다시 열어 확인하세요.`;
 }
 const gsMode=()=>(document.querySelector('input[name=gsMode]:checked')||{}).value||'new';
 function gsModeUI(){
