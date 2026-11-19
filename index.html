@@ -196,6 +196,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .ogrip{cursor:grab;color:#888}
 .odrag{opacity:.45}
 .odrop{outline:2px dashed var(--accent);outline-offset:3px;border-radius:8px}
+::highlight(ffsel){background:#b4d3fb}
 .runmsg{margin:auto;color:#666;font-size:16px;text-align:center;padding:40px}
 .oslot{display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:4/3;border:1.5px dashed #d6d9e0;border-radius:6px;background:none;color:#c4c8d0;font-size:28px;cursor:pointer}.oslot:hover{color:var(--accent);border-color:var(--accent)}.oslot.oslotS{width:36px;height:28px;aspect-ratio:auto;font-size:16px;margin-left:auto;flex:none}#stage [data-oi] img[data-oimg]{cursor:pointer}
 .ob.obw{width:auto;padding:0 8px;font-size:12px;white-space:nowrap}
@@ -867,6 +868,8 @@ document.addEventListener('selectionchange',()=>{
   const rt=n&&n.closest&&n.closest('.rt');
   if(rt){
     lastRt=rt;lastRange=s.getRangeAt(0).cloneRange();
+    // keep the selection painted while the size box / color picker has focus
+    try{CSS.highlights.set('ffsel',new Highlight(lastRange))}catch{}
     // show the size of the selected text: walk from the range start down to its first text node
     const nb=$('#tbSizeNum');
     if(nb&&document.activeElement!==nb){
@@ -877,6 +880,20 @@ document.addEventListener('selectionchange',()=>{
       if(el&&el.nodeType==1)nb.value=Math.round(parseFloat(getComputedStyle(el).fontSize))||'';
     }
   }
+});
+// a drag that starts on the blank canvas can't enter a contenteditable, so rebuild it: from where the drag began to where it ended, inside the text box it ended on
+let dragFrom=null;
+document.addEventListener('mousedown',e=>{if(!(e.target.closest&&e.target.closest('#tb,.rt')))try{CSS.highlights.delete('ffsel')}catch{}dragFrom=e.button==0&&e.target.closest&&e.target.closest('#stagePage')&&!e.target.closest('.rt,input,button,textarea,select')?{x:e.clientX,y:e.clientY}:null});
+document.addEventListener('mouseup',e=>{
+  const a=dragFrom;dragFrom=null;if(!a||Math.hypot(e.clientX-a.x,e.clientY-a.y)<4||!document.caretRangeFromPoint)return;
+  const end=document.caretRangeFromPoint(e.clientX,e.clientY),start=document.caretRangeFromPoint(a.x,a.y);
+  const rt=end&&(end.startContainer.nodeType==1?end.startContainer:end.startContainer.parentElement).closest('#stagePage .rt');if(!rt)return;
+  const r=document.createRange();r.selectNodeContents(rt);
+  const back=start&&start.compareBoundaryPoints(Range.START_TO_START,end)>0;   // dragged right-to-left / upward
+  const inRt=start&&rt.contains(start.startContainer);
+  if(back){r.setStart(end.startContainer,end.startOffset);if(inRt)r.setEnd(start.startContainer,start.startOffset)}
+  else{r.setEnd(end.startContainer,end.startOffset);if(inRt)r.setStart(start.startContainer,start.startOffset)}
+  rt.focus();const s=getSelection();s.removeAllRanges();s.addRange(r);
 });
 function fmt(fn){
   if(!lastRt||!document.contains(lastRt)||!lastRange)return;
