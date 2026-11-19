@@ -315,6 +315,8 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}
 th{background:var(--card);font-weight:600}
+/* 응답 table: one line per cell, scroll sideways instead of wrapping */
+#vResults th,#vResults td{white-space:nowrap}#vResults table{width:auto;min-width:100%}
 .hide{display:none!important}
 @media(max-width:900px){.builder{grid-template-columns:1fr;height:auto}.side,.props{border:0}}
 </style>
@@ -363,12 +365,16 @@ th{background:var(--card);font-weight:600}
   <h3 style="margin:0 0 4px">구글 시트 · 엑셀 실시간 연동</h3>
   <p style="color:var(--muted);margin:0 0 12px;font-size:14px">응답이 제출될 때마다 구글 시트에 한 줄씩 자동으로 쌓입니다. 구글 시트는 엑셀로 바로 열 수 있습니다. (무료)</p>
   <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:#fafafa">
-    <div style="font-weight:600;margin-bottom:8px">버튼 한 번으로 새 시트를 만들고 자동 연동</div>
+    <div id="gsForm" style="font-size:13px;margin-bottom:10px"></div>
     <div id="gcidBox"><label style="font-size:12px;color:var(--muted)">구글 OAuth 클라이언트 ID (처음 한 번만 입력)</label>
     <input id="gcid" placeholder="123456-abc.apps.googleusercontent.com" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px"></div>
-    <label style="font-size:12px;color:var(--muted)">기존 시트에 새 탭으로 연결하려면 시트 주소를 붙여넣으세요 (비워 두면 새 시트를 만듭니다)</label>
-    <input id="gsExisting" placeholder="https://docs.google.com/spreadsheets/d/…" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px">
-    <button class="btn sm" id="gsMake">구글 시트 만들고 연동</button>
+    <div id="gsModes" style="display:flex;flex-direction:column;gap:6px;font-size:13px;margin-bottom:8px">
+      <label id="gsKeepRow"><input type="radio" name="gsMode" value="keep"> 지금 연동된 시트 유지 (스크립트·질문 열 업데이트)</label>
+      <label><input type="radio" name="gsMode" value="new"> 새 시트 만들어 연동</label>
+      <label><input type="radio" name="gsMode" value="exist"> 기존 시트에 새 탭 만들어 연동</label>
+    </div>
+    <input id="gsExisting" placeholder="기존 시트 주소 붙여넣기 — https://docs.google.com/spreadsheets/d/…" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:0 0 10px">
+    <button class="btn sm" id="gsMake">연동하기</button>
     <div id="gsStatus" style="font-size:13px;margin-top:8px;color:#444"></div>
     <div id="gsLinks" style="font-size:13px;margin-top:6px;display:flex;gap:14px;flex-wrap:wrap"></div>
     <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:var(--muted)">클라이언트 ID 만드는 법 (무료, 약 5분)</summary>
@@ -1291,8 +1297,26 @@ function showSheetState(){
   const L=$('#gsLinks');L.innerHTML='';
   if(/^https:\/\/docs\.google\.com\//.test(form.sheetUrl||''))L.innerHTML+=`<a href="${form.sheetUrl}" target="_blank" rel="noopener">📄 연동된 시트 열기</a>`;
   if(/^https:\/\/script\.google\.com\//.test(form.webhook||'')&&form.sheetUrl)L.innerHTML+=`<a href="${form.webhook}" target="_blank" rel="noopener">✅ 최초 1회 승인하기</a>`;
-  $('#gsMake').textContent=needsUpgrade()?'연동 업데이트 (기존 시트 유지)':'구글 시트 만들고 연동';
+  // each form has its own sheet: show which form and what it is linked to, and let it pick keep / new sheet / tab in an existing sheet
+  const linked=!!(form.webhook&&form.sheetUrl);
+  $('#gsForm').innerHTML=`이 폼: <b>${esc(form.title)}</b> · ${linked?`연동됨${form.sheetTab?` (탭: ${esc(form.sheetTab)})`:''} <button class="btn ghost sm" id="gsUnlink" style="margin-left:6px">연동 해제</button>`:'연동 안 됨'}`;
+  $('#gsKeepRow').hidden=!linked;
+  const m=document.querySelector('input[name=gsMode]:checked');
+  if(!m||(m.value=='keep'&&!linked))document.querySelector(`input[name=gsMode][value=${linked?'keep':'new'}]`).checked=true;
+  gsModeUI();
 }
+const gsMode=()=>(document.querySelector('input[name=gsMode]:checked')||{}).value||'new';
+function gsModeUI(){
+  const m=gsMode();$('#gsExisting').hidden=m!='exist';
+  $('#gsMake').textContent=m=='keep'?(needsUpgrade()?'연동 업데이트 (시트 유지)':'스크립트·질문 열 업데이트'):m=='exist'?'기존 시트에 탭 만들고 연동':'새 시트 만들고 연동';
+}
+document.addEventListener('change',e=>{if(e.target.name=='gsMode')gsModeUI()});
+document.addEventListener('click',e=>{
+  if(e.target.id!='gsUnlink')return;
+  if(!confirm('이 폼의 구글 시트 연동을 해제할까요? 시트와 그동안의 응답은 구글 드라이브에 그대로 남습니다.'))return;
+  ['webhook','sheetUrl','sheetTab','wkey','sv'].forEach(k=>delete form[k]);save();renderBuild();
+  document.querySelectorAll('input[name=gsMode]').forEach(r=>r.checked=false);$('#gsStatus').textContent='연동을 해제했습니다.';showSheetState();
+});
 // linked by an older script that can't store the form for short links
 const needsUpgrade=()=>!!(form.webhook&&form.sheetUrl&&(!form.wkey||(form.sv||1)<2));   // sv 2: script also fills the header row
 // keepSheet: replace only the script (adds short-link storage) and keep writing to the sheet already linked
@@ -1310,7 +1334,7 @@ async function createLink(keepSheet){
     say('① 응답 수집 스크립트를 만드는 중…');
     const pr=await gapi(tok,'https://script.googleapis.com/v1/projects','POST',{title:'FormFlow 연동 - '+form.title});
     let sh={spreadsheetId:oldId,spreadsheetUrl:form.sheetUrl},tab=keepSheet?(form.sheetTab||''):'';
-    const exId=!keepSheet&&(($('#gsExisting').value||'').match(/\/spreadsheets\/d\/([\w-]+)/)||[])[1];
+    const exId=!keepSheet&&gsMode()=='exist'&&(($('#gsExisting').value||'').match(/\/spreadsheets\/d\/([\w-]+)/)||[])[1];
     if(exId){
       // existing spreadsheet: answers go to a tab named after the form (reused if it already exists)
       say('② 기존 시트에 새 탭을 만드는 중…');
@@ -1344,8 +1368,12 @@ async function createLink(keepSheet){
   finally{btn.disabled=false}
 }
 document.addEventListener('click',e=>{
-  if(e.target.id=='gsMake')createLink(needsUpgrade()&&!$('#gsExisting').value.trim());
-  else if(e.target.closest('#gs')||e.target.closest('#gs2')){try{$('#gcid').value=form.gcid||localStorage.ff_gcid||''}catch{}$('#gsStatus').textContent='';$('#gcidBox').hidden=!!savedCid();showSheetState()}
+  if(e.target.id=='gsMake'){
+    const m=gsMode();
+    if(m=='exist'&&!/\/spreadsheets\/d\/[\w-]+/.test($('#gsExisting').value)){$('#gsStatus').textContent='기존 시트 주소를 붙여넣어 주세요 (https://docs.google.com/spreadsheets/d/…)';return}
+    createLink(m=='keep');
+  }
+  else if(e.target.closest('#gs')||e.target.closest('#gs2')){try{$('#gcid').value=form.gcid||localStorage.ff_gcid||''}catch{}$('#gsStatus').textContent='';$('#gcidBox').hidden=!!savedCid();$('#gsExisting').value='';document.querySelectorAll('input[name=gsMode]').forEach(r=>r.checked=false);showSheetState()}
 });
 
 /* ---------- runner ---------- */
@@ -1583,7 +1611,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v))
 $('#play').onclick=startRun;
 $('#share').onclick=async()=>{
   if(form.loginRequired&&!form.gcid){alert('구글 로그인을 쓰려면 먼저 오른쪽 패널에 구글 클라이언트 ID를 입력해 주세요.');return}
-  const {id,sheetUrl,wkey,sv,...f}=form,base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
+  const {id,sheetUrl,sheetTab,wkey,sv,...f}=form,base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
   const openSheet=()=>{$('#gs2').click();$('#sheetGuide').open||$('#sheetGuide').showModal()};
   // linked with an older script that can't store the form: upgrade it once (same sheet), then come back
   if(dep&&needsUpgrade()){
