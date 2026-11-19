@@ -104,7 +104,7 @@ header .crumb b{color:#191919;font-weight:600}
 .mcrow .btn{flex:none}
 .othumb{display:inline-flex;align-items:center;gap:2px;flex:none}
 .othumb img{height:34px;border-radius:4px}
-.oimgv{height:44px;max-width:90px;object-fit:cover;border-radius:4px}
+.oimgv{height:72px;max-width:140px;object-fit:contain;border-radius:4px}
 dialog{border:1px solid var(--line);border-radius:12px;max-width:660px;width:92vw;padding:22px;color:#191919}
 dialog::backdrop{background:rgba(0,0,0,.4)}
 dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-size:12px;max-height:220px;margin:0}
@@ -191,9 +191,10 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .otools{display:flex;gap:4px;flex:none}
 .ob{width:30px;height:30px;border:1px solid #e4e4e7;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;padding:0;display:grid;place-items:center;color:#444}
 .ob:hover{background:#f4f4f5}
+.ob.obw{width:auto;padding:0 8px;font-size:12px;white-space:nowrap}
 .choice.card.ed{position:relative}
 .choice.card .otools{position:absolute;top:6px;right:6px}
-.laybar{position:absolute;top:10px;right:10px;z-index:20}
+.laybar{position:absolute;top:10px;right:10px;z-index:4}
 #stage .in .ansE{pointer-events:auto;cursor:text}
 .ansE .rt{color:color-mix(in srgb,var(--fg) 45%,transparent);min-height:1.2em;outline:0}
 .ansE .rt:empty:before{opacity:1}
@@ -207,9 +208,9 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .lay button.on{border-color:var(--ui);color:var(--ui);background:#eef3fc}
 .lay svg{fill:currentColor}
 .mcgrid{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
-.mcgrid .choice{flex-direction:column;align-items:stretch;gap:10px;width:calc((100% - 24px)/3);min-width:150px;max-width:none;margin:0;padding:12px}
+.mcgrid .choice{flex-direction:column;align-items:stretch;gap:10px;width:calc((100% - 12px)/2);min-width:180px;max-width:none;margin:0;padding:12px}
 .choice .ctop{display:flex;align-items:center;gap:8px}
-.choice .cimg{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;display:block}
+.choice .cimg{width:100%;height:auto;max-height:320px;object-fit:contain;border-radius:6px;display:block}
 .chk{display:flex;gap:12px;align-items:flex-start;margin:0 0 18px;cursor:pointer}
 .chk input{width:22px;height:22px;margin:3px 0 0;flex:none;accent-color:var(--accent);cursor:pointer}
 .chk .qdesc{margin:0}
@@ -519,7 +520,7 @@ const layBtns=q=>`<span class="lay"><button data-lay="list" class="${q.layout!='
 // 객관식 on the canvas: edit each choice's text in place; its image / add / delete tools sit to the right of it
 function mcStage(q){
   const card=q.layout=='grid';
-  const tools=o=>`<span class="otools"><button class="ob" data-oimg="${o.id}" title="이미지 추가">🖼</button>${o.img?`<button class="ob" data-oimgdel="${o.id}" title="이미지 삭제">🗑</button>`:''}<button class="ob" data-oadd="${o.id}" title="선택지 추가">＋</button><button class="ob" data-odel="${o.id}" title="삭제">✕</button></span>`;
+  const tools=o=>`<span class="otools"><button class="ob obw" data-oimg="${o.id}" title="이미지 추가">이미지 등록</button>${o.img?`<button class="ob" data-oimgdel="${o.id}" title="이미지 삭제">🗑</button>`:''}<button class="ob" data-oadd="${o.id}" title="선택지 추가">＋</button><button class="ob" data-odel="${o.id}" title="삭제">✕</button></span>`;
   const items=q.options.map((o,j)=>card
     ?`<div class="choice card ed"><span class="ctop"><kbd>${j+1}</kbd><span class="ot" contenteditable="true" data-ot="${o.id}" data-ph="선택지">${esc(o.text)}</span></span>${o.img?`<img class="cimg" src="${o.img}">`:''}${tools(o)}</div>`
     :`<div class="oline"><div class="choice ed"><kbd>${j+1}</kbd>${o.img?`<img class="oimgv" src="${o.img}">`:''}<span class="ot" contenteditable="true" data-ot="${o.id}" data-ph="선택지">${esc(o.text)}</span></div>${tools(o)}</div>`).join('');
