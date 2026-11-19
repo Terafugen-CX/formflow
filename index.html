@@ -701,6 +701,7 @@ function renderBuild(){
   refreshStage();
   $('#propsBody').innerHTML=`
     ${NOQ.includes(q.type)?'':`<div class="row"><input type="checkbox" id="req" ${q.required?'checked':''}><label for="req">필수 응답</label></div>`}
+    ${q.type=='mc'?`<div class="row"><input type="checkbox" id="multi" ${q.multi?'checked':''}><label for="multi">다중 선택</label></div>`:''}
     ${q.type=='welcome'||q.type=='end'?'':'<div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>'}
     ${TXTYPES.includes(q.type)?'<button class="btn ghost sm" id="addText" style="margin-top:12px;width:100%">＋ 텍스트 추가</button><button class="btn ghost sm" id="addBoxImg" style="margin-top:8px;width:100%">＋ 이미지 추가</button>':''}
     <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
@@ -726,7 +727,8 @@ document.addEventListener('input',e=>{
   }
   else if(t.dataset.ot!=null){const o=q.options.find(x=>x.id==t.dataset.ot);if(o)o.text=t.isContentEditable?t.innerText.trim():t.value;if(!t.isContentEditable)refreshStage()}
   else if(t.dataset.fp){form[t.dataset.fp]=t.value;theme();if(t.dataset.fp=='title')renderNav()}
-  else if(t.id=='req')q.required=t.checked;  else return;
+  else if(t.id=='req')q.required=t.checked;
+  else if(t.id=='multi'){q.multi=t.checked;refreshStage()}  else return;
   save();
 });
 document.addEventListener('change',e=>{if(e.target.dataset.pv){renderBuild()}});
@@ -1256,7 +1258,7 @@ function slideHTML(q,i){
     body=card?`<div class="mcgrid">${items}</div>`:items;
   }
   else if(q.type=='scale')body=`<div class="scale">${Array.from({length:q.max},(_,j)=>`<div class="sc"><button data-v="${j+1}">${j+1}</button><span>${esc(q.labels[j+1]||'')}</span></div>`).join('')}</div>`;
-  const extra=isQ&&q.type!='text'&&q.type!='check'?'<div class="extra"><textarea class="note" rows="1" placeholder="추가 의견 (선택)"></textarea></div>':'';
+  const extra='';   // no "추가 의견" box on the respondent page
   const last=!runQs[i+1]||runQs[i+1].type=='end';
   const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
     :q.type=='end'?'<p class="qdesc">응답이 제출되었습니다.</p><button class="btn ghost" id="again">다시 하기</button>'
