@@ -805,7 +805,8 @@ document.addEventListener('dblclick',e=>{
 // keep only simple formatting tags/styles; parsed in an inert document so shared links can't run script
 function cleanHtml(h){
   const d=new DOMParser().parseFromString(String(h),'text/html').body,doc=d.ownerDocument;
-  const ok=['B','STRONG','I','EM','U','S','STRIKE','SPAN','BR','DIV','FONT'];
+  // paragraphs and lists are kept too, so the preview has the same line structure as the editor
+  const ok=['B','STRONG','I','EM','U','S','STRIKE','SPAN','BR','DIV','FONT','P','UL','OL','LI','H1','H2','H3','H4','BLOCKQUOTE'];
   const keep=['color','font-size','font-family','font-weight','font-style','text-decoration','text-decoration-line'];
   (function walk(n){
     [...n.childNodes].forEach(c=>{
