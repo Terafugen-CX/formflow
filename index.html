@@ -695,7 +695,7 @@ function stageSection(q){
   title.contentEditable='true';title.dataset.rt='title';title.dataset.ph='질문을 입력하세요';
   title.classList.add('rt');if(q.required)title.classList.add('req');
   const anchor=inn.querySelector(':scope > .extra')||inn.querySelector(':scope > .err');
-  if(q.type=='mc')anchor.insertAdjacentHTML('beforebegin',mcStage(q)+blocksEditor({...q,blocks:q.blocks.filter(b=>b.kind=='button')},true));
+  if(q.type=='mc'){title.insertAdjacentHTML('afterend',blocksEditor({...q,blocks:q.blocks.filter(b=>!b.low&&(b.kind=='text'||b.kind=='img'))},false));anchor.insertAdjacentHTML('beforebegin',mcStage(q)+blocksEditor({...q,blocks:q.blocks.filter(b=>b.kind=='button')},true))}
   else{title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',blocksEditor(q,true))}
   sec.insertAdjacentHTML('beforeend',textBoxes(q)+imageBoxes(q));
   const fin=sec.querySelector('#finish');   // 끝 화면 button: its label is edited in place
@@ -1248,6 +1248,8 @@ function doPost(e){
     var j=JSON.stringify(d.form),rows=[];
     for(var i=0;i<j.length;i+=40000)rows.push([j.slice(i,i+40000)]);
     fs.getRange(1,1,rows.length,1).setNumberFormat('@').setValues(rows);
+    var sh0=ss.getSheets()[0],lc=sh0.getLastColumn(),hd=lc?sh0.getRange(1,1,1,lc).getValues()[0]:[];
+    (d.cols||[]).forEach(function(c){c=String(c);if(hd.indexOf(c)<0){hd.push(c);sh0.getRange(1,hd.length).setValue(c)}});
     return ContentService.createTextOutput('ok');
   }
   var sh=SpreadsheetApp.openById('${id}').getSheets()[0];
@@ -1288,7 +1290,7 @@ function showSheetState(){
   $('#gsMake').textContent=needsUpgrade()?'연동 업데이트 (기존 시트 유지)':'구글 시트 만들고 연동';
 }
 // linked by an older script that can't store the form for short links
-const needsUpgrade=()=>!!(form.webhook&&form.sheetUrl&&!form.wkey);
+const needsUpgrade=()=>!!(form.webhook&&form.sheetUrl&&(!form.wkey||(form.sv||1)<2));   // sv 2: script also fills the header row
 // keepSheet: replace only the script (adds short-link storage) and keep writing to the sheet already linked
 async function createLink(keepSheet){
   const say=m=>$('#gsStatus').textContent=m,btn=$('#gsMake'),cid=savedCid()||$('#gcid').value.trim();
@@ -1307,8 +1309,7 @@ async function createLink(keepSheet){
     if(!oldId){
       say('② 새 구글 시트를 만드는 중…');
       sh=await gapi(tok,'https://sheets.googleapis.com/v4/spreadsheets','POST',{properties:{title:form.title+' 응답'}});
-      const titles=form.qs.filter(q=>!NOQ.includes(q.type)).map(q=>q.title);
-      await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/A1?valueInputOption=RAW`,'PUT',{values:[['시간',...(form.loginRequired?['이메일','이름']:[]),...titles]]});
+      await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/A1?valueInputOption=RAW`,'PUT',{values:[sheetHead()]});
     }
     say('③ 스크립트를 시트에 연결하는 중…');
     await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/content`,'PUT',{files:[
@@ -1319,7 +1320,7 @@ async function createLink(keepSheet){
     const dep=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/deployments`,'POST',{versionNumber:ver.versionNumber,manifestFileName:'appsscript',description:'FormFlow'});
     const ep=(dep.entryPoints||[]).find(x=>x.webApp);
     form.webhook=(ep&&ep.webApp.url)||`https://script.google.com/macros/s/${dep.deploymentId}/exec`;
-    form.sheetUrl=sh.spreadsheetUrl;form.wkey=key;save();renderBuild();showSheetState();
+    form.sheetUrl=sh.spreadsheetUrl;form.wkey=key;form.sv=2;save();renderBuild();showSheetState();
     say(oldId?'✓ 연동을 업데이트했습니다. 아래 "최초 1회 승인하기"를 눌러 승인한 뒤 "공유 링크 복사"를 다시 눌러 주세요. 응답은 기존 시트에 계속 쌓입니다.':'✓ 시트 생성과 연동이 끝났습니다. 아래 "최초 1회 승인하기"를 눌러 권한을 승인하면 응답이 시트에 쌓입니다.');
   }catch(e){say('실패: '+e.message+' — Apps Script API가 꺼져 있다면 script.google.com/home/usersettings 에서 켜 주세요.')}
   finally{btn.disabled=false}
@@ -1410,7 +1411,7 @@ function slideHTML(q,i){
     :b.kind=='answer'?`<textarea class="ans" data-bid="${b.id}" rows="2" placeholder="${esc(b.text||'답변을 입력하세요')}" style="${ansStyle(b)}"></textarea>`
     :b.kind=='button'?`<div class="go"><button class="btn go-btn">${b.html||esc(b.text)||'확인'}</button></div>`
     :(b.text||b.html)?(b.kind=='check'?`<label class="chk"><input type="checkbox"${b.req||need?' data-req':''}><span class="qdesc">${b.html||esc(b.text)}</span>${b.req||need?'<span class="rq"> *</span>':''}</label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'';
-  const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'):q.blocks).filter(b=>!!b.low==low).map(one).join('');
+  const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'||(!b.low&&(b.kind=='text'||b.kind=='img'))):q.blocks).filter(b=>!!b.low==low).map(one).join('');
   const sbg=`${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
   return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}" style="${sbg}">${(q.images||[]).map(t=>`<img class="ix" src="${t.src}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw">`).join('')}${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
@@ -1454,12 +1455,26 @@ function next(){
   if(nx.type=='end'&&!submitted){submitted=true;submit()}
   hist.push(cur);show(to);
 }
+// sheet columns, one per answer a respondent can give; a repeated page title gets its page number so answers don't merge
+function sheetCols(qs){
+  const live=qs.filter(q=>!NOQ.includes(q.type)),out=[];
+  const base=q=>(q.title||'(제목 없음)')+(live.filter(z=>z.title==q.title).length>1?' ('+(qs.indexOf(q)+1)+'번)':'');
+  live.forEach(q=>{
+    const b=base(q);
+    if(q.type=='mc'||q.type=='scale')out.push([q.id,b]);
+    else (q.blocks||[]).filter(x=>x.kind=='answer').forEach((x,j)=>out.push([j?q.id+'#'+x.id:q.id,b+(j?' (답변 '+(j+1)+')':'')]));
+    if((q.blocks||[]).some(x=>x.kind=='check'))out.push([q.id+'#chk',b+' (체크)']);
+  });
+  return out;
+}
+const sheetHead=()=>['시간',...(form.loginRequired?['이메일','이름']:[]),...sheetCols(form.qs).map(c=>c[1])];
 function submit(){
   const a=Object.fromEntries(Object.entries(ans).filter(([,v])=>v!==''&&v!=null&&!(Array.isArray(v)&&!v.length)));
   const rec={at:new Date().toISOString(),a};
   if(!shared){const r=getRes();r.push(rec);try{localStorage[resKey()]=JSON.stringify(r)}catch{alert('저장 공간이 부족해 응답을 저장하지 못했습니다. 응답 탭에서 CSV로 내보낸 뒤 삭제해 주세요.')}}
   if(form.webhook){
-    const label=k=>{const [id,x]=k.split('#'),q=runQs.find(z=>z.id==id);return (q?q.title:id)+(x=='note'?' (의견)':x=='img'?' (이미지)':x=='chk'?' (체크)':x&&q?' (답변 '+(q.blocks.filter(b=>b.kind=='answer').findIndex(b=>b.id==x)+1)+')':'')};
+    const cols=Object.fromEntries(sheetCols(runQs));
+    const label=k=>{if(cols[k])return cols[k];const [id,x]=k.split('#'),q=runQs.find(z=>z.id==id);return (q?q.title:id)+(x=='note'?' (의견)':x=='img'?' (이미지)':x=='chk'?' (체크)':x&&q?' (답변 '+(q.blocks.filter(b=>b.kind=='answer').findIndex(b=>b.id==x)+1)+')':'')};
     // images stay local: sheet cells can't hold them
     const body={at:rec.at,form:form.title,answers:Object.fromEntries([...(rec.user?[['이메일',rec.user.email],['이름',rec.user.name]]:[]),...Object.entries(a).map(([k,v])=>[label(k),k.endsWith('#img')?'[이미지 첨부]':v])])};
     fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).catch(()=>{});
@@ -1550,7 +1565,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v))
 $('#play').onclick=startRun;
 $('#share').onclick=async()=>{
   if(form.loginRequired&&!form.gcid){alert('구글 로그인을 쓰려면 먼저 오른쪽 패널에 구글 클라이언트 ID를 입력해 주세요.');return}
-  const {id,sheetUrl,wkey,...f}=form,base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
+  const {id,sheetUrl,wkey,sv,...f}=form,base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
   const openSheet=()=>{$('#gs2').click();$('#sheetGuide').open||$('#sheetGuide').showModal()};
   // linked with an older script that can't store the form: upgrade it once (same sheet), then come back
   if(dep&&needsUpgrade()){
@@ -1561,7 +1576,7 @@ $('#share').onclick=async()=>{
   if(dep&&wkey){
     const btn=$('#share'),txt=btn.textContent;btn.disabled=true;btn.textContent='링크 만드는 중…';
     try{
-      await fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({saveForm:1,key:wkey,form:f})});
+      await fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({saveForm:1,key:wkey,form:f,cols:sheetHead()})});
       // read it back the way a respondent will; fails until the script is approved once
       const back=await (await fetch(form.webhook+'?form=1')).json();
       if(!back||!Array.isArray(back.qs))throw 0;
