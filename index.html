@@ -1491,7 +1491,7 @@ let ans={},cur=0,runQs=[],submitted=false,hist=[],steps=0;
 function startRun(){
   theme();runQs=form.qs;ans={};cur=0;submitted=false;hist=[];steps=0;
   const R=$('#run');R.classList.remove('hide','phone');
-  R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up">▲</button><button id="dn">▼</button></div>';
+  R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up" title="이전">◀</button><button id="dn" title="다음">▶</button></div>';
   show(0);fitText();
 }
 // phones: sizes picked on a PC (e.g. a 48px title) shrink with the screen width; body text never drops below 15px.
