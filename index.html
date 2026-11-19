@@ -528,8 +528,36 @@ async function loadShared(){
   if(H.startsWith('#f='))return JSON.parse(decodeURIComponent(escape(atob(H.slice(3)))));
   if(H.startsWith('#z='))return JSON.parse(await unzip(H.slice(3)));
   const id=H.slice(3);if(!/^[\w-]{10,120}$/.test(id))throw 0;
-  const url='https://script.google.com/macros/s/'+id+'/exec',f=await (await fetch(url+'?form=1')).json();
-  if(!f)throw 0;f.webhook=url;return f;
+  const url='https://script.google.com/macros/s/'+id+'/exec',key='ff_s_'+id;
+  let prev=null;try{prev=localStorage[key]||null}catch{}
+  const fresh=fetch(url+'?form=1').then(r=>r.text()).then(t=>{
+    if(!t||t=='null')throw 0;
+    try{localStorage[key]=t}catch{}
+    return t;
+  });
+  // returning visitor: open the copy from last time at once; if the creator changed the form since, switch to it
+  // only while the respondent is still on the first page with nothing answered
+  if(prev){
+    fresh.then(t=>{if(t!==prev&&cur==0&&!Object.keys(ans).length){const f=JSON.parse(t);f.webhook=url;form=normalize(f);startRun()}}).catch(()=>{});
+    const f=JSON.parse(prev);f.webhook=url;return f;
+  }
+  const f=JSON.parse(await fresh);f.webhook=url;return f;
+}
+// shared copy only: re-encode photos (WebP, max 720px) so the link loads fast; the form being edited keeps the originals
+async function slimImages(o){
+  const one=src=>new Promise(res=>{
+    if(typeof src!='string'||!src.startsWith('data:image/')||src.length<15000)return res(src);
+    const im=new Image();im.onload=()=>{
+      const k=Math.min(1,720/Math.max(im.width,im.height)),c=document.createElement('canvas');
+      c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      const out=c.toDataURL('image/webp',0.78);res(out.startsWith('data:image/webp')&&out.length<src.length?out:src);
+    };im.onerror=()=>res(src);im.src=src;
+  });
+  const walk=async x=>{
+    if(Array.isArray(x)){for(let i=0;i<x.length;i++)x[i]=typeof x[i]=='string'?await one(x[i]):(await walk(x[i]),x[i])}
+    else if(x&&typeof x=='object')for(const k of Object.keys(x)){if(k=='orig'){x[k]='';continue}x[k]=typeof x[k]=='string'?await one(x[k]):(await walk(x[k]),x[k])}
+  };
+  await walk(o);return o;
 }
 
 // theme only the canvas and runner, not the builder chrome
@@ -1260,6 +1288,9 @@ document.addEventListener('click',e=>{
 const gsCode=(id,key,tab)=>`var KEY='${key}',TAB=${JSON.stringify(tab||'')};
 // answers go to the form's own tab when linked into an existing spreadsheet, else the first tab
 function ansSheet(ss){return (TAB&&ss.getSheetByName(TAB))||ss.getSheets()[0]}
+// the saved form, split into 30k-character pieces in the script cache (6 h, refreshed on every save and on a miss)
+function toCache(j){var c=CacheService.getScriptCache(),p={},n=0;for(var i=0;i<j.length;i+=30000)p['f'+(n++)]=j.slice(i,i+30000);p.fn=String(n);try{c.putAll(p,21600)}catch(e){}}
+function fromCache(){var c=CacheService.getScriptCache(),n=+c.get('fn')||0,ks=[];if(!n)return '';for(var i=0;i<n;i++)ks.push('f'+i);var g=c.getAll(ks),out='';for(var k=0;k<n;k++){if(g['f'+k]==null)return '';out+=g['f'+k]}return out}
 function heads(sh){var lc=sh.getLastColumn();return lc?sh.getRange(1,1,1,lc).getValues()[0]:[]}
 function colRange(sh,c){var L=sh.getRange(1,c).getA1Notation().replace(/[0-9]/g,'');return sh.getRange(L+':'+L)}
 // column for an answer key: found by its hidden tag (survives renaming/moving the column);
@@ -1281,8 +1312,10 @@ function colOf(sh,key,label,h){
 }
 function doGet(e){
   if(e&&e.parameter&&e.parameter.form){
-    var fs=SpreadsheetApp.openById('${id}').getSheetByName('_form');
-    var j=fs&&fs.getLastRow()?fs.getRange(1,1,fs.getLastRow(),1).getValues().map(function(r){return r[0]}).join(''):'';
+    var j=fromCache();   // cache first: skips opening the spreadsheet, the slow part
+    if(!j){var fs=SpreadsheetApp.openById('${id}').getSheetByName('_form');
+      j=fs&&fs.getLastRow()?fs.getRange(1,1,fs.getLastRow(),1).getValues().map(function(r){return r[0]}).join(''):'';
+      if(j)toCache(j);}
     return ContentService.createTextOutput(j||'null').setMimeType(ContentService.MimeType.JSON);
   }
   if(e&&e.parameter&&e.parameter.heads)return ContentService.createTextOutput(JSON.stringify(heads(ansSheet(SpreadsheetApp.openById('${id}'))))).setMimeType(ContentService.MimeType.JSON);
@@ -1296,7 +1329,7 @@ function doPost(e){
     fs.clear();fs.hideSheet();
     var j=JSON.stringify(d.form),rows=[];
     for(var i=0;i<j.length;i+=40000)rows.push([j.slice(i,i+40000)]);
-    fs.getRange(1,1,rows.length,1).setNumberFormat('@').setValues(rows);
+    fs.getRange(1,1,rows.length,1).setNumberFormat('@').setValues(rows);toCache(j);
     var sh0=ansSheet(ss);
     if(d.keys){var h0=heads(sh0);d.keys.forEach(function(p){colOf(sh0,String(p[0]),String(p[1]),h0)})}
     else{var lc=sh0.getLastColumn(),hd=lc?sh0.getRange(1,1,1,lc).getValues()[0]:[];
@@ -1395,7 +1428,7 @@ document.addEventListener('click',e=>{
   document.querySelectorAll('input[name=gsMode]').forEach(r=>r.checked=false);$('#gsStatus').textContent='연동을 해제했습니다.';showSheetState();
 });
 // linked by an older script that can't store the form for short links
-const needsUpgrade=()=>!!(form.webhook&&form.sheetUrl&&(!form.wkey||(form.sv||1)<5));   // sv 2: fills the header row; sv 3: columns tagged by answer id
+const needsUpgrade=()=>!!(form.webhook&&form.sheetUrl&&(!form.wkey||(form.sv||1)<6));   // sv 2: fills the header row; sv 3: columns tagged by answer id
 // keepSheet: replace only the script (adds short-link storage) and keep writing to the sheet already linked
 async function createLink(keepSheet){
   const say=m=>$('#gsStatus').textContent=m,btn=$('#gsMake'),cid=savedCid()||$('#gcid').value.trim();
@@ -1439,7 +1472,7 @@ async function createLink(keepSheet){
     const dep=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/deployments`,'POST',{versionNumber:ver.versionNumber,manifestFileName:'appsscript',description:'FormFlow'});
     const ep=(dep.entryPoints||[]).find(x=>x.webApp);
     form.webhook=(ep&&ep.webApp.url)||`https://script.google.com/macros/s/${dep.deploymentId}/exec`;
-    form.sheetUrl=sh.spreadsheetUrl;form.sheetTab=tab;form.wkey=key;form.sv=5;save();renderBuild();showSheetState();
+    form.sheetUrl=sh.spreadsheetUrl;form.sheetTab=tab;form.wkey=key;form.sv=6;save();renderBuild();showSheetState();
     say(oldId?'✓ 연동을 업데이트했습니다. 아래 "최초 1회 승인하기"를 눌러 승인한 뒤 "공유 링크 복사"를 다시 눌러 주세요. 응답은 기존 시트에 계속 쌓입니다.':'✓ 시트 생성과 연동이 끝났습니다. 아래 "최초 1회 승인하기"를 눌러 권한을 승인하면 응답이 시트에 쌓입니다.');
   }catch(e){say('실패: '+e.message+' — Apps Script API가 꺼져 있다면 script.google.com/home/usersettings 에서 켜 주세요.')}
   finally{btn.disabled=false}
@@ -1720,7 +1753,7 @@ $('#share').onclick=async()=>{
   if(dep&&wkey){
     const btn=$('#share'),txt=btn.textContent;btn.disabled=true;btn.textContent='링크 만드는 중…';
     try{
-      await fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({saveForm:1,key:wkey,form:f,cols:sheetHead(),keys:sheetKeys()})});
+      await fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({saveForm:1,key:wkey,form:await slimImages(JSON.parse(JSON.stringify(f))),cols:sheetHead(),keys:sheetKeys()})});
       // read it back the way a respondent will; fails until the script is approved once
       const back=await (await fetch(form.webhook+'?form=1')).json();
       if(!back||!Array.isArray(back.qs))throw 0;
