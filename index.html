@@ -153,6 +153,14 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .ih[data-dir=tr]{right:-8px;top:-8px;cursor:nesw-resize}.ih[data-dir=bl]{left:-8px;bottom:-8px;cursor:nesw-resize}
 .ih[data-dir=tl]::after,.ih[data-dir=tr]::after,.ih[data-dir=bl]::after,.ih[data-dir=br]::after{left:3px;top:3px;width:10px;height:10px;border-radius:2px;border:1px solid #fff}
 .ix{position:absolute;z-index:0;object-fit:fill;pointer-events:none}
+/* editing chrome (outline, grips, handles) only shows on hover so cut-out items look clean */
+.tbox,.ibox{border-color:transparent}
+.tbox:hover,.tbox:focus-within,.ibox:hover{border-color:color-mix(in srgb,var(--accent) 70%,transparent);border-style:dashed}
+.tgrip,.tdel,.igrip,.idel,.icut,.itol{opacity:0;transition:opacity .15s}
+.tbox:hover .tgrip,.tbox:hover .tdel,.tbox:focus-within .tgrip,.tbox:focus-within .tdel,.ibox:hover .igrip,.ibox:hover .idel,.ibox:hover .icut,.ibox:hover .itol{opacity:.95}
+.ibox .ih::after{opacity:0}.ibox:hover .ih::after{opacity:.85}
+.icut{position:absolute;top:2px;right:26px;background:rgba(255,255,255,.85);border-radius:4px;font-size:12px;line-height:1;padding:2px 4px;cursor:pointer;border:0;color:#333;z-index:3}
+.itol{position:absolute;left:8px;bottom:6px;width:90px;z-index:3}
 .field{margin-top:18px}
 .field label{display:block;font-size:13px;color:color-mix(in srgb,var(--fg) 60%,transparent);margin-bottom:6px}
 .field input,.field select{padding:9px 10px;border:1px solid color-mix(in srgb,var(--fg) 20%,transparent);border-radius:8px;background:transparent;outline:0;width:100%}
@@ -330,7 +338,7 @@ function normalize(f){
     // free text boxes on welcome/end pages (position/size in % of the page, font size in cqw)
     const clamp=(v,a,b,d)=>{v=+v;return Number.isFinite(v)?Math.max(a,Math.min(b,v)):d};
     r.texts=TXTYPES.includes(r.type)&&Array.isArray(r.texts)?r.texts.slice(0,20).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,5,95,40),fs:clamp(t&&t.fs,0.8,12,3),html:t&&t.html?cleanHtml(t.html):'',text:String((t&&t.text)||'')})):[];
-    r.images=TXTYPES.includes(r.type)&&Array.isArray(r.images)?r.images.slice(0,10).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,3,95,30),h:clamp(t&&t.h,3,95,20),src:String((t&&t.src)||'')})).filter(t=>IMGRE.test(t.src)):[];
+    r.images=TXTYPES.includes(r.type)&&Array.isArray(r.images)?r.images.slice(0,10).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,3,95,30),h:clamp(t&&t.h,3,95,20),src:String((t&&t.src)||''),orig:String((t&&t.orig)||''),tol:clamp(t&&t.tol,10,120,48)})).filter(t=>IMGRE.test(t.src)).map(t=>({...t,orig:IMGRE.test(t.orig)?t.orig:''})):[];
     return r;
   });
   // older forms had one form-wide background: copy it onto each page once, then drop it
@@ -410,7 +418,7 @@ function textBoxes(q){
 // image boxes: x/y in % of the page, w/h in cqw (so the shape stays the same at any page size)
 function imageBoxes(q){
   if(!TXTYPES.includes(q.type))return '';
-  return q.images.map(t=>`<div class="ibox" data-iid="${t.id}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw"><img src="${t.src}" draggable="false"><span class="igrip" title="드래그해서 이동">⠿</span><button class="idel" data-idel="${t.id}" title="삭제">✕</button><i class="ih" data-dir="l"></i><i class="ih" data-dir="r"></i><i class="ih" data-dir="t"></i><i class="ih" data-dir="b"></i><i class="ih" data-dir="tl"></i><i class="ih" data-dir="tr"></i><i class="ih" data-dir="bl"></i><i class="ih" data-dir="br"></i></div>`).join('');
+  return q.images.map(t=>`<div class="ibox" data-iid="${t.id}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw"><img src="${t.src}" draggable="false"><span class="igrip" title="드래그해서 이동">⠿</span><button class="idel" data-idel="${t.id}" title="삭제">✕</button><button class="icut" data-icut="${t.id}" title="${t.orig?'원본으로 되돌리기':'배경 제거 (누끼)'}">${t.orig?'↺':'✂'}</button>${t.orig?`<input type="range" class="itol" min="10" max="120" value="${t.tol}" data-itol="${t.id}" title="배경 제거 강도">`:''}<i class="ih" data-dir="l"></i><i class="ih" data-dir="r"></i><i class="ih" data-dir="t"></i><i class="ih" data-dir="b"></i><i class="ih" data-dir="tl"></i><i class="ih" data-dir="tr"></i><i class="ih" data-dir="bl"></i><i class="ih" data-dir="br"></i></div>`).join('');
 }
 function blocksEditor(q){
   const rows=q.blocks.map(b=>b.kind=='img'
@@ -589,14 +597,16 @@ $('#tbSize').addEventListener('change',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&e.target.dataset.rt=='title')e.preventDefault()});
 // downscale uploaded images so they fit in localStorage
-function readImg(file,cb,max=800){
+function readImg(file,cb,max=800,keepAlpha=false){
   if(!file||!file.type.startsWith('image/'))return;
   const fr=new FileReader();
   fr.onload=()=>{const im=new Image();
     im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');
       c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
-      const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
-      cb(c.toDataURL('image/jpeg',.7))};
+      const png=keepAlpha&&/png|webp|gif/.test(file.type),x=c.getContext('2d');   // keep real transparency for page images
+      if(!png){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height)}
+      x.drawImage(im,0,0,c.width,c.height);
+      cb(png?c.toDataURL('image/png'):c.toDataURL('image/jpeg',.7))};
     im.onerror=()=>alert('이미지를 읽을 수 없습니다');im.src=fr.result};
   fr.readAsDataURL(file);
 }
@@ -665,6 +675,37 @@ document.addEventListener('pointerdown',e=>{
   const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);save()};
   addEventListener('pointermove',mv);addEventListener('pointerup',up);
 });
+// remove a solid background: the colour at the 4 corners becomes transparent (tol = how close counts as background)
+function cutBackground(src,tol,cb){
+  const im=new Image();
+  im.onload=()=>{
+    const k=Math.min(1,1000/Math.max(im.width,im.height)),w=Math.max(1,Math.round(im.width*k)),h=Math.max(1,Math.round(im.height*k));
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0,w,h);
+    const d=x.getImageData(0,0,w,h),p=d.data;
+    let r=0,g=0,b=0;
+    for(const [cx,cy] of [[0,0],[w-1,0],[0,h-1],[w-1,h-1]]){const i=(cy*w+cx)*4;r+=p[i]/4;g+=p[i+1]/4;b+=p[i+2]/4}
+    const lo=tol*0.5,hi=tol;
+    for(let i=0;i<p.length;i+=4){
+      const dist=Math.hypot(p[i]-r,p[i+1]-g,p[i+2]-b)/1.732;
+      const a=dist<=lo?0:dist>=hi?255:(dist-lo)/(hi-lo)*255;
+      p[i+3]=Math.min(p[i+3],a);
+    }
+    x.putImageData(d,0,0);cb(c.toDataURL('image/png'));
+  };
+  im.src=src;
+}
+document.addEventListener('click',e=>{
+  const bt=e.target.closest('.icut');if(!bt)return;
+  const q=form.qs[sel],t=q&&q.images.find(x=>x.id==bt.dataset.icut);if(!t)return;
+  if(t.orig){t.src=t.orig;t.orig='';save();renderBuild()}
+  else cutBackground(t.src,t.tol,d=>{t.orig=t.src;t.src=d;save();renderBuild()});
+});
+document.addEventListener('change',e=>{
+  const r=e.target.closest&&e.target.closest('.itol');if(!r)return;
+  const q=form.qs[sel],t=q&&q.images.find(x=>x.id==r.dataset.itol);if(!t||!t.orig)return;
+  t.tol=+r.value;cutBackground(t.orig,t.tol,d=>{t.src=d;save();renderBuild()});
+});
 /* image boxes on welcome/end pages: add, move (grip), stretch from any of the 4 edges */
 document.addEventListener('click',e=>{
   const q=form.qs[sel];if(!q||!TXTYPES.includes(q.type))return;
@@ -678,11 +719,11 @@ document.addEventListener('change',e=>{
   readImg(f,d=>{
     const im=new Image();
     im.onload=()=>{
-      const w=30;q.images.push({id:uid(),x:30,y:25+(q.images.length%4)*8,w,h:Math.max(3,Math.min(90,w*im.height/im.width)),src:d});
+      const w=30;q.images.push({id:uid(),x:30,y:25+(q.images.length%4)*8,w,h:Math.max(3,Math.min(90,w*im.height/im.width)),src:d,orig:'',tol:48});
       save();renderBuild();
     };
     im.src=d;
-  },1200);
+  },1200,true);
 });
 document.addEventListener('pointerdown',e=>{
   const h=e.target.closest&&e.target.closest('.ih,.igrip');if(!h)return;
