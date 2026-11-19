@@ -465,14 +465,14 @@ function normalize(f){
   f.bg=/^#[0-9a-f]{6}$/i.test(f.bg||'')?f.bg:'#ffffff';
   f.qs.forEach(q=>{if(!q.bg&&f.bg!='#ffffff')q.bg=f.bg;if(!q.bgimg&&f.bgimg)q.bgimg=f.bgimg});
   f.bg='#ffffff';f.bgimg='';
-  // welcome only first, end only last; extra copies become plain statements
-  let w=null,e=null;const mid=[];
+  // one welcome, first; any number of end screens, grouped at the bottom (the workflow picks which one)
+  let w=null;const mid=[],ends=[];
   f.qs.forEach(q=>{
     if(q.type=='welcome'){if(!w)w=q;else{q.type='statement';mid.push(q)}}
-    else if(q.type=='end'){if(!e)e=q;else{q.type='statement';mid.push(q)}}
+    else if(q.type=='end')ends.push(q);
     else mid.push(q);
   });
-  f.qs=[...(w?[w]:[]),...mid,...(e?[e]:[])];
+  f.qs=[...(w?[w]:[]),...mid,...ends];
   return f;
 }
 
@@ -534,7 +534,7 @@ function renderQs(){
     // "체크박스" is not a page: it adds a checkbox line to the selected page (not possible on 객관식 pages)
     // "버튼" adds a button line to the selected page (시작/끝 화면 already have their own button)
     const cur=form.qs[sel],noChk=k=='check'&&cur&&cur.type=='mc',noBtn=k=='button'&&cur&&(cur.type=='welcome'||cur.type=='end');
-    const off=((k=='welcome'||k=='end')&&has(k))||noChk||noBtn;
+    const off=(k=='welcome'&&has(k))||noChk||noBtn;
     return `<button data-add="${k}" ${off?`disabled title="${noChk?'객관식 페이지에는 넣을 수 없습니다':noBtn?'시작·끝 화면에는 이미 버튼이 있습니다':'이미 있습니다 (1개만 가능)'}"`:''}>${TYPES[k]}</button>`;
   }).join('');
 }
@@ -584,7 +584,7 @@ function scaleEditor(q){
 function jumpEditor(q,bare){
   if(q.type=='end')return '';
   const targets=form.qs.filter(x=>x!==q&&x.type!='welcome');
-  const opts=cur=>'<option value="">다음 질문으로</option>'+targets.map(x=>`<option value="${x.id}" ${cur==x.id?'selected':''}>${x.type=='end'?'끝 화면':(form.qs.indexOf(x)+1)+'. '+esc(x.title).slice(0,26)}</option>`).join('');
+  const opts=cur=>'<option value="">다음 질문으로</option>'+targets.map(x=>`<option value="${x.id}" ${cur==x.id?'selected':''}>${(form.qs.indexOf(x)+1)+'. '+(x.type=='end'?'[끝 화면] ':'')+esc(x.title).slice(0,26)}</option>`).join('');
   const rows=q.type=='mc'&&!q.multi?q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`]):q.type=='scale'?Array.from({length:q.max},(_,j)=>[String(j+1),`${j+1}점`]):[];
   const row=(k,lab)=>`<div class="jrow"><span class="jl" title="${esc(lab)}">${esc(lab)}</span><span>→</span><select data-jk="${k}" data-jq="${q.id}">${opts(q.jumps[k]||'')}</select></div>`;
   return `<div class="field">${bare?'':'<label>답변에 따라 이동 (워크플로우)</label>'}${rows.map(([k,l])=>row(k,l)).join('')}${rows.length?'':row('*','다음 페이지')}</div>`;
@@ -808,11 +808,11 @@ document.addEventListener('click',e=>{
       q.blocks.push({id:uid(),kind:'button',low:true,text:'확인',html:''});save();renderBuild();
       return;
     }
-    if((t2=='welcome'||t2=='end')&&has(t2))return;
-    const nq=mk(t2),lastEnd=form.qs.length&&form.qs[form.qs.length-1].type=='end';
+    if(t2=='welcome'&&has(t2))return;
+    const nq=mk(t2),fe=form.qs.findIndex(z=>z.type=='end');
     if(t2=='welcome'){form.qs.unshift(nq);sel=0}
     else if(t2=='end'){form.qs.push(nq);sel=form.qs.length-1}
-    else{const at=lastEnd?form.qs.length-1:form.qs.length;form.qs.splice(at,0,nq);sel=at}
+    else{const at=fe<0?form.qs.length:fe;form.qs.splice(at,0,nq);sel=at}   // new pages go above the end screens
   }
   else if(d.addtxt!=null||d.addimg!=null){
     const bl=t.closest('.blk'),idx=bl?q.blocks.findIndex(b=>b.id==bl.dataset.bid)+1:q.blocks.length;
@@ -1162,7 +1162,7 @@ let qDragged=false;
 document.addEventListener('pointerdown',e=>{
   qDragged=false;
   const it=e.button==0&&e.target.closest&&e.target.closest('#list .qitem');if(!it||e.target.closest('button'))return;
-  const from=+it.dataset.i,m=form.qs[from];if(m.type=='welcome'||m.type=='end')return;
+  const from=+it.dataset.i,m=form.qs[from];if(m.type=='welcome')return;
   const y0=e.clientY;let to=null,on=false;
   const clear=()=>document.querySelectorAll('#list .qdropT,#list .qdropB').forEach(x=>x.classList.remove('qdropT','qdropB'));
   const mv=ev=>{
@@ -1170,7 +1170,8 @@ document.addEventListener('pointerdown',e=>{
     on=true;it.classList.add('odrag');clear();to=null;
     const el=document.elementFromPoint(ev.clientX,ev.clientY),t=el&&el.closest('#list .qitem');if(!t)return;
     const r=t.getBoundingClientRect(),below=ev.clientY>r.top+r.height/2,ti=+t.dataset.i;
-    const first=form.qs[0].type=='welcome'?1:0,last=form.qs.length-(form.qs[form.qs.length-1].type=='end'?1:0);
+    const fe0=form.qs.findIndex(z=>z.type=='end'),fe=fe0<0?form.qs.length:fe0;
+    const first=m.type=='end'?fe:form.qs[0].type=='welcome'?1:0,last=m.type=='end'?form.qs.length:fe;
     let k=Math.min(Math.max(ti+(below?1:0),first),last);   // insert position in the list before removal
     to=k>from?k-1:k;if(to==from){to=null;return}
     t.classList.add(below?'qdropB':'qdropT');
