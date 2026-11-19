@@ -280,6 +280,8 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 
 /* runner & shared choice styles */
 .run{position:fixed;inset:0;background:var(--bg);color:var(--fg);overflow:hidden;z-index:10}
+/* 📱 preview frame: a 390px phone in the middle of the screen, rest dimmed */
+.run.phone{inset:auto;top:50%;left:50%;width:390px;height:min(844px,92vh);transform:translate(-50%,-50%);border-radius:28px;box-shadow:0 0 0 100vmax rgba(0,0,0,.55)}
 .run .bar{position:absolute;top:0;left:0;height:4px;background:var(--accent);transition:width .4s}
 .run .close{position:absolute;top:14px;right:18px;background:none;border:0;font-size:22px;color:color-mix(in srgb,var(--fg) 50%,transparent)}
 .slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s}
@@ -333,7 +335,7 @@ th{background:var(--card);font-weight:600}
   <span id="who" style="font-size:13px;color:var(--muted)"></span>
   <button class="btn ghost sm" id="gs2" style="display:inline-flex;align-items:center;gap:8px"></button>
   <button class="btn ghost sm" id="share">공유 링크 복사</button>
-  <button class="btn sm" id="play">미리보기 ▶</button>
+  <button class="btn ghost sm" id="playPhone" title="휴대폰 화면 크기로 미리보기">📱 모바일</button><button class="btn sm" id="play">미리보기 ▶</button>
 </header>
 
 <div id="vBuild" class="builder">
@@ -1382,10 +1384,25 @@ document.addEventListener('click',e=>{
 let ans={},cur=0,runQs=[],submitted=false,hist=[],steps=0;
 function startRun(){
   theme();runQs=form.qs;ans={};cur=0;submitted=false;hist=[];steps=0;
-  const R=$('#run');R.classList.remove('hide');
+  const R=$('#run');R.classList.remove('hide','phone');
   R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up">▲</button><button id="dn">▼</button></div>';
-  show(0);
+  show(0);fitText();
 }
+// phones: sizes picked on a PC (e.g. a 48px title) shrink with the screen width; body text never drops below 15px.
+// Text boxes on 시작/끝 화면 already scale with the page (cqw), so only px sizes are touched.
+const FIT_W=700;
+function fitText(){
+  const R=$('#run');if(!R||R.classList.contains('hide'))return;
+  const W=R.clientWidth,k=Math.min(1,W/FIT_W);
+  R.querySelectorAll('.slide [style*="font-size"]').forEach(el=>{
+    if(el.dataset.fs==null)el.dataset.fs=el.style.fontSize;
+    const n=parseFloat(el.dataset.fs);if(!/px$/.test(el.dataset.fs)||!n)return;
+    el.style.fontSize=k>=1?el.dataset.fs:Math.max(Math.min(n,15),n*k)+'px';
+  });
+}
+addEventListener('resize',fitText);
+// 📱 preview: the same runner inside a phone-sized frame
+function startPhone(){startRun();$('#run').classList.add('phone');fitText()}
 // creator-only Google sign-in: protects the builder, never the shared respondent page. Remembered 3 days.
 // (the page is static, so this identifies the creator but is not a server-side lock)
 const ADMIN_TTL=3*24*3600*1000,CIDRE=/^[\w.-]+\.apps\.googleusercontent\.com$/;
@@ -1528,7 +1545,7 @@ function submit(){
     fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).catch(()=>{});
   }
 }
-function closeRun(){$('#run').classList.add('hide');$('#run').innerHTML='';if(view=='results')renderResults()}
+function closeRun(){$('#run').classList.add('hide');$('#run').classList.remove('phone');$('#run').innerHTML='';if(view=='results')renderResults()}
 document.addEventListener('click',e=>{
   if($('#run').classList.contains('hide'))return;
   const t=e.target;
@@ -1610,7 +1627,7 @@ function setView(v){
   v=='build'?renderBuild():v=='flow'?renderFlow():renderResults();
 }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v));
-$('#play').onclick=startRun;
+$('#play').onclick=startRun;$('#playPhone').onclick=startPhone;
 $('#share').onclick=async()=>{
   if(form.loginRequired&&!form.gcid){alert('구글 로그인을 쓰려면 먼저 오른쪽 패널에 구글 클라이언트 ID를 입력해 주세요.');return}
   const {id,sheetUrl,sheetTab,wkey,sv,...f}=form,base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
