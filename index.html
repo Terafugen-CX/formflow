@@ -388,6 +388,11 @@ th{background:var(--card);font-weight:600}
     <button class="btn sm" id="gsMake">연동하기</button>
     <div id="gsStatus" style="font-size:13px;margin-top:8px;color:#444"></div>
     <div id="gsLinks" style="font-size:13px;margin-top:6px;display:flex;gap:14px;flex-wrap:wrap"></div>
+    <details id="gsColsBox" style="margin-top:10px" hidden><summary style="cursor:pointer;font-size:13px;font-weight:600">시트 열 연결 — 질문별로 어느 열에 기록할지 정하기</summary>
+      <p style="font-size:12px;color:var(--muted);margin:6px 0">시트에 이미 만든 열 제목을 적으면 그 열에 기록됩니다. 폼의 질문 제목은 바뀌지 않습니다. 저장 후 "공유 링크 복사"를 한 번 누르면 시트에 반영됩니다.</p>
+      <div id="gsCols" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;max-height:260px;overflow:auto"></div>
+      <datalist id="gsHeads"></datalist>
+    </details>
     <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:var(--muted)">클라이언트 ID 만드는 법 (무료, 약 5분)</summary>
       <ol style="padding-left:20px;line-height:1.7;font-size:13px;margin:6px 0 0">
         <li><b>console.cloud.google.com</b>에서 프로젝트를 만듭니다.</li>
@@ -435,6 +440,7 @@ function normalize(f){
   f.id=f.id||uid();
   f.gcid=/^[\w.-]+\.apps\.googleusercontent\.com$/.test(f.gcid||'')?f.gcid:'';
   f.loginRequired=!!f.loginRequired;
+  f.colNames=Object.fromEntries(Object.entries(f.colNames&&typeof f.colNames=='object'?f.colNames:{}).filter(([k,v])=>/^[\w#-]{1,80}$/.test(k)&&typeof v=='string'&&v.trim()).map(([k,v])=>[k,v.trim().slice(0,100)]));
   f.webhook=WEBHOOKRE.test(f.webhook||'')?f.webhook:'';
   f.bgimg=IMGRE.test(f.bgimg||'')?f.bgimg:'';
   f.qs=f.qs.map(q=>{
@@ -1257,10 +1263,16 @@ function colRange(sh,c){var L=sh.getRange(1,c).getA1Notation().replace(/[0-9]/g,
 // column for an answer key: found by its hidden tag (survives renaming/moving the column);
 // else an untagged column with the same title (made before tags existed); else a new column at the end
 function colOf(sh,key,label,h){
+  var free=function(j){return !colRange(sh,j+1).getDeveloperMetadata().some(function(m){return m.getKey()=='ff'})};
   var f=sh.createDeveloperMetadataFinder().withKey('ff').withValue(key).find();
-  for(var i=0;i<f.length;i++){var loc=f[i].getLocation();if(loc.getLocationType()==SpreadsheetApp.DeveloperMetadataLocationType.COLUMN)return loc.getColumn().getColumn()}
+  for(var i=0;i<f.length;i++){var loc=f[i].getLocation();if(loc.getLocationType()==SpreadsheetApp.DeveloperMetadataLocationType.COLUMN){
+    var t=loc.getColumn().getColumn();
+    // the app now points this answer at another existing column (by its title): move the tag there; a title the user merely edited keeps its column
+    if(String(h[t-1])!==label)for(var k=0;k<h.length;k++)if(String(h[k])===label&&free(k)){f[i].remove();colRange(sh,k+1).addDeveloperMetadata('ff',key);return k+1}
+    return t;
+  }}
   var c=0;
-  for(var j=0;j<h.length;j++)if(String(h[j])===label&&!colRange(sh,j+1).getDeveloperMetadata().some(function(m){return m.getKey()=='ff'})){c=j+1;break}
+  for(var j=0;j<h.length;j++)if(String(h[j])===label&&free(j)){c=j+1;break}
   if(!c){c=Math.max(sh.getLastColumn(),h.length)+1;if(c>sh.getMaxColumns())sh.insertColumnsAfter(sh.getMaxColumns(),c-sh.getMaxColumns());sh.getRange(1,c).setValue(label);h[c-1]=label}
   colRange(sh,c).addDeveloperMetadata('ff',key);
   return c;
@@ -1271,6 +1283,7 @@ function doGet(e){
     var j=fs&&fs.getLastRow()?fs.getRange(1,1,fs.getLastRow(),1).getValues().map(function(r){return r[0]}).join(''):'';
     return ContentService.createTextOutput(j||'null').setMimeType(ContentService.MimeType.JSON);
   }
+  if(e&&e.parameter&&e.parameter.heads)return ContentService.createTextOutput(JSON.stringify(heads(ansSheet(SpreadsheetApp.openById('${id}'))))).setMimeType(ContentService.MimeType.JSON);
   return ContentService.createTextOutput('FormFlow 연동 정상');
 }
 function doPost(e){
@@ -1339,6 +1352,7 @@ function showSheetState(){
   $('#gsForm').innerHTML=`이 폼: <b>${esc(form.title)}</b> · ${linked?`연동됨${form.sheetTab?` (탭: ${esc(form.sheetTab)})`:''} <button class="btn ghost sm" id="gsUnlink" style="margin-left:6px">연동 해제</button>`:'연동 안 됨'}`;
   $('#gsKeepRow').hidden=!linked;
   if(linked)checkHook();
+  renderColMap(linked);
   const m=document.querySelector('input[name=gsMode]:checked');
   if(!m||(m.value=='keep'&&!linked))document.querySelector(`input[name=gsMode][value=${linked?'keep':'new'}]`).checked=true;
   gsModeUI();
@@ -1353,6 +1367,18 @@ async function checkHook(){
   el.style.color=ok?'#1e7e34':'#c0392b';
   el.innerHTML=ok?'✅ 응답이 시트로 전송됩니다 (승인 완료)':`⚠ 응답이 시트로 전송되지 않습니다. <a href="${form.webhook}" target="_blank" rel="noopener">최초 1회 승인하기</a>를 눌러 승인한 뒤 이 창을 다시 열어 확인하세요.`;
 }
+function renderColMap(linked){
+  $('#gsColsBox').hidden=!linked;if(!linked)return;
+  const m=form.colNames||{};
+  $('#gsCols').innerHTML=sheetCols(form.qs,true).map(([k,l])=>`<span title="${esc(l)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;align-self:center">${esc(l)}</span><input list="gsHeads" data-colk="${esc(k)}" value="${esc(m[k]||'')}" placeholder="${esc(l)}" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px">`).join('');
+  // suggest the titles already in the sheet (newer scripts answer ?heads=1)
+  fetch(form.webhook+'?heads=1').then(r=>r.json()).then(h=>{if(Array.isArray(h))$('#gsHeads').innerHTML=h.filter(Boolean).map(x=>`<option value="${esc(String(x))}">`).join('')}).catch(()=>{});
+}
+document.addEventListener('input',e=>{
+  const k=e.target.dataset&&e.target.dataset.colk;if(k==null)return;
+  form.colNames=form.colNames||{};const v=e.target.value.trim();
+  if(v)form.colNames[k]=v;else delete form.colNames[k];save();
+});
 const gsMode=()=>(document.querySelector('input[name=gsMode]:checked')||{}).value||'new';
 function gsModeUI(){
   const m=gsMode();$('#gsExisting').hidden=m!='exist';
@@ -1366,7 +1392,7 @@ document.addEventListener('click',e=>{
   document.querySelectorAll('input[name=gsMode]').forEach(r=>r.checked=false);$('#gsStatus').textContent='연동을 해제했습니다.';showSheetState();
 });
 // linked by an older script that can't store the form for short links
-const needsUpgrade=()=>!!(form.webhook&&form.sheetUrl&&(!form.wkey||(form.sv||1)<3));   // sv 2: fills the header row; sv 3: columns tagged by answer id
+const needsUpgrade=()=>!!(form.webhook&&form.sheetUrl&&(!form.wkey||(form.sv||1)<4));   // sv 2: fills the header row; sv 3: columns tagged by answer id
 // keepSheet: replace only the script (adds short-link storage) and keep writing to the sheet already linked
 async function createLink(keepSheet){
   const say=m=>$('#gsStatus').textContent=m,btn=$('#gsMake'),cid=savedCid()||$('#gcid').value.trim();
@@ -1410,7 +1436,7 @@ async function createLink(keepSheet){
     const dep=await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/deployments`,'POST',{versionNumber:ver.versionNumber,manifestFileName:'appsscript',description:'FormFlow'});
     const ep=(dep.entryPoints||[]).find(x=>x.webApp);
     form.webhook=(ep&&ep.webApp.url)||`https://script.google.com/macros/s/${dep.deploymentId}/exec`;
-    form.sheetUrl=sh.spreadsheetUrl;form.sheetTab=tab;form.wkey=key;form.sv=3;save();renderBuild();showSheetState();
+    form.sheetUrl=sh.spreadsheetUrl;form.sheetTab=tab;form.wkey=key;form.sv=4;save();renderBuild();showSheetState();
     say(oldId?'✓ 연동을 업데이트했습니다. 아래 "최초 1회 승인하기"를 눌러 승인한 뒤 "공유 링크 복사"를 다시 눌러 주세요. 응답은 기존 시트에 계속 쌓입니다.':'✓ 시트 생성과 연동이 끝났습니다. 아래 "최초 1회 승인하기"를 눌러 권한을 승인하면 응답이 시트에 쌓입니다.');
   }catch(e){say('실패: '+e.message+' — Apps Script API가 꺼져 있다면 script.google.com/home/usersettings 에서 켜 주세요.')}
   finally{btn.disabled=false}
@@ -1565,7 +1591,9 @@ function next(){
   hist.push(cur);show(to);
 }
 // sheet columns, one per answer a respondent can give; a repeated page title gets its page number so answers don't merge
-function sheetCols(qs){
+// raw: the default titles; otherwise a title picked in the Sheet window (form.colNames) wins, so a question can feed an
+// existing sheet column such as "반품 요청 제품" without renaming the question
+function sheetCols(qs,raw){
   const live=qs.filter(q=>!NOQ.includes(q.type)),out=[];
   const base=q=>(q.title||'(제목 없음)')+(live.filter(z=>z.title==q.title).length>1?' ('+(qs.indexOf(q)+1)+'번)':'');
   live.forEach(q=>{
@@ -1574,7 +1602,8 @@ function sheetCols(qs){
     else (q.blocks||[]).filter(x=>x.kind=='answer').forEach((x,j)=>out.push([j?q.id+'#'+x.id:q.id,b+(j?' (답변 '+(j+1)+')':'')]));
     if((q.blocks||[]).some(x=>x.kind=='check'))out.push([q.id+'#chk',b+' (체크)']);
   });
-  return out;
+  const m=form.colNames||{};
+  return raw?out:out.map(([k,l])=>[k,m[k]||l]);
 }
 // [answer id, column title] for every column, 시간 first; the id is what the sheet tags each column with
 const sheetKeys=()=>[['at','시간'],...(form.loginRequired?[['email','이메일'],['name','이름']]:[]),...sheetCols(form.qs)];
