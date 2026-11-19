@@ -194,6 +194,10 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .choice.card.ed{position:relative}
 .choice.card .otools{position:absolute;top:6px;right:6px}
 .laybar{position:absolute;top:10px;right:10px;z-index:20}
+#stage .in .ansE{pointer-events:auto;cursor:text}
+.ansE .rt{color:color-mix(in srgb,var(--fg) 45%,transparent);min-height:1.2em;outline:0}
+.ansE .rt:empty:before{opacity:1}
+.ans::placeholder{color:var(--phc,color-mix(in srgb,var(--fg) 45%,transparent));opacity:1}
 #stage .go-btnE{display:inline-block;margin-top:24px;background:var(--accent);color:var(--bg);font-size:18px;padding:8px 18px;border-radius:6px;font-weight:600;cursor:text}
 #stage .go-btnE .rt{min-width:2em;display:inline-block}
 .kindrow{display:flex;align-items:center;justify-content:space-between}
@@ -537,7 +541,7 @@ function blocksEditor(q,low){
     :b.kind=='button'
     ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><span class="btn go-btnE"><span class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="버튼 글자">${b.html||esc(b.text)}</span></span><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :b.kind=='answer'
-    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><textarea class="ans" rows="2" placeholder="답변을 입력하세요" disabled></textarea><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
+    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div class="ans ansE"><div class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="답변을 입력하세요">${b.html||esc(b.text)}</div></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${b.kind=='check'?'<input type="checkbox" class="chkprev" disabled>':''}<div class="rt desc" contenteditable="true" data-rt="b:${b.id}" data-ph="내용">${b.html||esc(b.text)}</div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`).join('');
   return rows||(low||q.blocks.length?'':`<div class="badd" style="margin-top:12px">${BADD}</div>`);
 }
@@ -875,7 +879,7 @@ $('#tbSizeNum').addEventListener('change',e=>{
   const px=Math.max(6,Math.min(300,v));applySize(px);
   e.target.value=px;e.target.focus();   // stay in the box so the ▲▼ arrows keep stepping from this size
 });
-document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&(e.target.dataset.rt=='title'||e.target.dataset.ot!=null||e.target.closest('.go-btnE')))e.preventDefault()});
+document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&(e.target.dataset.rt=='title'||e.target.dataset.ot!=null||e.target.closest('.go-btnE,.ansE')))e.preventDefault()});
 // downscale uploaded images so they fit in localStorage
 function readImg(file,cb,max=800,keepAlpha=false){
   if(!file||!file.type.startsWith('image/'))return;
@@ -1227,6 +1231,11 @@ document.addEventListener('click',e=>{
     adminChip();adminGate();
   }
 });
+// size/colour the creator gave the answer box's placeholder text (from its first styled span)
+function ansStyle(b){
+  const h=b.html||'',sz=/font-size:\s*([\d.]+)px/.exec(h),co=/(?:^|[;"\s])color:\s*(rgb\([\d,\s.]+\)|#[0-9a-f]{3,8})/i.exec(h);
+  return (sz?`font-size:${sz[1]}px;`:'')+(co?`--phc:${co[1]};`:'');
+}
 const kbdOf=(q,j)=>String(j+1);
 function slideHTML(q,i){
   const isQ=!NOQ.includes(q.type);
@@ -1254,7 +1263,7 @@ function slideHTML(q,i){
   // lines above the page's main control (low=false) and below it (low=true: answer box, checkboxes)
   const need=q.required&&!NOQ.includes(q.type);
   const one=b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`
-    :b.kind=='answer'?`<textarea class="ans" data-bid="${b.id}" rows="2" placeholder="답변을 입력하세요"></textarea>`
+    :b.kind=='answer'?`<textarea class="ans" data-bid="${b.id}" rows="2" placeholder="${esc(b.text||'답변을 입력하세요')}" style="${ansStyle(b)}"></textarea>`
     :b.kind=='button'?`<div class="go"><button class="btn go-btn">${b.html||esc(b.text)||'확인'}</button></div>`
     :(b.text||b.html)?(b.kind=='check'?`<label class="chk"><input type="checkbox"${b.req||need?' data-req':''}><span class="qdesc">${b.html||esc(b.text)}</span>${b.req||need?'<span class="rq"> *</span>':''}</label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'';
   const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'):q.blocks).filter(b=>!!b.low==low).map(one).join('');
