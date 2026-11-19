@@ -457,6 +457,8 @@ function normalize(f){
     r.fx=(r.fx==null||r.fx==='')?null:clamp(r.fx,0,4000,0);r.fy=(r.fy==null||r.fy==='')?null:clamp(r.fy,0,4000,0);   // workflow node position
     // workflow: answer key (option id / score / "*") -> target question id
     r.jumps=(r.jumps&&typeof r.jumps=='object'&&!Array.isArray(r.jumps))?Object.fromEntries(Object.entries(r.jumps).filter(([k,v])=>/^[\w*-]{1,40}$/.test(k)&&/^[\w-]{1,40}$/.test(String(v))).map(([k,v])=>[k,String(v)])):{};
+    // pages with per-answer routes have no catch-all route: an unconnected answer just goes to the next page
+    if((r.type=='mc'&&!r.multi)||r.type=='scale')delete r.jumps['*'];
     return r;
   });
   // older forms had one form-wide background: copy it onto each page once, then drop it
@@ -585,7 +587,7 @@ function jumpEditor(q,bare){
   const opts=cur=>'<option value="">다음 질문으로</option>'+targets.map(x=>`<option value="${x.id}" ${cur==x.id?'selected':''}>${x.type=='end'?'끝 화면':(form.qs.indexOf(x)+1)+'. '+esc(x.title).slice(0,26)}</option>`).join('');
   const rows=q.type=='mc'&&!q.multi?q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`]):q.type=='scale'?Array.from({length:q.max},(_,j)=>[String(j+1),`${j+1}점`]):[];
   const row=(k,lab)=>`<div class="jrow"><span class="jl" title="${esc(lab)}">${esc(lab)}</span><span>→</span><select data-jk="${k}" data-jq="${q.id}">${opts(q.jumps[k]||'')}</select></div>`;
-  return `<div class="field">${bare?'':'<label>답변에 따라 이동 (워크플로우)</label>'}${rows.map(([k,l])=>row(k,l)).join('')}${row('*',rows.length?'그 외 / 건너뜀':'다음 페이지')}</div>`;
+  return `<div class="field">${bare?'':'<label>답변에 따라 이동 (워크플로우)</label>'}${rows.map(([k,l])=>row(k,l)).join('')}${rows.length?'':row('*','다음 페이지')}</div>`;
 }
 // workflow tab: a node graph. Every page is a node; each answer has an output dot you drag onto the page it should lead to.
 // clicking a card opens the same routing as dropdowns (one select per answer) as an alternative to dragging dots
@@ -600,8 +602,8 @@ function showFlowPanel(id){
 }
 function flowRows(q){
   if(q.type=='end')return [];
-  if(q.type=='mc'&&!q.multi)return [...q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`]),['*','그 외 / 건너뜀']];
-  if(q.type=='scale')return [...Array.from({length:q.max},(_,j)=>[String(j+1),`${j+1}점${q.labels[j+1]?' · '+q.labels[j+1]:''}`]),['*','그 외 / 건너뜀']];
+  if(q.type=='mc'&&!q.multi)return [...q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`])];
+  if(q.type=='scale')return [...Array.from({length:q.max},(_,j)=>[String(j+1),`${j+1}점${q.labels[j+1]?' · '+q.labels[j+1]:''}`])];
   return [['*','다음 페이지']];
 }
 const flowPos=(q,i)=>[q.fx!=null?q.fx:40+i*270,q.fy!=null?q.fy:40+(i%2?150:0)];
