@@ -164,7 +164,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .itol{position:absolute;left:8px;bottom:6px;width:90px;z-index:3}
 .ibox{cursor:move;touch-action:none}
 /* edit canvas = scaled copy of the real page */
-#editor{background:#eceef1;padding:24px}
+#editor{background:#eceef1;padding:12px}
 #stageWrap{position:relative;margin:0 auto 20px;border:1px solid #d4d7dd;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.08);background:#fff}
 #stage{position:absolute;left:0;top:0;transform-origin:0 0}
 .spage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;container-type:inline-size}
@@ -180,8 +180,8 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 #stage .blk .rt.desc{border:0;padding:0;margin:0 0 24px;min-height:1.4em;font-size:18px}
 #stage .blk .qimg{max-height:260px!important;margin:0 0 20px!important}
 #stage .blk>.grip{position:absolute;left:-26px;top:0;padding:2px;opacity:.7}
-#stage .blk>.badd{position:absolute;right:0;top:-32px;z-index:5;background:#fff;border:1px solid #e4e4e7;border-radius:8px;padding:3px;opacity:1}
-#stage .blk>.ico{position:absolute;right:-30px;top:-29px;opacity:.8}
+#stage .blk>.badd{position:absolute;right:0;top:-32px;z-index:5;background:#fff;border:1px solid #e4e4e7;border-radius:8px;padding:3px;opacity:1;height:34px;box-sizing:border-box;align-items:center}
+#stage .blk>.ico{position:absolute;right:-30px;top:-32px;width:24px;height:34px;margin:0;padding:0;display:grid;place-items:center;opacity:.8}
 #stage .in>.badd{opacity:1}
 .kindrow{display:flex;align-items:center;justify-content:space-between}
 .qitem .qty{flex:none;color:#b3b6bd;font-size:11px;margin-left:2px}
@@ -217,7 +217,15 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .fl{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .fdot{position:absolute;right:-8px;top:50%;margin-top:-7px;width:14px;height:14px;border-radius:50%;background:#2f80ed;border:2px solid #fff;box-shadow:0 0 0 1px #2f80ed;cursor:crosshair;touch-action:none}
 .fdot:hover{transform:scale(1.25)}
-.fin{position:absolute;left:-7px;top:19px;width:12px;height:12px;border-radius:50%;background:#c9ced6;border:2px solid #fff;box-shadow:0 0 0 1px #c9ced6}
+.fwrap{position:relative}
+#fpanel{position:absolute;right:14px;top:14px;width:300px;max-height:calc(100% - 28px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 6px 24px rgba(0,0,0,.14);z-index:6}
+.fph{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.fph b{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.fpsub{color:var(--muted);font-size:12px;margin:2px 0 6px}
+#fpanel .field{margin-top:4px}
+#fpanel .jrow select{width:55%}
+.fnode.sel{outline:2px solid #2f80ed}
+.fin{position:absolute;left:-7px;top:50%;margin-top:-6px;width:12px;height:12px;border-radius:50%;background:#c9ced6;border:2px solid #fff;box-shadow:0 0 0 1px #c9ced6}
 .fedge{fill:none;stroke:#c3c8d0;stroke-width:2}
 .fedge.c{stroke:#2f80ed;stroke-width:2.5}
 .fedge.ftmp{stroke-dasharray:6 4}
@@ -512,15 +520,24 @@ function scaleEditor(q){
 }
 // workflow editor: pick where each answer leads (default = next question)
 function jumpEditor(q,bare){
-  if(q.type!='mc'&&q.type!='scale')return '';
-  if(q.type=='mc'&&q.multi)return '';
+  if(q.type=='end')return '';
   const targets=form.qs.filter(x=>x!==q&&x.type!='welcome');
   const opts=cur=>'<option value="">다음 질문으로</option>'+targets.map(x=>`<option value="${x.id}" ${cur==x.id?'selected':''}>${x.type=='end'?'끝 화면':(form.qs.indexOf(x)+1)+'. '+esc(x.title).slice(0,26)}</option>`).join('');
-  const rows=q.type=='mc'?q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`]):Array.from({length:q.max},(_,j)=>[String(j+1),`${j+1}점`]);
+  const rows=q.type=='mc'&&!q.multi?q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`]):q.type=='scale'?Array.from({length:q.max},(_,j)=>[String(j+1),`${j+1}점`]):[];
   const row=(k,lab)=>`<div class="jrow"><span class="jl" title="${esc(lab)}">${esc(lab)}</span><span>→</span><select data-jk="${k}" data-jq="${q.id}">${opts(q.jumps[k]||'')}</select></div>`;
-  return `<div class="field">${bare?'':'<label>답변에 따라 이동 (워크플로우)</label>'}${rows.map(([k,l])=>row(k,l)).join('')}${row('*','그 외 / 건너뜀')}</div>`;
+  return `<div class="field">${bare?'':'<label>답변에 따라 이동 (워크플로우)</label>'}${rows.map(([k,l])=>row(k,l)).join('')}${row('*',rows.length?'그 외 / 건너뜀':'다음 페이지')}</div>`;
 }
 // workflow tab: a node graph. Every page is a node; each answer has an output dot you drag onto the page it should lead to.
+// clicking a card opens the same routing as dropdowns (one select per answer) as an alternative to dragging dots
+let flowSel=null;
+function showFlowPanel(id){
+  const q=form.qs.find(x=>x.id==id),p=$('#fpanel');if(!q||!p)return;
+  flowSel=id;
+  document.querySelectorAll('.fnode.sel').forEach(n=>n.classList.remove('sel'));
+  const n=document.querySelector(`.fnode[data-nid="${id}"]`);if(n)n.classList.add('sel');
+  p.innerHTML=`<div class="fph"><b>${esc(q.title)}</b><button class="ico" id="fpclose" title="닫기">✕</button></div><div class="fpsub">${TYPES[q.type]}</div>${q.type=='end'?'<div class="fnote">마지막 화면입니다.</div>':jumpEditor(q,true)}`;
+  p.hidden=false;
+}
 function flowRows(q){
   if(q.type=='end')return [];
   if(q.type=='mc'&&!q.multi)return [...q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`]),['*','그 외 / 건너뜀']];
@@ -531,12 +548,14 @@ const flowPos=(q,i)=>[q.fx!=null?q.fx:40+i*270,q.fy!=null?q.fy:40+(i%2?150:0)];
 function renderFlow(){
   const nodes=form.qs.map((q,i)=>{
     const [x,y]=flowPos(q,i);
-    const rows=flowRows(q).map(([k,l])=>`<div class="fnr"><span class="fl" title="${esc(l)}">${esc(l)}</span><i class="fdot" data-out="${esc(k)}" title="끌어서 이동할 페이지에 놓기"></i></div>`).join('');
+    const fr=flowRows(q),dot=k=>`<i class="fdot" data-out="${esc(k)}" title="끌어서 이동할 페이지에 놓기"></i>`;
+    const rows=fr.map(([k,l])=>`<div class="fnr"><span class="fl" title="${esc(l)}">${esc(l)}</span>${fr.length>1?dot(k):''}</div>`).join('');
+    const single=fr.length==1?dot(fr[0][0]):'';   // a page with one output gets its dot at the vertical middle of the card
     const no=q.type=='end'?'■':q.type=='welcome'?'▶':form.qs.slice(0,i+1).filter(z=>!NOQ.includes(z.type)).length;
-    return `<div class="fnode ${q.type}" data-nid="${q.id}" style="left:${x}px;top:${y}px">${q.type=='welcome'?'':'<i class="fin" data-in></i>'}<div class="fnh"><span class="num">${no}</span><span class="fnt">${esc(q.title)}</span><small>${TYPES[q.type]}</small></div>${rows}</div>`;
+    return `<div class="fnode ${q.type}" data-nid="${q.id}" style="left:${x}px;top:${y}px">${q.type=='welcome'?'':'<i class="fin" data-in></i>'}<div class="fnh"><span class="num">${no}</span><span class="fnt">${esc(q.title)}</span><small>${TYPES[q.type]}</small></div>${rows}${single}</div>`;
   }).join('');
-  $('#vFlow').innerHTML=`<div class="fhead"><div><h2>워크플로우</h2><p>오른쪽 점(●)을 끌어 이동할 페이지에 놓으면 연결됩니다. 연결하지 않은 답변은 다음 페이지로 넘어갑니다. 파란 선을 클릭하면 연결이 해제되고, 페이지 위쪽을 끌면 위치를 옮길 수 있습니다.</p></div><button class="btn ghost sm" id="flowReset">자동 정렬</button></div><div id="fcanvas"><div id="fplane">${nodes}<svg id="fsvg"><defs><marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c3c8d0"/></marker><marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2f80ed"/></marker></defs><g id="fedges"></g></svg></div></div>`;
-  drawFlow();
+  $('#vFlow').innerHTML=`<div class="fhead"><div><h2>워크플로우</h2></div><button class="btn ghost sm" id="flowReset">자동 정렬</button></div><div class="fwrap"><div id="fcanvas"><div id="fplane">${nodes}<svg id="fsvg"><defs><marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c3c8d0"/></marker><marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2f80ed"/></marker></defs><g id="fedges"></g></svg></div></div><div id="fpanel" hidden></div></div>`;
+  drawFlow();if(flowSel&&form.qs.some(x=>x.id==flowSel))showFlowPanel(flowSel);
 }
 function drawFlow(){
   const plane=$('#fplane');if(!plane)return;
@@ -593,6 +612,8 @@ document.addEventListener('click',e=>{
   const hit=e.target.closest&&e.target.closest('.fhit');
   if(hit){const q=form.qs.find(x=>x.id==hit.dataset.from);if(q){delete q.jumps[hit.dataset.key];save();renderFlow()}}
   else if(e.target.closest&&e.target.closest('#flowReset')){form.qs.forEach(q=>{q.fx=null;q.fy=null});save();renderFlow()}
+  else if(e.target.closest&&e.target.closest('#fpclose')){flowSel=null;$('#fpanel').hidden=true;document.querySelectorAll('.fnode.sel').forEach(n=>n.classList.remove('sel'))}
+  else{const nd=e.target.closest&&e.target.closest('.fnode');if(nd&&!e.target.closest('.fdot'))showFlowPanel(nd.dataset.nid)}
 });
 // the canvas is a live copy of the real page (same markup and CSS as the runner), scaled to fit.
 // title, content, text and image boxes are edited right on it; the panel under it holds settings.
@@ -615,11 +636,13 @@ function stageSection(q){
 }
 function fitStage(){
   const wrap=$('#stageWrap'),st=$('#stage');if(!wrap||!st)return;
-  // fit the whole page inside the visible canvas (width and height) and centre it, so the gap above equals the gap below
-  const ed=$('#editor'),W=window.innerWidth,H=window.innerHeight,s=Math.min(1,(ed.clientWidth-48)/W,(ed.clientHeight-48)/H);
-  const hs=Math.round(H*s),gap=Math.max(0,Math.round((ed.clientHeight-hs)/2)-24);   // 24px = #editor padding
-  st.style.width=W+'px';st.style.height=H+'px';st.style.transform=`scale(${s})`;
-  wrap.style.width=Math.round(W*s)+'px';wrap.style.height=hs+'px';wrap.style.margin=`${gap}px auto ${gap}px`;
+  // the page fills the canvas with the same gap G on every side (left, top, bottom, and right up to the scrollbar)
+  const G=12,ed=$('#editor'),W=window.innerWidth;
+  for(let pass=0;pass<3;pass++){   // scrollbars appearing/disappearing change the canvas size, so settle over a few passes
+    const aw=ed.clientWidth-2*G,ah=Math.max(240,ed.clientHeight-2*G),s=aw/W;
+    st.style.width=W+'px';st.style.height=(ah/s)+'px';st.style.transform=`scale(${s})`;
+    wrap.style.width=aw+'px';wrap.style.height=ah+'px';wrap.style.margin=`0 0 ${G}px`;
+  }
 }
 function refreshStage(){
   const st=$('#stage'),q=form.qs[sel];if(!st||!q)return;
@@ -979,6 +1002,7 @@ document.addEventListener('change',e=>{
   const s=e.target;if(!s.dataset||s.dataset.jk==null)return;
   const q=form.qs.find(x=>x.id==s.dataset.jq);if(!q)return;
   if(s.value)q.jumps[s.dataset.jk]=s.value;else delete q.jumps[s.dataset.jk];
+  if($('#fplane'))setTimeout(renderFlow,0);   // redraw the graph so its lines match the dropdown
   save();
 });
 
