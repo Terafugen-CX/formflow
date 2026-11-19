@@ -1309,8 +1309,12 @@ async function createLink(keepSheet){
     if(!oldId){
       say('② 새 구글 시트를 만드는 중…');
       sh=await gapi(tok,'https://sheets.googleapis.com/v4/spreadsheets','POST',{properties:{title:form.title+' 응답'}});
-      await gapi(tok,`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/A1?valueInputOption=RAW`,'PUT',{values:[sheetHead()]});
     }
+    // header row = every question/answer column now; on an existing sheet keep its columns and add the missing ones
+    say('② 시트에 질문 열을 쓰는 중…');
+    const vurl=`https://sheets.googleapis.com/v4/spreadsheets/${sh.spreadsheetId}/values/`;
+    const old=oldId?(((await gapi(tok,vurl+'A1:ZZ1','GET')).values||[])[0]||[]):[];
+    await gapi(tok,vurl+'A1?valueInputOption=RAW','PUT',{values:[[...old,...sheetHead().filter(h=>!old.includes(h))]]});
     say('③ 스크립트를 시트에 연결하는 중…');
     await gapi(tok,`https://script.googleapis.com/v1/projects/${pr.scriptId}/content`,'PUT',{files:[
       {name:'Code',type:'SERVER_JS',source:gsCode(sh.spreadsheetId,key)},
