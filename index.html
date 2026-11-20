@@ -458,7 +458,7 @@ function normalize(f){
     }
     const needAns=q.type=='text'&&q.am!==true;   // older 본문 pages get their answer box as a line, once
     const r=Object.assign(mk(q.type),q);
-    r.titleHtml=r.titleHtml?cleanHtml(r.titleHtml):'';r.descHtml=r.descHtml?cleanHtml(r.descHtml):'';
+    r.titleHtml=r.titleHtml?cleanTitle(r.titleHtml):'';r.descHtml=r.descHtml?cleanHtml(r.descHtml):'';
     if(!/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(r.img||''))r.img='';
     // values may come from a shared link: coerce everything that ends up in markup or loops
     r.max=Math.max(2,Math.min(10,Math.round(+r.max)||10));
@@ -807,7 +807,7 @@ document.addEventListener('input',e=>{
     if(k.startsWith('t:')){const tb=(q.texts||[]).find(x=>x.id==k.slice(2));if(tb){tb.html=cleanHtml(t.innerHTML);tb.text=t.innerText.trim()}}
     else if(k=='endbtn')q.endBtn=t.innerText.trim().slice(0,40);
     else if(k.startsWith('b:')){const b=q.blocks.find(x=>x.id==k.slice(2));if(b){b.html=cleanHtml(t.innerHTML);b.text=t.innerText.trim()}}
-    else{q.titleHtml=cleanHtml(t.innerHTML);q.title=t.innerText.trim();const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=q.title}
+    else{q.titleHtml=cleanTitle(t.innerHTML);q.title=t.innerText.trim();const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=q.title}
   }
   else if(t.dataset.ot!=null){const o=q.options.find(x=>x.id==t.dataset.ot);if(o)o.text=t.isContentEditable?t.innerText.trim():t.value;if(!t.isContentEditable)refreshStage()}
   else if(t.dataset.fp){form[t.dataset.fp]=t.value;theme();if(t.dataset.fp=='title')renderNav()}
@@ -894,6 +894,8 @@ document.addEventListener('dblclick',e=>{
 
 /* ---------- rich text ---------- */
 // keep only simple formatting tags/styles; parsed in an inert document so shared links can't run script
+// titles live inside an <h2>: a heading inside it (e.g. text dragged in from a page) splits it in two, so headings become plain spans
+function cleanTitle(h){return cleanHtml(String(h).replace(/<(\/?)h[1-6]\b[^>]*>/gi,(m,c)=>c?'</span>':'<span>'))}
 function cleanHtml(h){
   const d=new DOMParser().parseFromString(String(h),'text/html').body,doc=d.ownerDocument;
   // paragraphs and lists are kept too, so the preview has the same line structure as the editor
@@ -1012,6 +1014,8 @@ document.addEventListener('change',e=>{
     t.value='';
   }
 });
+// dropping text from another page would bring its HTML (headings, links) into the line: insert it as plain text
+document.addEventListener('drop',e=>{if(e.target.closest&&e.target.closest('[data-rt],[data-ot]')){const t=e.dataTransfer&&e.dataTransfer.getData('text/plain');if(t){e.preventDefault();document.execCommand('insertText',false,t)}}});
 document.addEventListener('paste',e=>{if(e.target.dataset&&(e.target.dataset.rt||e.target.dataset.ot!=null)){e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))}});
 
 /* ---------- content blocks: drag to reorder, score labels ---------- */
@@ -1401,8 +1405,11 @@ async function checkHook(){
   try{ok=(await (await fetch(hook)).text()).includes('FormFlow')}catch{}
   if(hook!=form.webhook||!document.contains(el))return;
   el.style.color=ok?'#1e7e34':'#c0392b';
-  el.innerHTML=ok?'✅ 응답이 시트로 전송됩니다 (승인 완료)':`⚠ 응답이 시트로 전송되지 않습니다. <a href="${form.webhook}" target="_blank" rel="noopener">최초 1회 승인하기</a>를 눌러 승인한 뒤 이 창을 다시 열어 확인하세요.`;
+  el.innerHTML=ok?'✅ 응답이 시트로 전송됩니다 (승인 완료)':`⚠ 응답이 시트로 전송되지 않습니다. <a href="${form.webhook}" target="_blank" rel="noopener">최초 1회 승인하기</a>를 눌러 승인하세요. 승인 후 이 화면으로 돌아오면 자동으로 다시 확인합니다. <a href="#" id="gsRecheck">다시 확인</a>`;
 }
+// coming back from the approval tab re-checks by itself
+addEventListener('focus',()=>{if($('#sheetGuide').open&&form.webhook&&form.sheetUrl)checkHook()});
+document.addEventListener('click',e=>{if(e.target.id=='gsRecheck'){e.preventDefault();checkHook()}});
 function renderColMap(linked){
   $('#gsColsBox').hidden=!linked;if(!linked)return;
   const m=form.colNames||{};
