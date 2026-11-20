@@ -327,7 +327,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}
 th{background:var(--card);font-weight:600}
 /* 응답 table: one line per cell, scroll sideways instead of wrapping */
-#vResults th,#vResults td{white-space:nowrap}#vResults table{width:auto;min-width:100%}
+#vResults th,#vResults td{white-space:nowrap}#vResults .rdel{position:sticky;right:0;background:var(--bg,#fff);width:1%;padding:6px}#vResults th.rdel{background:var(--card)}#vResults .rdel .ico{display:block;color:#999}#vResults .rdel .ico:hover{color:#c0392b}#vResults table{width:auto;min-width:100%}
 .hide{display:none!important}
 @media(max-width:900px){.builder{grid-template-columns:1fr;height:auto}.side,.props{border:0}}
 </style>
@@ -1720,8 +1720,14 @@ function renderResults(){
   $('#vResults').innerHTML=`<h2>${esc(form.title)} — 응답 ${rs.length}건</h2>
   <p style="color:var(--muted)">이 브라우저에 저장된 응답입니다. 다른 기기 응답을 모으려면 웹훅 URL을 설정하세요.</p>
   <button class="btn sm" id="xlsx">엑셀(.xlsx) 내보내기</button> <button class="btn ghost sm" id="csv">CSV</button> <button class="btn ghost sm" id="gs">구글 시트 실시간 연동</button> <button class="btn ghost sm" id="clr">응답 삭제</button>
-  <div style="overflow:auto;margin-top:16px"><table><tr><th>시간</th>${hasU?'<th>이메일</th><th>이름</th>':''}${qs.map(q=>`<th>${esc(q.title)}</th>`).join('')}</tr>
-  ${rs.map(r=>`<tr><td>${new Date(r.at).toLocaleString()}</td>${hasU?`<td>${esc(r.user&&r.user.email||'')}</td><td>${esc(r.user&&r.user.name||'')}</td>`:''}${qs.map(q=>`<td>${cell(r,q)}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="99">아직 응답이 없습니다</td></tr>'}</table></div>`;
+  <div style="overflow:auto;margin-top:16px"><table><tr><th>시간</th>${hasU?'<th>이메일</th><th>이름</th>':''}${qs.map(q=>`<th>${esc(q.title)}</th>`).join('')}<th class="rdel"></th></tr>
+  ${rs.map((r,ri)=>`<tr><td>${new Date(r.at).toLocaleString()}</td>${hasU?`<td>${esc(r.user&&r.user.email||'')}</td><td>${esc(r.user&&r.user.name||'')}</td>`:''}${qs.map(q=>`<td>${cell(r,q)}</td>`).join('')}<td class="rdel"><button class="ico" data-rdel="${ri}" title="이 응답 삭제">✕</button></td></tr>`).join('')||'<tr><td colspan="99">아직 응답이 없습니다</td></tr>'}</table></div>`;
+  // ✕ on a row deletes that one response (this browser's copy only; rows already in Google Sheets stay there)
+  document.querySelectorAll('[data-rdel]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.rdel,r=getRes()[i];if(!r)return;
+    if(!confirm(new Date(r.at).toLocaleString()+' 응답을 삭제할까요? 되돌릴 수 없습니다. (구글 시트에 이미 기록된 줄은 지워지지 않습니다)'))return;
+    const all=getRes();all.splice(i,1);try{localStorage[resKey()]=JSON.stringify(all)}catch{}renderResults();
+  });
   $('#csv').onclick=()=>{
     const c=v=>'"'+String(v).replace(/"/g,'""')+'"';
     const out=[['시간',...(hasU?['이메일','이름']:[]),...qs.map(q=>q.title)].map(c).join(','),...rs.map(r=>[r.at,...(hasU?[r.user&&r.user.email||'',r.user&&r.user.name||'']:[]),...qs.map(q=>txt(r,q))].map(c).join(','))].join('\n');
