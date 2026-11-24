@@ -323,6 +323,9 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .mobed #stage .blk>.badd,.mobed #stage .trow>.badd{left:auto;right:0}
 .mobed #stage .blk>.ico{left:auto;right:-24px}
 .mobed #stage .blk>.grip{left:-20px}
+.mobed #stage .trow>.grip{position:absolute;left:-20px;top:50%;transform:translateY(-50%);opacity:0;transition:opacity .15s}
+.mobed #stage .trow:hover>.grip{opacity:1}
+.mobed #stage .grip{cursor:move}
 .mobed #stage .ansE{min-height:calc(2.6em + 16px)}
 .mobed #stage .bzw,.mobed #stage .bzw .rt{cursor:move}
 .mobed #stage .bzw{pointer-events:auto;outline:1.5px dashed transparent;outline-offset:4px;border-radius:6px}
@@ -532,6 +535,8 @@ function normalize(f){
     r.bs=clamp(r.bs,50,160,100);
     const bzOf=v=>Object.fromEntries(Object.entries(v&&typeof v=='object'&&!Array.isArray(v)?v:{}).filter(([k])=>/^[\w-]{1,40}$/.test(k)).map(([k,x])=>[k,{s:clamp(x&&x.s,0.5,2.5,1),x:clamp(x&&x.x,0,100,0),y:clamp(x&&x.y,-800,800,0)}]));
     r.bz=bzOf(r.bz);
+    const tzOf=v=>Object.fromEntries(Object.entries(v&&typeof v=='object'&&!Array.isArray(v)?v:{}).filter(([k])=>/^[\w-]{1,40}$/.test(k)).map(([k,x])=>[k,{x:clamp(x&&x.x,-800,800,0),y:clamp(x&&x.y,-800,800,0)}]));
+    r.tz=tzOf(r.tz);
     // 📱 phone layout (see mobLay); may come from a shared link, so cleaned like the PC fields
     delete r._pc;delete r._m0;delete r._m;
     if(r.mo&&typeof r.mo=='object'&&!Array.isArray(r.mo)){
@@ -540,7 +545,7 @@ function normalize(f){
         b:Object.fromEntries(Object.entries(obj(M.b)).map(([k,v])=>[k,{html:v&&v.html?cleanHtml(String(v.html)):'',text:String((v&&v.text)||'')}])),
         t:Object.fromEntries(Object.entries(obj(M.t)).map(([k,v])=>[k,{x:clamp(v&&v.x,0,95,30),y:clamp(v&&v.y,0,95,30),w:clamp(v&&v.w,5,95,40),fs:clamp(v&&v.fs,0.8,12,3),html:v&&v.html?cleanHtml(String(v.html)):'',text:String((v&&v.text)||'')}])),
         i:Object.fromEntries(Object.entries(obj(M.i)).map(([k,v])=>[k,{x:clamp(v&&v.x,0,95,30),y:clamp(v&&v.y,0,95,30),w:clamp(v&&v.w,3,95,30),h:clamp(v&&v.h,3,95,20)}])),
-        lay:M.lay=='grid'||M.lay=='list'?M.lay:'',bs:clamp(M.bs,50,160,100),bz:bzOf(M.bz),
+        lay:M.lay=='grid'||M.lay=='list'?M.lay:'',bs:clamp(M.bs,50,160,100),bz:bzOf(M.bz),tz:tzOf(M.tz),
         nl:Object.fromEntries(Object.entries(obj(M.nl)).map(([k,v])=>[k,!!v])),
         src:{tt:String(obj(M.src).tt??''),b:strs(obj(M.src).b),t:strs(obj(M.src).t)}};
     }else delete r.mo;
@@ -597,14 +602,14 @@ function layGet(q){
     b:Object.fromEntries(q.blocks.map(b=>[b.id,{html:b.html,text:b.text}])),
     t:Object.fromEntries(q.texts.map(t=>[t.id,{x:t.x,y:t.y,w:t.w,fs:t.fs,html:t.html,text:t.text}])),
     i:Object.fromEntries(q.images.map(t=>[t.id,{x:t.x,y:t.y,w:t.w,h:t.h}])),
-    lay:q.layout,bs:q.bs,bz:JSON.parse(JSON.stringify(q.bz||{})),nl:Object.fromEntries((q.options||[]).map(o=>[o.id,!!o.nl]))};
+    lay:q.layout,bs:q.bs,bz:JSON.parse(JSON.stringify(q.bz||{})),tz:JSON.parse(JSON.stringify(q.tz||{})),nl:Object.fromEntries((q.options||[]).map(o=>[o.id,!!o.nl]))};
 }
 function laySet(q,L){
   q.titleHtml=L.th;q.title=L.tt;
   q.blocks.forEach(b=>{if(L.b[b.id])Object.assign(b,L.b[b.id])});
   q.texts.forEach(t=>{if(L.t[t.id])Object.assign(t,L.t[t.id])});
   q.images.forEach(t=>{if(L.i[t.id])Object.assign(t,L.i[t.id])});
-  q.layout=L.lay;q.bs=L.bs;q.bz=JSON.parse(JSON.stringify(L.bz||{}));(q.options||[]).forEach(o=>{if(o.id in L.nl)o.nl=L.nl[o.id]});
+  q.layout=L.lay;q.bs=L.bs;q.bz=JSON.parse(JSON.stringify(L.bz||{}));q.tz=JSON.parse(JSON.stringify(L.tz||{}));(q.options||[]).forEach(o=>{if(o.id in L.nl)o.nl=L.nl[o.id]});
 }
 // phone layout of a page (q in its PC state). A line whose PC wording changed after its phone version was
 // made follows the PC wording again (with phone-shrunk sizes), so the two never drift apart in content.
@@ -614,7 +619,7 @@ function mobLay(q){
   for(const id in P.b){const m=M.b&&M.b[id];if(m&&sb[id]===P.b[id].text)P.b[id]={...m};else P.b[id].html=shrinkPx(P.b[id].html)}
   for(const id in P.t){const m=M.t&&M.t[id];if(m&&st[id]===P.t[id].text)P.t[id]={...m};else if(m)Object.assign(P.t[id],{x:m.x,y:m.y,w:m.w,fs:m.fs})}
   for(const id in P.i)if(M.i&&M.i[id])P.i[id]={...M.i[id]};
-  if(M.lay)P.lay=M.lay;if(M.bs)P.bs=M.bs;if(M.bz)P.bz={...P.bz,...M.bz};
+  if(M.lay)P.lay=M.lay;if(M.bs)P.bs=M.bs;if(M.bz)P.bz={...P.bz,...M.bz};if(M.tz)P.tz={...P.tz,...M.tz};
   for(const id in P.nl)if(M.nl&&id in M.nl)P.nl[id]=M.nl[id];
   return P;
 }
@@ -735,12 +740,12 @@ function imageBoxes(q){
 // content lines in list order. low=false: lines above the page's main control, low=true: lines below it (answer box, checkboxes)
 function blocksEditor(q,low){
   const rows=q.blocks.filter(b=>low===undefined||!!b.low===!!low).map(b=>b.kind=='img'
-    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div style="flex:1"><img class="qimg" draggable="false" src="${b.src}" style="max-height:160px;margin:0"></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
+    ?`<div class="blk" data-bid="${b.id}" style="${tzStyle(q,b.id)}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div style="flex:1"><img class="qimg" draggable="false" src="${b.src}" style="max-height:160px;margin:0"></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :b.kind=='button'
-    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${bzWrap(q,b.id,`<span class="btn go-btnE"><span class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="버튼 글자">${b.html||esc(b.text)}</span></span>`)}<span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
+    ?`<div class="blk" data-bid="${b.id}" style="${tzStyle(q,b.id)}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${bzWrap(q,b.id,`<span class="btn go-btnE"><span class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="버튼 글자">${b.html||esc(b.text)}</span></span>`)}<span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :b.kind=='answer'
-    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div class="ans ansE"><div class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="답변을 입력하세요">${b.html||esc(b.text)}</div></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
-    :`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${b.kind=='check'?'<input type="checkbox" class="chkprev" disabled>':''}<div class="rt desc" contenteditable="true" data-rt="b:${b.id}" data-ph="내용">${b.html||esc(b.text)}</div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`).join('');
+    ?`<div class="blk" data-bid="${b.id}" style="${tzStyle(q,b.id)}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div class="ans ansE"><div class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="답변을 입력하세요">${b.html||esc(b.text)}</div></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
+    :`<div class="blk" data-bid="${b.id}" style="${tzStyle(q,b.id)}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${b.kind=='check'?'<input type="checkbox" class="chkprev" disabled>':''}<div class="rt desc" contenteditable="true" data-rt="b:${b.id}" data-ph="내용">${b.html||esc(b.text)}</div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`).join('');
   return rows||(low||q.blocks.length?'':`<div class="badd" style="margin-top:12px">${BADD}</div>`);
 }
 // 점수: each row is a score picked from a dropdown plus its 문구 (e.g. 1점 · 매우 불만); respondents see exactly these rows
@@ -873,8 +878,10 @@ function stageSection(q){
   if(q.type=='scale'){inn.querySelectorAll(':scope > .scl').forEach(e=>e.remove());title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',scaleStage(q)+blocksEditor(q,true))}
   else if(q.type=='mc'){title.insertAdjacentHTML('afterend',blocksEditor({...q,blocks:q.blocks.filter(b=>!b.low&&(b.kind=='text'||b.kind=='img'))},false));anchor.insertAdjacentHTML('beforebegin',mcStage(q)+blocksEditor({...q,blocks:q.blocks.filter(b=>b.kind=='button'||b.kind=='answer')},true))}
   else{title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',blocksEditor(q,true))}
-  const tb=title.nextElementSibling;
-  if(tb&&tb.classList.contains('badd')){const tr=document.createElement('div');tr.className='trow';tb.style.marginTop='';title.before(tr);tr.append(title,tb)}
+  const tb=title.nextElementSibling,hasB=tb&&tb.classList.contains('badd');
+  if(hasB||mobEdit){const tr=document.createElement('div');tr.className='trow';title.before(tr);tr.append(title);if(hasB){tb.style.marginTop='';tr.append(tb)}
+    title.removeAttribute('style');tr.setAttribute('style',tzStyle(q,'title'));
+    if(mobEdit)tr.insertAdjacentHTML('afterbegin','<span class="grip" data-tz="title" title="드래그해서 이동">⠿</span>')}
   sec.insertAdjacentHTML('beforeend',textBoxes(q)+imageBoxes(q));
   const fin=sec.querySelector('#finish');   // 끝 화면 button: its label is edited in place
   const gb=sec.querySelector('.gow .go-btn');   // 시작 화면 button: its label is edited in place too
@@ -1181,7 +1188,19 @@ document.addEventListener('paste',e=>{if(e.target.dataset&&(e.target.dataset.rt|
 
 /* ---------- content blocks: drag to reorder, score labels ---------- */
 let insAt=0,dragId=null,optTarget=null;
-document.addEventListener('mousedown',e=>{const g=e.target.closest&&e.target.closest('.grip');if(g)g.closest('.blk').draggable=true});
+document.addEventListener('mousedown',e=>{if(mobEdit)return;const g=e.target.closest&&e.target.closest('.grip');if(g)g.closest('.blk').draggable=true});
+document.addEventListener('pointerdown',e=>{
+  if(!mobEdit||e.button)return;
+  const g=e.target.closest&&e.target.closest('#stage .grip'),q=form.qs[sel];if(!g||!q)return;
+  const el=g.closest('.blk,.trow');if(!el)return;
+  const key=g.dataset.tz||el.dataset.bid;if(!key)return;
+  e.preventDefault();e.stopPropagation();
+  const z=q.tz[key]=q.tz[key]||{x:0,y:0},x0=e.clientX,y0=e.clientY,X0=z.x,Y0=z.y,k=el.getBoundingClientRect().height/(el.offsetHeight||1);
+  document.body.style.userSelect='none';
+  const mv=ev=>{z.x=Math.round(Math.max(-800,Math.min(800,X0+(ev.clientX-x0)/k)));z.y=Math.round(Math.max(-800,Math.min(800,Y0+(ev.clientY-y0)/k)));el.style.position='relative';el.style.left=z.x+'px';el.style.top=z.y+'px'};
+  const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);document.body.style.userSelect='';save()};
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);
+},true);
 document.addEventListener('dragstart',e=>{
   const b=e.target.closest&&e.target.closest('.blk');
   if(!b||!b.draggable)return;
@@ -1783,6 +1802,7 @@ function ansStyle(b){
 }
 const kbdOf=(q,j)=>String(j+1);
 // a push button inside its place/size wrappers (key: line id, 'go' = 시작 button, 'end' = 끝 button)
+const tzStyle=(q,key)=>{const z=(q.tz||{})[key];return z&&(z.x||z.y)?`position:relative;left:${z.x}px;top:${z.y}px;`:''};
 function bzWrap(q,key,inner){
   const z=(q.bz||{})[key]||{},x=z.x||0,y=z.y||0,sz=Math.round((z.s||1)*(q.bs||100))/100;   // page slider × this button's own size
   return `<span class="bzw" data-bz="${key}" style="${x?`left:${x}%;transform:translateX(-${x}%);`:''}${y?`top:${y}px;`:''}"><span class="bzz" style="display:inline-block${sz!=1?';zoom:'+sz:''}">${inner}</span><i class="bzr" title="크기 조절"></i></span>`;
@@ -1815,11 +1835,11 @@ function slideHTML(q,i){
     :b.kind=='answer'?`<textarea class="ans" data-bid="${b.id}" rows="2" placeholder="${esc(b.text||'답변을 입력하세요')}" style="${ansStyle(b)}"></textarea>`
     :b.kind=='button'?`<div class="go">${bzWrap(q,b.id,`<button class="btn go-btn">${b.html||esc(b.text)||'확인'}</button>`)}</div>`
     :(b.text||b.html)?(b.kind=='check'?`<label class="chk"><input type="checkbox"${b.req||need?' data-req':''}><span class="qdesc">${b.html||esc(b.text)}</span>${b.req||need?'<span class="rq"> *</span>':''}</label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'';
-  const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'||b.kind=='answer'||(!b.low&&(b.kind=='text'||b.kind=='img'))):q.blocks).filter(b=>!!b.low==low).map(one).join('');
+  const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'||b.kind=='answer'||(!b.low&&(b.kind=='text'||b.kind=='img'))):q.blocks).filter(b=>!!b.low==low).map(b=>{const h=one(b),st=tzStyle(q,b.id);return st&&h?`<div style="${st}">${h}</div>`:h}).join('');
   const sbg=`${q.bs&&q.bs!=100?`--bs:${q.bs/100};`:''}${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
   return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}"${q._m?' data-mo':''} style="${sbg}">${(q.images||[]).map(t=>`<img class="ix" src="${t.src}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw">`).join('')}${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
-    <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${blk(false)}
+    <h2 class="qtitle" style="${tzStyle(q,'title')}">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${blk(false)}
     ${body}${blk(true)}${extra}<div class="err"></div>${foot}</div></section>`;
 }
 function show(i){
