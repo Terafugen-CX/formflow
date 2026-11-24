@@ -51,7 +51,10 @@ header .crumb b{color:#191919;font-weight:600}
 .addf{margin:2px 0 0 28px;background:none;border:0;color:var(--ui);font-size:13px;padding:4px 8px;border-radius:6px;font-weight:600}
 .addf:hover{background:#e3ecfb}
 .qitem{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;cursor:pointer;border:1px solid transparent;background:#fff;margin-bottom:4px}
-.qitem:hover{border-color:var(--line)}.qitem{user-select:none;touch-action:none}.qitem.qdropT{box-shadow:0 -3px 0 var(--ui)}.qitem.qdropB{box-shadow:0 3px 0 var(--ui)}
+.qitem:hover{border-color:var(--line)}
+#lockBox{margin-top:24px;padding-top:14px;border-top:1px solid var(--line)}#lockBox #lockBtn{width:100%}#lockNote{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+.lockic{font-size:12px;opacity:.75;flex:none}body.locked #lockBtn{border-color:#c0392b;color:#c0392b}
+body.locked #stage,body.locked .props>*:not(#lockBox){opacity:.65}body.locked #list .qitem .ico{display:none!important}.qitem{user-select:none;touch-action:none}.qitem.qdropT{box-shadow:0 -3px 0 var(--ui)}.qitem.qdropB{box-shadow:0 3px 0 var(--ui)}
 .qitem.on{border-color:var(--ui);box-shadow:0 0 0 1px var(--ui) inset}
 .qitem .n{width:22px;height:22px;border-radius:5px;background:#dfe8f8;color:var(--ui);font-size:12px;font-weight:700;display:grid;place-items:center;flex:none}
 .qitem .t{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px}
@@ -366,7 +369,8 @@ th{background:var(--card);font-weight:600}
       <input type="number" id="tbSizeNum" min="6" max="300" step="1" placeholder="px" title="글씨 크기 직접 입력 (px)">
       <select id="tbFont" title="글씨체"><option value="">글씨체</option><option value="Pretendard">Pretendard</option><option value="'Malgun Gothic'">맑은 고딕</option><option value="serif">명조 (Serif)</option><option value="monospace">고정폭</option><option value="cursive">손글씨</option></select>
     </div>
-    <div class="sec" style="margin-top:22px">질문 추가</div><div class="types" id="types"></div><div id="propsBody"></div></div>
+    <div class="sec" style="margin-top:22px">질문 추가</div><div class="types" id="types"></div><div id="propsBody"></div>
+    <div id="lockBox"><button class="btn ghost sm" id="lockBtn">🔒 폼 보호</button><div id="lockNote"></div></div></div>
 </div>
 <div id="vFlow" class="res hide"></div>
 <div id="vResults" class="res hide"></div>
@@ -442,6 +446,7 @@ function normalize(f){
   f.id=f.id||uid();
   f.gcid=/^[\w.-]+\.apps\.googleusercontent\.com$/.test(f.gcid||'')?f.gcid:'';
   f.loginRequired=!!f.loginRequired;
+  if(!(f.lock&&typeof f.lock.s=='string'&&/^[0-9a-f]{64}$/.test(f.lock.h||'')))delete f.lock;
   f.colNames=Object.fromEntries(Object.entries(f.colNames&&typeof f.colNames=='object'?f.colNames:{}).filter(([k,v])=>/^[\w#-]{1,80}$/.test(k)&&typeof v=='string'&&v.trim()).map(([k,v])=>[k,v.trim().slice(0,100)]));
   f.webhook=WEBHOOKRE.test(f.webhook||'')?f.webhook:'';
   f.bgimg=IMGRE.test(f.bgimg||'')?f.bgimg:'';
@@ -575,11 +580,14 @@ function treeHTML(fs,d){
   return fs.map(f=>{
     const open=f.open!==false;
     return `<div class="proj" style="padding-left:${8+d*14}px" data-pid="${f.id}"><span>${open?'📂':'📁'}</span><span class="nm">${esc(f.name)}</span><span class="acts"><button class="ico" data-addfm="${f.id}" title="폼 추가">＋📄</button><button class="ico" data-addsub="${f.id}" title="하위 폴더 추가">＋📁</button><button class="ico" data-pren="${f.id}" title="이름 변경">✎</button><button class="ico" data-pdel="${f.id}" title="삭제">✕</button></span></div>`
-    +(open?f.forms.map(m=>`<div class="fitem ${m.id==form.id?'on':''}" style="padding-left:${30+d*14}px" data-fid="${m.id}"><span class="nm">${esc(m.title)}</span><button class="ico" data-fren="${m.id}" title="이름 변경">✎</button><button class="ico" data-fdel="${m.id}" title="삭제">✕</button></div>`).join('')+treeHTML(f.folders,d+1):'');
+    +(open?f.forms.map(m=>`<div class="fitem ${m.id==form.id?'on':''}" style="padding-left:${30+d*14}px" data-fid="${m.id}"><span class="nm">${esc(m.title)}</span>${m.lock?'<span class="lockic" title="보호됨: 열람만 가능">🔒</span>':`<button class="ico" data-fren="${m.id}" title="이름 변경">✎</button><button class="ico" data-fdel="${m.id}" title="삭제">✕</button>`}</div>`).join('')+treeHTML(f.folders,d+1):'');
   }).join('');
 }
 function renderNav(){
-  $('#crumb').innerHTML=`${esc(pathOf(form.id))} / <b>${esc(form.title)}</b>`;
+  $('#crumb').innerHTML=`${esc(pathOf(form.id))} / <b>${esc(form.title)}</b>${form.lock?' <span class="lockic" title="보호됨">🔒 보호됨</span>':''}`;
+  document.body.classList.toggle('locked',!!form.lock);
+  $('#lockBtn').textContent=form.lock?'🔓 보호 해제':'🔒 폼 보호';
+  $('#lockNote').textContent=form.lock?'보호 중: 열람만 가능합니다. 수정하려면 비밀번호로 보호를 해제하세요.':'켜면 비밀번호를 아는 사람만 이 폼을 수정·삭제할 수 있습니다.';
   $('#projs').innerHTML=treeHTML(store.projects,0);
 }
 function renderQs(){
@@ -839,6 +847,7 @@ document.addEventListener('click',e=>{
   else if(d.pren){const f=findFolder(d.pren).f;const n=prompt('폴더 이름 변경',f.name);if(!n)return;f.name=n}
   else if(d.pdel){
     const {f,p}=findFolder(d.pdel);const ids=[];walk([f],x=>ids.push(...x.forms.map(m=>m.id)));
+    if(ids.some(id=>findForm(id).form.lock)){alert('보호된 폼이 들어 있어 이 폴더는 삭제할 수 없습니다. 먼저 그 폼의 보호를 해제하세요.');return}
     if(ids.length>=allForms().length){alert('폼이 최소 1개는 남아야 합니다.');return}
     if(!confirm('"'+f.name+'" 폴더와 하위 폴더, 폼 '+ids.length+'개를 삭제할까요? 응답도 함께 삭제됩니다.'))return;
     ids.forEach(id=>localStorage.removeItem('ff_res_'+id));
@@ -902,7 +911,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('dblclick',e=>{
   const t=e.target.closest('.fitem');if(!t||view!='build')return;
-  const r=findForm(t.dataset.fid);const n=prompt('폼 이름 변경',r.form.title);
+  const r=findForm(t.dataset.fid);if(r.form.lock)return;const n=prompt('폼 이름 변경',r.form.title);
   if(n){r.form.title=n;save();renderBuild()}
 });
 
@@ -1257,6 +1266,34 @@ document.addEventListener('pointerdown',e=>{
   addEventListener('pointermove',mv);addEventListener('pointerup',up);
 });
 document.addEventListener('click',e=>{if(qDragged&&e.target.closest&&e.target.closest('#list')){e.stopPropagation();e.preventDefault()}},true);
+
+/* ---------- 폼 보호: password-protected read-only mode ----------
+   The password is kept only as a salted SHA-256 hash. This guards against accidental edits in this browser;
+   it is not server-side security (the form data itself lives in this browser's storage). */
+async function pwHash(salt,pw){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+':'+pw));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+document.addEventListener('click',async e=>{
+  if(e.target.id!='lockBtn')return;
+  if(!form.lock){
+    const p1=prompt('보호 비밀번호를 정하세요 (4자 이상). 이 비밀번호를 아는 사람만 수정·삭제할 수 있습니다.');if(p1==null)return;
+    if(p1.length<4){alert('비밀번호는 4자 이상이어야 합니다.');return}
+    if(prompt('비밀번호를 한 번 더 입력하세요.')!==p1){alert('비밀번호가 서로 다릅니다.');return}
+    const salt=uid()+uid();form.lock={s:salt,h:await pwHash(salt,p1)};save();renderBuild();
+  }else{
+    const p=prompt('보호 해제 비밀번호를 입력하세요.');if(p==null)return;
+    if(await pwHash(form.lock.s,p)!==form.lock.h){alert('비밀번호가 맞지 않습니다.');return}
+    delete form.lock;save();renderBuild();
+  }
+});
+// while protected, block every editing gesture (capture phase, before the editor's own handlers);
+// still allowed: choosing pages/forms, preview, share link, viewing the workflow and results
+const EDIT_ZONES='#stage,#stageWrap .laybar,.props,#vFlow,#sheetGuide #gsMake,#sheetGuide #gsUnlink,#sheetGuide [data-colk],#list [data-del]';
+['pointerdown','mousedown','click','dblclick','input','change','keydown','paste','drop'].forEach(ev=>document.addEventListener(ev,e=>{
+  if(shared||!form||!form.lock||!e.target.closest)return;
+  const t=e.target;if(t.closest('#lockBox,#run,#fpclose'))return;
+  const inList=t.closest('#list .qitem');
+  if(inList&&(ev=='pointerdown'||ev=='mousedown')&&!t.closest('[data-del]'))return e.stopPropagation();   // no drag-reorder; click still selects
+  if(t.closest(EDIT_ZONES)){e.stopPropagation();if(ev!='keydown'||!/^(Tab|Arrow)/.test(e.key))e.preventDefault()}
+},true));
 
 /* ---------- background image ---------- */
 document.addEventListener('click',e=>{
@@ -1783,7 +1820,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v))
 $('#play').onclick=startRun;$('#playPhone').onclick=startPhone;
 $('#share').onclick=async()=>{
   if(form.loginRequired&&!form.gcid){alert('구글 로그인을 쓰려면 먼저 오른쪽 패널에 구글 클라이언트 ID를 입력해 주세요.');return}
-  const {id,sheetUrl,sheetTab,wkey,sv,...f}=form,base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
+  const {id,sheetUrl,sheetTab,wkey,sv,lock,...f}=form,base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
   const openSheet=()=>{$('#gs2').click();$('#sheetGuide').open||$('#sheetGuide').showModal()};
   // linked with an older script that can't store the form: upgrade it once (same sheet), then come back
   if(dep&&needsUpgrade()){
