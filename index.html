@@ -302,6 +302,14 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .run .smore.up::after{top:0}.run .smore.dn::after{bottom:0}
 .run .smore.up{top:0;background:linear-gradient(to bottom,color-mix(in srgb,var(--accent) 22%,var(--fade,#fff)) 0%,color-mix(in srgb,var(--accent) 8%,transparent) 45%,transparent)}
 .run .smore.dn{bottom:0;background:linear-gradient(to top,color-mix(in srgb,var(--accent) 22%,var(--fade,#fff)) 0%,color-mix(in srgb,var(--accent) 8%,transparent) 45%,transparent)}
+/* 미리보기 ▶ menu (PC / 모바일) and the 📱 모바일 편집 toggle */
+.pwrap{position:relative;display:inline-block}
+.pmenu{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:6px;z-index:60;display:flex;flex-direction:column;min-width:150px}
+.pmenu[hidden]{display:none}
+.pmenu button{background:none;border:0;text-align:left;padding:8px 10px;border-radius:6px;font-size:14px;color:#191919;cursor:pointer}
+.pmenu button:hover{background:var(--card)}
+#playPhone.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.mobnote{font-size:12px;color:var(--accent);font-weight:600;text-align:center;margin:0 0 6px}
 /* 📱 preview = the page area a phone browser shows (iPhone 393px wide; KakaoTalk in-app browser leaves ~660px between its bars).
    Phones use overlay scrollbars, so the preview must not lose width to a desktop scrollbar either */
 .run.phone .slide{scrollbar-width:none}.run.phone .slide::-webkit-scrollbar{display:none}
@@ -361,7 +369,7 @@ th{background:var(--card);font-weight:600}
   <span id="who" style="font-size:13px;color:var(--muted)"></span>
   <button class="btn ghost sm" id="gs2" style="display:inline-flex;align-items:center;gap:8px"></button>
   <button class="btn ghost sm" id="share">공유 링크 복사</button>
-  <button class="btn ghost sm" id="playPhone" title="휴대폰 화면 크기(393×660, 카카오톡 브라우저 기준)로 미리보기">📱 모바일</button><button class="btn sm" id="play">미리보기 ▶</button>
+  <button class="btn ghost sm" id="playPhone" title="휴대폰 화면(393×660)에서 보이는 배치를 따로 편집합니다. PC 배치에는 영향이 없습니다">📱 모바일 편집</button><span class="pwrap"><button class="btn sm" id="play">미리보기 ▶</button><div class="pmenu" id="playMenu" hidden><button data-pm="pc">💻 PC 화면</button><button data-pm="mo">📱 모바일 화면</button></div></span>
 </header>
 
 <div id="vBuild" class="builder">
@@ -499,6 +507,18 @@ function normalize(f){
     r.texts=TXTYPES.includes(r.type)&&Array.isArray(r.texts)?r.texts.slice(0,20).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,5,95,40),fs:clamp(t&&t.fs,0.8,12,3),html:t&&t.html?cleanHtml(t.html):'',text:String((t&&t.text)||'')})):[];
     r.images=TXTYPES.includes(r.type)&&Array.isArray(r.images)?r.images.slice(0,10).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,3,95,30),h:clamp(t&&t.h,3,95,20),src:String((t&&t.src)||''),orig:String((t&&t.orig)||''),tol:clamp(t&&t.tol,10,120,48)})).filter(t=>IMGRE.test(t.src)).map(t=>({...t,orig:IMGRE.test(t.orig)?t.orig:''})):[];
     r.layout=r.layout=='grid'?'grid':'list';
+    // 📱 phone layout (see mobLay); may come from a shared link, so cleaned like the PC fields
+    delete r._pc;delete r._m0;delete r._m;
+    if(r.mo&&typeof r.mo=='object'&&!Array.isArray(r.mo)){
+      const M=r.mo,obj=v=>v&&typeof v=='object'&&!Array.isArray(v)?v:{},strs=v=>Object.fromEntries(Object.entries(obj(v)).map(([k,x])=>[k,String(x??'')]));
+      r.mo={th:M.th!=null?cleanTitle(String(M.th)):null,tt:String(M.tt??''),
+        b:Object.fromEntries(Object.entries(obj(M.b)).map(([k,v])=>[k,{html:v&&v.html?cleanHtml(String(v.html)):'',text:String((v&&v.text)||'')}])),
+        t:Object.fromEntries(Object.entries(obj(M.t)).map(([k,v])=>[k,{x:clamp(v&&v.x,0,95,30),y:clamp(v&&v.y,0,95,30),w:clamp(v&&v.w,5,95,40),fs:clamp(v&&v.fs,0.8,12,3),html:v&&v.html?cleanHtml(String(v.html)):'',text:String((v&&v.text)||'')}])),
+        i:Object.fromEntries(Object.entries(obj(M.i)).map(([k,v])=>[k,{x:clamp(v&&v.x,0,95,30),y:clamp(v&&v.y,0,95,30),w:clamp(v&&v.w,3,95,30),h:clamp(v&&v.h,3,95,20)}])),
+        lay:M.lay=='grid'||M.lay=='list'?M.lay:'',
+        nl:Object.fromEntries(Object.entries(obj(M.nl)).map(([k,v])=>[k,!!v])),
+        src:{tt:String(obj(M.src).tt??''),b:strs(obj(M.src).b),t:strs(obj(M.src).t)}};
+    }else delete r.mo;
     r.endBtn=String(r.endBtn||'종료').slice(0,40);
     r.fx=(r.fx==null||r.fx==='')?null:clamp(r.fx,0,4000,0);r.fy=(r.fy==null||r.fy==='')?null:clamp(r.fy,0,4000,0);   // workflow node position
     // workflow: answer key (option id / score / "*") -> target question id
@@ -536,7 +556,54 @@ const findFolder=id=>{let r;walk(store.projects,(f,p)=>{if(f.id==id)r={f,p}});re
 const allForms=()=>{const a=[];walk(store.projects,f=>a.push(...f.forms));return a};
 const pathOf=fid=>{const r=findForm(fid);if(!r)return'';const n=[];let c=r.folder;while(c){n.unshift(c.name);c=findFolder(c.id).p}return n.join(' / ')};
 form=(findForm(store.fid)||{}).form||allForms()[0];store.fid=form.id;
-const save=()=>{try{localStorage.ff_store=JSON.stringify(store)}catch{}};
+// the page being edited in 📱 mode holds its phone layout while edited: store the PC one + q.mo instead
+const save=()=>{const m=mobQ;mobOut();try{localStorage.ff_store=JSON.stringify(store)}catch{}if(m)mobIn(m)};
+/* ---------- 📱 모바일 편집: a separate phone layout per page ----------
+   q.mo holds the phone version of a page's layout: title/line html (font sizes), text and image box
+   positions/sizes, list/card layout and card row breaks. Structure (lines, options, answers) stays shared.
+   In 📱 mode the selected page's layout is swapped in, edited by the normal editor, and swapped back out
+   (into q.mo) before saving, sharing, previewing or switching pages, so the PC layout is never touched. */
+let mobEdit=false,mobQ=null;
+const MOB_W=393,MOB_H=660;
+// a page never edited on 📱 shows px sizes shrunk the way phones always showed them (see fitText)
+const shrinkPx=h=>String(h||'').replace(/font-size:\s*([\d.]+)px/g,(m,n)=>'font-size:'+Math.round(Math.max(Math.min(+n,15),n*MOB_W/FIT_W))+'px');
+function layGet(q){
+  return{th:q.titleHtml,tt:q.title,
+    b:Object.fromEntries(q.blocks.map(b=>[b.id,{html:b.html,text:b.text}])),
+    t:Object.fromEntries(q.texts.map(t=>[t.id,{x:t.x,y:t.y,w:t.w,fs:t.fs,html:t.html,text:t.text}])),
+    i:Object.fromEntries(q.images.map(t=>[t.id,{x:t.x,y:t.y,w:t.w,h:t.h}])),
+    lay:q.layout,nl:Object.fromEntries((q.options||[]).map(o=>[o.id,!!o.nl]))};
+}
+function laySet(q,L){
+  q.titleHtml=L.th;q.title=L.tt;
+  q.blocks.forEach(b=>{if(L.b[b.id])Object.assign(b,L.b[b.id])});
+  q.texts.forEach(t=>{if(L.t[t.id])Object.assign(t,L.t[t.id])});
+  q.images.forEach(t=>{if(L.i[t.id])Object.assign(t,L.i[t.id])});
+  q.layout=L.lay;(q.options||[]).forEach(o=>{if(o.id in L.nl)o.nl=L.nl[o.id]});
+}
+// phone layout of a page (q in its PC state). A line whose PC wording changed after its phone version was
+// made follows the PC wording again (with phone-shrunk sizes), so the two never drift apart in content.
+function mobLay(q){
+  const P=layGet(q),M=q.mo||{},s=M.src||{},sb=s.b||{},st=s.t||{};
+  if(M.th!=null&&s.tt===q.title){P.th=M.th;P.tt=M.tt}else P.th=shrinkPx(P.th);
+  for(const id in P.b){const m=M.b&&M.b[id];if(m&&sb[id]===P.b[id].text)P.b[id]={...m};else P.b[id].html=shrinkPx(P.b[id].html)}
+  for(const id in P.t){const m=M.t&&M.t[id];if(m&&st[id]===P.t[id].text)P.t[id]={...m};else if(m)Object.assign(P.t[id],{x:m.x,y:m.y,w:m.w,fs:m.fs})}
+  for(const id in P.i)if(M.i&&M.i[id])P.i[id]={...M.i[id]};
+  if(M.lay)P.lay=M.lay;
+  for(const id in P.nl)if(M.nl&&id in M.nl)P.nl[id]=M.nl[id];
+  return P;
+}
+// runner copy of a page with its phone layout applied (_m: sizes are final, fitText leaves them alone)
+const mobCopy=q=>{const c=JSON.parse(JSON.stringify(q));laySet(c,mobLay(q));c.title=q.title;c._m=1;return c};   // plain title stays the PC one (sheet/answers)
+function mobIn(q){if(!q||mobQ)return;q._pc=layGet(q);laySet(q,mobLay(q));q._m0=JSON.stringify(layGet(q));mobQ=q}
+function mobOut(){
+  const q=mobQ;if(!q)return;mobQ=null;
+  const L=layGet(q),pc=q._pc;
+  // lines added while in 📱 mode have no PC version yet: they start out the same on PC
+  const txt=(a,b)=>Object.fromEntries(Object.entries({...a,...b}).map(([k,v])=>[k,v.text]));
+  if(JSON.stringify(L)!==q._m0)q.mo={...L,src:{tt:pc.tt,b:txt(L.b,pc.b),t:txt(L.t,pc.t)}};
+  laySet(q,pc);delete q._pc;delete q._m0;
+}
 const resKey=()=>'ff_res_'+form.id;
 const getRes=()=>{try{return JSON.parse(localStorage[resKey()]||'[]')}catch{return[]}};
 
@@ -790,6 +857,12 @@ function fitStage(){
   const wrap=$('#stageWrap'),st=$('#stage');if(!wrap||!st)return;
   // the page fills the canvas with the same gap G on every side (left, top, bottom, and right up to the scrollbar)
   const G=12,ed=$('#editor'),W=window.innerWidth;
+  if(mobEdit){   // 📱: a phone-sized page (393×660), scaled to fit and centred
+    const note=ed.querySelector('.mobnote'),aw=ed.clientWidth-2*G,ah=Math.max(240,ed.clientHeight-2*G-(note?note.offsetHeight+6:0)),s=Math.min(aw/MOB_W,ah/MOB_H);
+    st.style.width=MOB_W+'px';st.style.height=MOB_H+'px';st.style.transform=`scale(${s})`;
+    wrap.style.width=MOB_W*s+'px';wrap.style.height=MOB_H*s+'px';wrap.style.margin=`0 auto ${G}px`;
+    return;
+  }
   for(let pass=0;pass<3;pass++){   // scrollbars appearing/disappearing change the canvas size, so settle over a few passes
     const aw=ed.clientWidth-2*G,ah=Math.max(240,ed.clientHeight-2*G),s=aw/W;
     st.style.width=W+'px';st.style.height=(ah/s)+'px';st.style.transform=`scale(${s})`;
@@ -806,10 +879,11 @@ function previewHTML(q){
   return '';
 }
 function renderBuild(){
-  theme();renderNav();renderQs();
+  mobOut();theme();renderNav();renderQs();
   const q=form.qs[sel];
   if(!q){$('#editor').innerHTML='';$('#propsBody').innerHTML='';return}
-  $('#editor').innerHTML=`<div id="stageWrap"><div id="stage"></div>${q.type=='mc'?`<div class="laybar">${layBtns(q)}</div>`:''}</div><div class="edit epanel">
+  if(mobEdit)mobIn(q);
+  $('#editor').innerHTML=`${mobEdit?'<div class="mobnote">📱 모바일 전용 편집 중 · 여기서 바꾼 배치·글씨 크기는 휴대폰 화면에만 적용됩니다</div>':''}<div id="stageWrap"><div id="stage"></div>${q.type=='mc'?`<div class="laybar">${layBtns(q)}</div>`:''}</div><div class="edit epanel">
     ${q.type=='welcome'?`<div class="field"><label>버튼 글자</label><input value="${esc(q.btn)}" data-k="btn"></div>`:''}
     </div>`;
   refreshStage();
@@ -1560,8 +1634,14 @@ document.addEventListener('click',e=>{
 
 /* ---------- runner ---------- */
 let ans={},cur=0,runQs=[],submitted=false,hist=[],steps=0;
-function startRun(){
-  theme();runQs=form.qs;ans={};cur=0;submitted=false;hist=[];steps=0;
+// phone=true: 📱 preview. Phones (and the 📱 preview) get each page's phone layout; PC gets the PC one.
+function startRun(phone){
+  phone=phone===true;
+  const m=mobQ;mobOut();
+  const mob=phone||window.innerWidth<600;
+  runQs=form.qs.map(q=>mob&&q.mo?mobCopy(q):JSON.parse(JSON.stringify(q)));
+  if(m)mobIn(m);
+  theme();ans={};cur=0;submitted=false;hist=[];steps=0;
   const R=$('#run');R.classList.remove('hide','phone');
   R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up" title="이전">◀</button><button id="dn" title="다음">▶</button></div><div class="sthumb"></div><button class="smore up" title="위에 내용이 더 있습니다"></button><button class="smore dn" title="아래에 내용이 더 있습니다"></button>';
   show(0);fitText();
@@ -1571,12 +1651,13 @@ function startRun(){
 const FIT_W=700;
 function fitText(){
   const R=$('#run');if(!R||R.classList.contains('hide'))return;
-  const W=R.clientWidth,k=Math.min(1,W/FIT_W);
-  R.querySelectorAll('.slide [style*="font-size"]').forEach(el=>{
+  const sl0=R.querySelector('.slide'),W=sl0?sl0.clientWidth:R.clientWidth,k=Math.min(1,W/FIT_W);
+  R.querySelectorAll('.slide:not([data-mo]) [style*="font-size"]').forEach(el=>{   // 📱-edited pages keep their own sizes
     if(el.dataset.fs==null)el.dataset.fs=el.style.fontSize;
     const n=parseFloat(el.dataset.fs);if(!/px$/.test(el.dataset.fs)||!n)return;
     el.style.fontSize=k>=1?el.dataset.fs:Math.max(Math.min(n,15),n*k)+'px';
   });
+
 }
 addEventListener('resize',fitText);
 // "more above / more below" hints: a fade with an arrow at the top or bottom edge of a page that scrolls; tapping it scrolls on
@@ -1605,7 +1686,7 @@ $('#run').addEventListener('scroll',e=>{
   th.classList.add('on');clearTimeout(thumbT);thumbT=setTimeout(()=>th.classList.remove('on'),700);
 },true);
 // 📱 preview: the same runner inside a phone-sized frame
-function startPhone(){startRun();$('#run').classList.add('phone');fitText()}
+function startPhone(){startRun(true);$('#run').classList.add('phone');fitText()}
 // creator-only Google sign-in: protects the builder, never the shared respondent page. Remembered 3 days.
 // (the page is static, so this identifies the creator but is not a server-side lock)
 const ADMIN_TTL=3*24*3600*1000,CIDRE=/^[\w.-]+\.apps\.googleusercontent\.com$/;
@@ -1681,7 +1762,7 @@ function slideHTML(q,i){
     :(b.text||b.html)?(b.kind=='check'?`<label class="chk"><input type="checkbox"${b.req||need?' data-req':''}><span class="qdesc">${b.html||esc(b.text)}</span>${b.req||need?'<span class="rq"> *</span>':''}</label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'';
   const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'||b.kind=='answer'||(!b.low&&(b.kind=='text'||b.kind=='img'))):q.blocks).filter(b=>!!b.low==low).map(one).join('');
   const sbg=`${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
-  return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}" style="${sbg}">${(q.images||[]).map(t=>`<img class="ix" src="${t.src}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw">`).join('')}${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
+  return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}"${q._m?' data-mo':''} style="${sbg}">${(q.images||[]).map(t=>`<img class="ix" src="${t.src}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw">`).join('')}${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
     <h2 class="qtitle">${q.titleHtml||esc(q.title)}${q.required?' *':''}</h2>${blk(false)}
     ${body}${blk(true)}${extra}<div class="err"></div>${foot}</div></section>`;
@@ -1852,16 +1933,24 @@ function renderResults(){
 
 /* ---------- shell ---------- */
 function setView(v){
-  view=v;
+  mobOut();view=v;
   $('#vBuild').classList.toggle('hide',v!='build');$('#vResults').classList.toggle('hide',v!='results');$('#vFlow').classList.toggle('hide',v!='flow');
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v==v));
   v=='build'?renderBuild():v=='flow'?renderFlow():renderResults();
 }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v));
-$('#play').onclick=startRun;$('#playPhone').onclick=startPhone;
+$('#play').onclick=e=>{e.stopPropagation();$('#playMenu').hidden=!$('#playMenu').hidden};
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('[data-pm]');
+  if(!$('#playMenu').hidden&&!(e.target.closest&&e.target.closest('#playMenu')))$('#playMenu').hidden=true;
+  if(b){$('#playMenu').hidden=true;b.dataset.pm=='mo'?startPhone():startRun()}
+});
+$('#playPhone').onclick=()=>{mobOut();mobEdit=!mobEdit;$('#playPhone').classList.toggle('on',mobEdit);if(view!='build')setView('build');else renderBuild()};
 $('#share').onclick=async()=>{
   if(form.loginRequired&&!form.gcid){alert('구글 로그인을 쓰려면 먼저 오른쪽 패널에 구글 클라이언트 ID를 입력해 주세요.');return}
-  const {id,sheetUrl,sheetTab,wkey,sv,lock,...f}=form,base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
+  const m=mobQ;mobOut();
+  const {id,sheetUrl,sheetTab,wkey,sv,lock,...f0}=form,f=JSON.parse(JSON.stringify(f0)),base=location.href.split('#')[0],dep=(form.webhook||'').match(/\/s\/([\w-]+)\/exec$/);
+  if(m)mobIn(m);
   const openSheet=()=>{$('#gs2').click();$('#sheetGuide').open||$('#sheetGuide').showModal()};
   // linked with an older script that can't store the form: upgrade it once (same sheet), then come back
   if(dep&&needsUpgrade()){
