@@ -214,6 +214,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .ans::placeholder{color:var(--phc,color-mix(in srgb,var(--fg) 45%,transparent));opacity:1}
 #stage .go-btnE{display:inline-block;margin-top:24px;background:var(--accent);color:var(--bg);font-size:18px;padding:8px 18px;border-radius:6px;font-weight:600;cursor:text}
 #stage .go-btnE .rt{min-width:2em;display:inline-block}
+#stage .gow .go-btnE{margin-top:0}
 .kindrow{display:flex;align-items:center;justify-content:space-between}
 .qitem .qty{flex:none;color:#b3b6bd;font-size:11px;margin-left:2px}
 .lay{display:flex;gap:6px}
@@ -325,7 +326,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .mobed #stage .bzw:hover{outline-color:color-mix(in srgb,var(--accent) 60%,transparent)}
 .mobed #stage .bzm,.mobed #stage .bzr{display:block;position:absolute;z-index:6;opacity:0;transition:opacity .15s;touch-action:none;font-style:normal}
 .mobed #stage .bzw:hover .bzm,.mobed #stage .bzw:hover .bzr,.mobed #stage .bzw.drag .bzm,.mobed #stage .bzw.drag .bzr{opacity:1}
-.mobed #stage .bzm{left:50%;top:-30px;transform:translateX(-50%);background:#fff;border:1px solid #d4d7dd;border-radius:6px;padding:2px 8px;font-size:14px;color:#444;cursor:ew-resize;white-space:nowrap}
+.mobed #stage .bzm{left:50%;top:-30px;transform:translateX(-50%);background:#fff;border:1px solid #d4d7dd;border-radius:6px;padding:2px 8px;font-size:14px;color:#444;cursor:move;white-space:nowrap}
 .mobed #stage .bzr{right:-8px;bottom:-8px;width:16px;height:16px;background:#fff;border:2px solid var(--accent);border-radius:50%;cursor:nwse-resize}
 .mobnote{font-size:12px;color:var(--accent);font-weight:600;text-align:center;margin:0 0 6px}
 /* 📱 preview = the page area a phone browser shows (iPhone 393px wide; KakaoTalk in-app browser leaves ~660px between its bars).
@@ -526,7 +527,7 @@ function normalize(f){
     r.images=TXTYPES.includes(r.type)&&Array.isArray(r.images)?r.images.slice(0,10).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,3,95,30),h:clamp(t&&t.h,3,95,20),src:String((t&&t.src)||''),orig:String((t&&t.orig)||''),tol:clamp(t&&t.tol,10,120,48)})).filter(t=>IMGRE.test(t.src)).map(t=>({...t,orig:IMGRE.test(t.orig)?t.orig:''})):[];
     r.layout=r.layout=='grid'?'grid':'list';
     r.bs=clamp(r.bs,50,160,100);
-    const bzOf=v=>Object.fromEntries(Object.entries(v&&typeof v=='object'&&!Array.isArray(v)?v:{}).filter(([k])=>/^[\w-]{1,40}$/.test(k)).map(([k,x])=>[k,{s:clamp(x&&x.s,0.5,2.5,1),x:clamp(x&&x.x,0,100,0)}]));
+    const bzOf=v=>Object.fromEntries(Object.entries(v&&typeof v=='object'&&!Array.isArray(v)?v:{}).filter(([k])=>/^[\w-]{1,40}$/.test(k)).map(([k,x])=>[k,{s:clamp(x&&x.s,0.5,2.5,1),x:clamp(x&&x.x,0,100,0),y:clamp(x&&x.y,-800,800,0)}]));
     r.bz=bzOf(r.bz);
     // 📱 phone layout (see mobLay); may come from a shared link, so cleaned like the PC fields
     delete r._pc;delete r._m0;delete r._m;
@@ -871,6 +872,8 @@ function stageSection(q){
   else{title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',blocksEditor(q,true))}
   sec.insertAdjacentHTML('beforeend',textBoxes(q)+imageBoxes(q));
   const fin=sec.querySelector('#finish');   // 끝 화면 button: its label is edited in place
+  const gb=sec.querySelector('.gow .go-btn');   // 시작 화면 button: its label is edited in place too
+  if(gb)gb.outerHTML=`<span class="btn go-btnE"><span class="rt" contenteditable="true" data-rt="startbtn" data-ph="버튼 글자">${esc(q.btn||'시작하기')}</span></span>`;
   if(fin)fin.outerHTML=`<span class="btn go-btnE"><span class="rt" contenteditable="true" data-rt="endbtn" data-ph="버튼 글자">${esc(q.endBtn||'종료')}</span></span>`;
   return sec;
 }
@@ -905,7 +908,6 @@ function renderBuild(){
   if(!q){$('#editor').innerHTML='';$('#propsBody').innerHTML='';return}
   if(mobEdit)mobIn(q);
   $('#editor').innerHTML=`${mobEdit?'<div class="mobnote">📱 모바일 전용 편집 중 · 여기서 바꾼 배치·글씨 크기는 휴대폰 화면에만 적용됩니다</div>':''}<div id="stageWrap"><div id="stage"></div>${q.type=='mc'?`<div class="laybar">${layBtns(q)}</div>`:''}</div><div class="edit epanel">
-    ${q.type=='welcome'?`<div class="field"><label>버튼 글자</label><input value="${esc(q.btn)}" data-k="btn"></div>`:''}
     </div>`;
   refreshStage();
   $('#propsBody').innerHTML=`
@@ -933,6 +935,7 @@ document.addEventListener('input',e=>{
     const k=t.dataset.rt;
     if(k.startsWith('t:')){const tb=(q.texts||[]).find(x=>x.id==k.slice(2));if(tb){tb.html=cleanHtml(t.innerHTML);tb.text=t.innerText.trim()}}
     else if(k=='endbtn')q.endBtn=t.innerText.trim().slice(0,40);
+    else if(k=='startbtn')q.btn=t.innerText.trim().slice(0,40);
     else if(k.startsWith('b:')){const b=q.blocks.find(x=>x.id==k.slice(2));if(b){b.html=cleanHtml(t.innerHTML);b.text=t.innerText.trim()}}
     else{q.titleHtml=cleanTitle(t.innerHTML);q.title=t.innerText.trim();const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=q.title}
   }
@@ -1032,11 +1035,11 @@ document.addEventListener('pointerdown',e=>{
   const w=h.closest('.bzw'),q=form.qs[sel];if(!w||!q)return;
   e.preventDefault();e.stopPropagation();
   const key=w.dataset.bz,z=q.bz[key]=q.bz[key]||{s:1,x:0},zz=w.querySelector('.bzz');
-  const x0=e.clientX,r=w.getBoundingClientRect(),pr=w.parentElement.getBoundingClientRect(),s0=z.s,X0=z.x,move=h.classList.contains('bzm');
+  const x0=e.clientX,y0=e.clientY,r=w.getBoundingClientRect(),pr=w.parentElement.getBoundingClientRect(),s0=z.s,X0=z.x,Y0=z.y||0,move=h.classList.contains('bzm'),k=r.height/(w.offsetHeight||1);
   w.classList.add('drag');
   const mv=ev=>{
     const dx=ev.clientX-x0;
-    if(move){const free=pr.width-r.width;z.x=Math.round(Math.max(0,Math.min(100,X0+(free>0?dx/free*100:0))));w.style.left=z.x+'%';w.style.transform=`translateX(-${z.x}%)`}
+    if(move){const free=pr.width-r.width;z.x=Math.round(Math.max(0,Math.min(100,X0+(free>0?dx/free*100:0))));w.style.left=z.x+'%';w.style.transform=`translateX(-${z.x}%)`;z.y=Math.round(Math.max(-800,Math.min(800,Y0+(ev.clientY-y0)/k)));w.style.top=z.y+'px'}
     else{z.s=Math.round(Math.max(0.5,Math.min(2.5,s0*(r.width+dx)/r.width))*100)/100;zz.style.zoom=z.s}
   };
   const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);w.classList.remove('drag');save()};
@@ -1774,8 +1777,8 @@ function ansStyle(b){
 const kbdOf=(q,j)=>String(j+1);
 // a push button inside its place/size wrappers (key: line id, 'go' = 시작 button, 'end' = 끝 button)
 function bzWrap(q,key,inner){
-  const z=(q.bz||{})[key]||{},x=z.x||0,sz=z.s||1;
-  return `<span class="bzw" data-bz="${key}" style="${x?`left:${x}%;transform:translateX(-${x}%)`:''}"><span class="bzz" style="display:inline-block${sz!=1?';zoom:'+sz:''}">${inner}</span><i class="bzm" title="좌우로 이동">⇔ 이동</i><i class="bzr" title="크기 조절"></i></span>`;
+  const z=(q.bz||{})[key]||{},x=z.x||0,y=z.y||0,sz=z.s||1;
+  return `<span class="bzw" data-bz="${key}" style="${x?`left:${x}%;transform:translateX(-${x}%);`:''}${y?`top:${y}px;`:''}"><span class="bzz" style="display:inline-block${sz!=1?';zoom:'+sz:''}">${inner}</span><i class="bzm" title="끌어서 이동">✥ 이동</i><i class="bzr" title="크기 조절"></i></span>`;
 }
 function slideHTML(q,i){
   const isQ=!NOQ.includes(q.type);
