@@ -295,6 +295,10 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 @media (pointer:coarse){.run .slide{scrollbar-width:none}.run .slide::-webkit-scrollbar{display:none}}
 .run .sthumb{position:absolute;right:3px;top:0;width:4px;border-radius:4px;background:var(--accent);opacity:0;transition:opacity .35s;pointer-events:none;z-index:30}
 .run .sthumb.on{opacity:.85;transition:opacity .1s}
+.run .smore{position:absolute;left:0;right:0;height:54px;border:0;padding:0;z-index:15;color:var(--accent);font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;cursor:pointer}
+.run .smore.on{opacity:1;pointer-events:auto}
+.run .smore.up{top:0;background:linear-gradient(to bottom,var(--fade,#fff) 35%,transparent);padding-bottom:18px}
+.run .smore.dn{bottom:0;background:linear-gradient(to top,var(--fade,#fff) 35%,transparent);padding-top:18px}
 /* 📱 preview = the page area a phone browser shows (iPhone 393px wide; KakaoTalk in-app browser leaves ~660px between its bars).
    Phones use overlay scrollbars, so the preview must not lose width to a desktop scrollbar either */
 .run.phone .slide{scrollbar-width:none}.run.phone .slide::-webkit-scrollbar{display:none}
@@ -329,7 +333,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .go .btn,.run .btn{background:var(--accent);color:var(--bg);font-size:18px;padding:8px 18px;border-radius:6px}
 .run .btn.ghost{background:transparent;color:var(--fg);border:1px solid color-mix(in srgb,var(--fg) 25%,transparent)}
 .err{color:#c0392b;margin-top:10px;font-size:15px;min-height:20px}
-.nav{position:absolute;right:20px;bottom:20px;display:flex;gap:2px}
+.nav{position:absolute;right:20px;bottom:20px;display:flex;gap:2px;z-index:20}
 .nav button{background:var(--accent);color:var(--bg);border:0;width:36px;height:34px}
 .nav button:first-child{border-radius:6px 0 0 6px}.nav button:last-child{border-radius:0 6px 6px 0}
 
@@ -1556,7 +1560,7 @@ let ans={},cur=0,runQs=[],submitted=false,hist=[],steps=0;
 function startRun(){
   theme();runQs=form.qs;ans={};cur=0;submitted=false;hist=[];steps=0;
   const R=$('#run');R.classList.remove('hide','phone');
-  R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up" title="이전">◀</button><button id="dn" title="다음">▶</button></div><div class="sthumb"></div>';
+  R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up" title="이전">◀</button><button id="dn" title="다음">▶</button></div><div class="sthumb"></div><button class="smore up" title="위로">▲</button><button class="smore dn" title="아래에 내용이 더 있습니다">▼</button>';
   show(0);fitText();
 }
 // phones: sizes picked on a PC (e.g. a 48px title) shrink with the screen width; body text never drops below 15px.
@@ -1572,10 +1576,25 @@ function fitText(){
   });
 }
 addEventListener('resize',fitText);
+// "more above / more below" hints: a fade with an arrow at the top or bottom edge of a page that scrolls; tapping it scrolls on
+function updMore(){
+  const R=$('#run');if(!R||R.classList.contains('hide'))return;
+  const sl=R.querySelector(`.slide[data-i="${cur}"]`),up=R.querySelector('.smore.up'),dn=R.querySelector('.smore.dn');if(!sl||!up)return;
+  const bg=getComputedStyle(sl).backgroundColor,c=bg&&bg!='rgba(0, 0, 0, 0)'?bg:getComputedStyle(R).backgroundColor;
+  up.style.setProperty('--fade',c);dn.style.setProperty('--fade',c);
+  up.classList.toggle('on',sl.scrollTop>8);
+  dn.classList.toggle('on',sl.scrollHeight-sl.clientHeight-sl.scrollTop>8);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('.smore');if(!b)return;
+  const sl=$('#run').querySelector(`.slide[data-i="${cur}"]`);if(sl)sl.scrollBy({top:(b.classList.contains('up')?-1:1)*sl.clientHeight*.7,behavior:'smooth'});
+});
+addEventListener('resize',()=>setTimeout(updMore,50));
 let thumbT=0;
 $('#run').addEventListener('scroll',e=>{
   const sl=e.target,R=$('#run'),th=R.querySelector('.sthumb');
   if(!th||!sl.classList||!sl.classList.contains('slide'))return;
+  updMore();
   if(!(R.classList.contains('phone')||matchMedia('(pointer:coarse)').matches))return;   // PC keeps its normal scrollbar
   const max=sl.scrollHeight-sl.clientHeight;if(max<=0)return;
   const h=Math.max(36,sl.clientHeight*sl.clientHeight/sl.scrollHeight);
@@ -1665,7 +1684,7 @@ function slideHTML(q,i){
     ${body}${blk(true)}${extra}<div class="err"></div>${foot}</div></section>`;
 }
 function show(i){
-  cur=i;
+  cur=i;setTimeout(updMore,500);
   document.querySelectorAll('.slide').forEach((s,k)=>{s.classList.toggle('below',k>i);s.classList.toggle('above',k<i)});
   $('.bar').style.width=Math.min(100,i/Math.max(1,runQs.length-1)*100)+'%';
   const s=document.querySelector(`.slide[data-i="${i}"]`);
