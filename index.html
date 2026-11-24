@@ -1751,6 +1751,8 @@ function pick(c){
   if(q.type=='mc'&&q.multi){c.classList.toggle('sel');ans[q.id]=[...s.querySelectorAll('.sel')].map(x=>x.dataset.v);return}
   s.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
   ans[q.id]=q.type=='scale'?+v:v;
+  // one tap is the whole answer: go on by itself (not when the page also has a box to type in or checkboxes to tick)
+  if(!s.querySelector('.ans,.chk')){const at=cur;setTimeout(()=>{if(cur==at&&!$('#run').classList.contains('hide'))next()},350)}
 }
 document.addEventListener('input',e=>{
   const c=e.target.classList;if(!runQs[cur]||!c)return;
