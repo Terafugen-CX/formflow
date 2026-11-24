@@ -174,7 +174,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .spage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;container-type:inline-size}
 .spage .in{width:100%;max-width:700px}
 .spage.hasbg .in{background:rgba(255,255,255,.94);border:1px solid #fff;border-radius:16px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.18)}
-#stage .in>.btn,#stage .in .go .btn{background:var(--accent);color:var(--bg);font-size:calc(18px*var(--bs,1));padding:calc(8px*var(--bs,1)) calc(18px*var(--bs,1));border-radius:6px}
+#stage .in .btn.go-btn,#stage .in .go .btn{background:var(--accent);color:var(--bg);font-size:18px;padding:8px 18px;border-radius:6px}
 #stage .in>.btn.ghost{background:transparent;color:var(--fg);border:1px solid color-mix(in srgb,var(--fg) 25%,transparent)}
 #stage .in .go,#stage .in .choice,#stage .in .scale,#stage .in .ans,#stage .in .note,#stage .in .extra,#stage .in .go-btn,#stage .in .err{pointer-events:none}
 .qtitle.rt{outline:0}
@@ -212,7 +212,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .ansE .rt{color:color-mix(in srgb,var(--fg) 45%,transparent);min-height:1.2em;outline:0}
 .ansE .rt:empty:before{opacity:1}
 .ans::placeholder{color:var(--phc,color-mix(in srgb,var(--fg) 45%,transparent));opacity:1}
-#stage .go-btnE{display:inline-block;margin-top:24px;background:var(--accent);color:var(--bg);font-size:calc(18px*var(--bs,1));padding:calc(8px*var(--bs,1)) calc(18px*var(--bs,1));border-radius:6px;font-weight:600;cursor:text}
+#stage .go-btnE{display:inline-block;margin-top:24px;background:var(--accent);color:var(--bg);font-size:18px;padding:8px 18px;border-radius:6px;font-weight:600;cursor:text}
 #stage .go-btnE .rt{min-width:2em;display:inline-block}
 .kindrow{display:flex;align-items:center;justify-content:space-between}
 .qitem .qty{flex:none;color:#b3b6bd;font-size:11px;margin-left:2px}
@@ -309,7 +309,24 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .pmenu button{background:none;border:0;text-align:left;padding:8px 10px;border-radius:6px;font-size:14px;color:#191919;cursor:pointer}
 .pmenu button:hover{background:var(--card)}
 #playPhone,#play{height:29px;box-sizing:border-box;display:inline-flex;align-items:center;gap:4px;line-height:1}
-#playPhone.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* button wrappers: bzw = horizontal place (left:X% + translateX(-X%) = 0 left … 100 right), bzz = size (zoom) */
+.bzw{display:inline-block;position:relative;max-width:100%}
+.bzm,.bzr{display:none}
+/* 📱 모바일 편집: the canvas behaves like the phone page (scrolls from the top, answer boxes 2 rows tall, tools only on hover) */
+.mobed #stage .spage{align-items:flex-start;overflow-y:auto;padding-bottom:72px;scrollbar-width:none}
+.mobed #stage .spage::-webkit-scrollbar{display:none}
+.mobed #stage .spage .in{margin:auto;position:relative}
+.mobed #stage .blk>.badd,.mobed #stage .blk>.ico,.mobed #stage .blk>.grip,.mobed #stage .in>.badd{opacity:0;transition:opacity .15s}
+.mobed #stage .blk:hover>.badd,.mobed #stage .blk:hover>.ico,.mobed #stage .blk:hover>.grip,.mobed #stage .in:hover>.badd,.mobed #stage .blk:focus-within>.badd{opacity:1}
+.mobed #stage .in>.badd{position:absolute;right:0;top:-38px;z-index:5;margin:0!important}
+.mobed #stage .blk>.grip{left:-20px}
+.mobed #stage .ansE{min-height:calc(2.6em + 16px)}
+.mobed #stage .bzw{pointer-events:auto;outline:1.5px dashed transparent;outline-offset:4px;border-radius:6px}
+.mobed #stage .bzw:hover{outline-color:color-mix(in srgb,var(--accent) 60%,transparent)}
+.mobed #stage .bzm,.mobed #stage .bzr{display:block;position:absolute;z-index:6;opacity:0;transition:opacity .15s;touch-action:none;font-style:normal}
+.mobed #stage .bzw:hover .bzm,.mobed #stage .bzw:hover .bzr,.mobed #stage .bzw.drag .bzm,.mobed #stage .bzw.drag .bzr{opacity:1}
+.mobed #stage .bzm{left:50%;top:-30px;transform:translateX(-50%);background:#fff;border:1px solid #d4d7dd;border-radius:6px;padding:2px 8px;font-size:14px;color:#444;cursor:ew-resize;white-space:nowrap}
+.mobed #stage .bzr{right:-8px;bottom:-8px;width:16px;height:16px;background:#fff;border:2px solid var(--accent);border-radius:50%;cursor:nwse-resize}
 .mobnote{font-size:12px;color:var(--accent);font-weight:600;text-align:center;margin:0 0 6px}
 /* 📱 preview = the page area a phone browser shows (iPhone 393px wide; KakaoTalk in-app browser leaves ~660px between its bars).
    Phones use overlay scrollbars, so the preview must not lose width to a desktop scrollbar either */
@@ -342,7 +359,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .lbls{display:flex;justify-content:space-between;gap:16px;margin-top:10px;font-size:15px;color:color-mix(in srgb,var(--fg) 60%,transparent)}
 .lbls span:last-child{text-align:right}
 .go{display:flex;align-items:center;gap:12px;margin-top:24px;color:color-mix(in srgb,var(--fg) 50%,transparent);font-size:13px}
-.go .btn,.run .btn{background:var(--accent);color:var(--bg);font-size:calc(18px*var(--bs,1));padding:calc(8px*var(--bs,1)) calc(18px*var(--bs,1));border-radius:6px}
+.go .btn,.run .btn{background:var(--accent);color:var(--bg);font-size:18px;padding:8px 18px;border-radius:6px}
 .run .btn.ghost{background:transparent;color:var(--fg);border:1px solid color-mix(in srgb,var(--fg) 25%,transparent)}
 .err{color:#c0392b;margin-top:10px;font-size:15px;min-height:20px}
 .nav{position:absolute;right:20px;bottom:20px;display:flex;gap:2px;z-index:20}
@@ -509,6 +526,8 @@ function normalize(f){
     r.images=TXTYPES.includes(r.type)&&Array.isArray(r.images)?r.images.slice(0,10).map(t=>({id:cid(t&&t.id),x:clamp(t&&t.x,0,95,30),y:clamp(t&&t.y,0,95,30),w:clamp(t&&t.w,3,95,30),h:clamp(t&&t.h,3,95,20),src:String((t&&t.src)||''),orig:String((t&&t.orig)||''),tol:clamp(t&&t.tol,10,120,48)})).filter(t=>IMGRE.test(t.src)).map(t=>({...t,orig:IMGRE.test(t.orig)?t.orig:''})):[];
     r.layout=r.layout=='grid'?'grid':'list';
     r.bs=clamp(r.bs,50,160,100);
+    const bzOf=v=>Object.fromEntries(Object.entries(v&&typeof v=='object'&&!Array.isArray(v)?v:{}).filter(([k])=>/^[\w-]{1,40}$/.test(k)).map(([k,x])=>[k,{s:clamp(x&&x.s,0.5,2.5,1),x:clamp(x&&x.x,0,100,0)}]));
+    r.bz=bzOf(r.bz);
     // 📱 phone layout (see mobLay); may come from a shared link, so cleaned like the PC fields
     delete r._pc;delete r._m0;delete r._m;
     if(r.mo&&typeof r.mo=='object'&&!Array.isArray(r.mo)){
@@ -517,7 +536,7 @@ function normalize(f){
         b:Object.fromEntries(Object.entries(obj(M.b)).map(([k,v])=>[k,{html:v&&v.html?cleanHtml(String(v.html)):'',text:String((v&&v.text)||'')}])),
         t:Object.fromEntries(Object.entries(obj(M.t)).map(([k,v])=>[k,{x:clamp(v&&v.x,0,95,30),y:clamp(v&&v.y,0,95,30),w:clamp(v&&v.w,5,95,40),fs:clamp(v&&v.fs,0.8,12,3),html:v&&v.html?cleanHtml(String(v.html)):'',text:String((v&&v.text)||'')}])),
         i:Object.fromEntries(Object.entries(obj(M.i)).map(([k,v])=>[k,{x:clamp(v&&v.x,0,95,30),y:clamp(v&&v.y,0,95,30),w:clamp(v&&v.w,3,95,30),h:clamp(v&&v.h,3,95,20)}])),
-        lay:M.lay=='grid'||M.lay=='list'?M.lay:'',bs:clamp(M.bs,50,160,100),
+        lay:M.lay=='grid'||M.lay=='list'?M.lay:'',bs:clamp(M.bs,50,160,100),bz:bzOf(M.bz),
         nl:Object.fromEntries(Object.entries(obj(M.nl)).map(([k,v])=>[k,!!v])),
         src:{tt:String(obj(M.src).tt??''),b:strs(obj(M.src).b),t:strs(obj(M.src).t)}};
     }else delete r.mo;
@@ -574,14 +593,14 @@ function layGet(q){
     b:Object.fromEntries(q.blocks.map(b=>[b.id,{html:b.html,text:b.text}])),
     t:Object.fromEntries(q.texts.map(t=>[t.id,{x:t.x,y:t.y,w:t.w,fs:t.fs,html:t.html,text:t.text}])),
     i:Object.fromEntries(q.images.map(t=>[t.id,{x:t.x,y:t.y,w:t.w,h:t.h}])),
-    lay:q.layout,bs:q.bs,nl:Object.fromEntries((q.options||[]).map(o=>[o.id,!!o.nl]))};
+    lay:q.layout,bs:q.bs,bz:JSON.parse(JSON.stringify(q.bz||{})),nl:Object.fromEntries((q.options||[]).map(o=>[o.id,!!o.nl]))};
 }
 function laySet(q,L){
   q.titleHtml=L.th;q.title=L.tt;
   q.blocks.forEach(b=>{if(L.b[b.id])Object.assign(b,L.b[b.id])});
   q.texts.forEach(t=>{if(L.t[t.id])Object.assign(t,L.t[t.id])});
   q.images.forEach(t=>{if(L.i[t.id])Object.assign(t,L.i[t.id])});
-  q.layout=L.lay;q.bs=L.bs;(q.options||[]).forEach(o=>{if(o.id in L.nl)o.nl=L.nl[o.id]});
+  q.layout=L.lay;q.bs=L.bs;q.bz=JSON.parse(JSON.stringify(L.bz||{}));(q.options||[]).forEach(o=>{if(o.id in L.nl)o.nl=L.nl[o.id]});
 }
 // phone layout of a page (q in its PC state). A line whose PC wording changed after its phone version was
 // made follows the PC wording again (with phone-shrunk sizes), so the two never drift apart in content.
@@ -591,7 +610,7 @@ function mobLay(q){
   for(const id in P.b){const m=M.b&&M.b[id];if(m&&sb[id]===P.b[id].text)P.b[id]={...m};else P.b[id].html=shrinkPx(P.b[id].html)}
   for(const id in P.t){const m=M.t&&M.t[id];if(m&&st[id]===P.t[id].text)P.t[id]={...m};else if(m)Object.assign(P.t[id],{x:m.x,y:m.y,w:m.w,fs:m.fs})}
   for(const id in P.i)if(M.i&&M.i[id])P.i[id]={...M.i[id]};
-  if(M.lay)P.lay=M.lay;if(M.bs)P.bs=M.bs;
+  if(M.lay)P.lay=M.lay;if(M.bs)P.bs=M.bs;if(M.bz)P.bz={...P.bz,...M.bz};
   for(const id in P.nl)if(M.nl&&id in M.nl)P.nl[id]=M.nl[id];
   return P;
 }
@@ -714,7 +733,7 @@ function blocksEditor(q,low){
   const rows=q.blocks.filter(b=>low===undefined||!!b.low===!!low).map(b=>b.kind=='img'
     ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div style="flex:1"><img class="qimg" draggable="false" src="${b.src}" style="max-height:160px;margin:0"></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :b.kind=='button'
-    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><span class="btn go-btnE"><span class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="버튼 글자">${b.html||esc(b.text)}</span></span><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
+    ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${bzWrap(q,b.id,`<span class="btn go-btnE"><span class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="버튼 글자">${b.html||esc(b.text)}</span></span>`)}<span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :b.kind=='answer'
     ?`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span><div class="ans ansE"><div class="rt" contenteditable="true" data-rt="b:${b.id}" data-ph="답변을 입력하세요">${b.html||esc(b.text)}</div></div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`
     :`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${b.kind=='check'?'<input type="checkbox" class="chkprev" disabled>':''}<div class="rt desc" contenteditable="true" data-rt="b:${b.id}" data-ph="내용">${b.html||esc(b.text)}</div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`).join('');
@@ -860,7 +879,7 @@ function fitStage(){
   // the page fills the canvas with the same gap G on every side (left, top, bottom, and right up to the scrollbar)
   const G=12,ed=$('#editor'),W=window.innerWidth;
   if(mobEdit){   // 📱: a phone-sized page (393×660), scaled to fit and centred
-    const note=ed.querySelector('.mobnote'),aw=ed.clientWidth-2*G,ah=Math.max(240,ed.clientHeight-2*G-(note?note.offsetHeight+6:0)),s=Math.min(aw/MOB_W,ah/MOB_H);
+    const note=ed.querySelector('.mobnote'),aw=ed.clientWidth-2*G,ah=Math.max(240,ed.clientHeight-2*G-(note?note.offsetHeight+6:0)),s=Math.min(aw/MOB_W,ah/MOB_H,1.4);
     st.style.width=MOB_W+'px';st.style.height=MOB_H+'px';st.style.transform=`scale(${s})`;
     wrap.style.width=MOB_W*s+'px';wrap.style.height=MOB_H*s+'px';wrap.style.margin=`0 auto ${G}px`;
     return;
@@ -894,7 +913,7 @@ function renderBuild(){
     ${q.type=='mc'?`<div class="row"><input type="checkbox" id="multi" ${q.multi?'checked':''}><label for="multi">다중 선택</label></div>`:''}
 
     ${TXTYPES.includes(q.type)?'<button class="btn ghost sm" id="addText" style="margin-top:12px;width:100%">＋ 텍스트 추가</button><button class="btn ghost sm" id="addBoxImg" style="margin-top:8px;width:100%">＋ 이미지 추가</button>':''}
-    ${mobEdit?`<div class="crow"><span>버튼 크기 (모바일)</span><span style="display:flex;align-items:center;gap:6px"><input type="range" min="50" max="160" step="5" value="${q.bs||100}" id="mobBs"><b id="mobBsV" style="font-size:12px;width:38px">${q.bs||100}%</b></span></div>`:''}
+    ${mobEdit?`<div class="crow"><span>옵션 버튼 크기 (모바일)</span><span style="display:flex;align-items:center;gap:6px"><input type="range" min="50" max="160" step="5" value="${q.bs||100}" id="mobBs"><b id="mobBsV" style="font-size:12px;width:38px">${q.bs||100}%</b></span></div>`:''}
     <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
     <div class="crow"><span>배경 색</span><input type="color" value="${q.bg||'#ffffff'}" data-k="bg"></div>
     <div class="crow"><span>배경 이미지</span><span class="bgctl">${q.bgimg?`<img class="bgth" src="${q.bgimg}"><button class="ico" id="bgdel" title="배경 이미지 삭제">✕</button>`:'<button class="btn ghost sm" id="bgpick">이미지 선택</button>'}</span></div>
@@ -1006,6 +1025,23 @@ document.addEventListener('dblclick',e=>{
   const r=findForm(t.dataset.fid);if(r.form.lock)return;const n=prompt('폼 이름 변경',r.form.title);
   if(n){r.form.title=n;save();renderBuild()}
 });
+
+// 📱 모바일 편집: drag a button's ⇔ to move it left/right, its corner dot to resize it (phone layout only)
+document.addEventListener('pointerdown',e=>{
+  const h=e.target.closest&&e.target.closest('#stage .bzm,#stage .bzr');if(!h||!mobEdit)return;
+  const w=h.closest('.bzw'),q=form.qs[sel];if(!w||!q)return;
+  e.preventDefault();e.stopPropagation();
+  const key=w.dataset.bz,z=q.bz[key]=q.bz[key]||{s:1,x:0},zz=w.querySelector('.bzz');
+  const x0=e.clientX,r=w.getBoundingClientRect(),pr=w.parentElement.getBoundingClientRect(),s0=z.s,X0=z.x,move=h.classList.contains('bzm');
+  w.classList.add('drag');
+  const mv=ev=>{
+    const dx=ev.clientX-x0;
+    if(move){const free=pr.width-r.width;z.x=Math.round(Math.max(0,Math.min(100,X0+(free>0?dx/free*100:0))));w.style.left=z.x+'%';w.style.transform=`translateX(-${z.x}%)`}
+    else{z.s=Math.round(Math.max(0.5,Math.min(2.5,s0*(r.width+dx)/r.width))*100)/100;zz.style.zoom=z.s}
+  };
+  const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);w.classList.remove('drag');save()};
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);
+},true);
 
 /* ---------- rich text ---------- */
 // keep only simple formatting tags/styles; parsed in an inert document so shared links can't run script
@@ -1736,6 +1772,11 @@ function ansStyle(b){
   return (sz?`font-size:${sz[1]}px;`:'')+(co?`--phc:${co[1]};`:'');
 }
 const kbdOf=(q,j)=>String(j+1);
+// a push button inside its place/size wrappers (key: line id, 'go' = 시작 button, 'end' = 끝 button)
+function bzWrap(q,key,inner){
+  const z=(q.bz||{})[key]||{},x=z.x||0,sz=z.s||1;
+  return `<span class="bzw" data-bz="${key}" style="${x?`left:${x}%;transform:translateX(-${x}%)`:''}"><span class="bzz" style="display:inline-block${sz!=1?';zoom:'+sz:''}">${inner}</span><i class="bzm" title="좌우로 이동">⇔ 이동</i><i class="bzr" title="크기 조절"></i></span>`;
+}
 function slideHTML(q,i){
   const isQ=!NOQ.includes(q.type);
   const n=runQs.slice(0,i+1).filter(x=>!NOQ.includes(x.type)).length;
@@ -1755,14 +1796,14 @@ function slideHTML(q,i){
   else if(q.type=='scale')body=`<div class="scl">${scoreRows(q).map(n=>`<button class="choice" data-v="${n}"><kbd>${n}점</kbd><span>${esc(q.labels[n]||'')}</span></button>`).join('')}</div>`;
   const extra='';   // no "추가 의견" box on the respondent page
   const last=!runQs[i+1]||runQs[i+1].type=='end';
-  const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
-    :q.type=='end'?`<p class="qdesc">응답이 제출되었습니다.</p><button class="btn" id="finish">${esc(q.endBtn||'종료')}</button>`
+  const foot=q.type=='welcome'?`<div class="gow">${bzWrap(q,'go',`<button class="btn go-btn">${esc(q.btn)}</button>`)}</div>`
+    :q.type=='end'?`<p class="qdesc">응답이 제출되었습니다.</p><div class="gow">${bzWrap(q,'end',`<button class="btn" id="finish">${esc(q.endBtn||'종료')}</button>`)}</div>`
     :'';   // question pages get a button only when one is added as a line
   // lines above the page's main control (low=false) and below it (low=true: answer box, checkboxes)
   const need=q.required&&!NOQ.includes(q.type);
   const one=b=>b.kind=='img'?`<img class="qimg" src="${b.src}">`
     :b.kind=='answer'?`<textarea class="ans" data-bid="${b.id}" rows="2" placeholder="${esc(b.text||'답변을 입력하세요')}" style="${ansStyle(b)}"></textarea>`
-    :b.kind=='button'?`<div class="go"><button class="btn go-btn">${b.html||esc(b.text)||'확인'}</button></div>`
+    :b.kind=='button'?`<div class="go">${bzWrap(q,b.id,`<button class="btn go-btn">${b.html||esc(b.text)||'확인'}</button>`)}</div>`
     :(b.text||b.html)?(b.kind=='check'?`<label class="chk"><input type="checkbox"${b.req||need?' data-req':''}><span class="qdesc">${b.html||esc(b.text)}</span>${b.req||need?'<span class="rq"> *</span>':''}</label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'';
   const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'||b.kind=='answer'||(!b.low&&(b.kind=='text'||b.kind=='img'))):q.blocks).filter(b=>!!b.low==low).map(one).join('');
   const sbg=`${q.bs&&q.bs!=100?`--bs:${q.bs/100};`:''}${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
@@ -1949,7 +1990,7 @@ document.addEventListener('click',e=>{
   if(!$('#playMenu').hidden&&!(e.target.closest&&e.target.closest('#playMenu')))$('#playMenu').hidden=true;
   if(b){$('#playMenu').hidden=true;b.dataset.pm=='mo'?startPhone():startRun()}
 });
-$('#playPhone').onclick=()=>{mobOut();mobEdit=!mobEdit;$('#playPhone').classList.toggle('on',mobEdit);if(view!='build')setView('build');else renderBuild()};
+$('#playPhone').onclick=()=>{mobOut();mobEdit=!mobEdit;document.body.classList.toggle('mobed',mobEdit);if(view!='build')setView('build');else renderBuild()};
 $('#share').onclick=async()=>{
   if(form.loginRequired&&!form.gcid){alert('구글 로그인을 쓰려면 먼저 오른쪽 패널에 구글 클라이언트 ID를 입력해 주세요.');return}
   const m=mobQ;mobOut();
