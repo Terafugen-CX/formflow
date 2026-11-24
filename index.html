@@ -901,7 +901,7 @@ function fitStage(){
   // the page fills the canvas with the same gap G on every side (left, top, bottom, and right up to the scrollbar)
   const G=12,ed=$('#editor'),W=window.innerWidth;
   if(mobEdit){   // 📱: a phone-sized page (393×660), scaled to fit and centred
-    const note=ed.querySelector('.mobnote'),aw=ed.clientWidth-2*G,ah=Math.max(240,ed.clientHeight-2*G-(note?note.offsetHeight+6:0)),s=Math.min(aw/MOB_W,ah/MOB_H,1);   // 1:1 = exactly the 📱 preview size
+    const note=ed.querySelector('.mobnote'),aw=ed.clientWidth-2*G,ah=Math.max(240,ed.clientHeight-2*G-(note?note.offsetHeight+6:0)),s=Math.min(aw/MOB_W,ah/MOB_H,2);   // the 393×660 phone page, only magnified: layout/wrapping stay exactly the 📱 preview
     st.style.width=MOB_W+'px';st.style.height=MOB_H+'px';st.style.transform=`scale(${s})`;
     wrap.style.width=MOB_W*s+'px';wrap.style.height=MOB_H*s+'px';wrap.style.margin=`0 auto ${G}px`;
     return;
