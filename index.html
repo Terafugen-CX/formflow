@@ -295,13 +295,13 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 @media (pointer:coarse){.run .slide{scrollbar-width:none}.run .slide::-webkit-scrollbar{display:none}}
 .run .sthumb{position:absolute;right:3px;top:0;width:4px;border-radius:4px;background:var(--accent);opacity:0;transition:opacity .35s;pointer-events:none;z-index:30}
 .run .sthumb.on{opacity:.85;transition:opacity .1s}
-.run .smore{position:absolute;left:0;right:0;height:54px;border:0;padding:0;z-index:15;color:var(--accent);font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;cursor:pointer}
+.run .smore{position:absolute;left:0;right:0;height:70px;border:0;padding:0;z-index:15;color:var(--accent);font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;cursor:pointer}
 .run .smore.on{opacity:1;pointer-events:auto}
-/* the hint is a line in the 강조 색 along the edge where more content continues */
-.run .smore::after{content:"";position:absolute;left:24px;right:24px;height:2px;border-radius:2px;background:var(--accent);opacity:.55}
+/* the hint is a soft glow in the 강조 색 spreading in from the edge where more content continues */
+.run .smore::after{content:"";position:absolute;left:8%;right:8%;height:6px;border-radius:6px;background:var(--accent);opacity:.45;filter:blur(6px)}
 .run .smore.up::after{top:0}.run .smore.dn::after{bottom:0}
-.run .smore.up{top:0;background:linear-gradient(to bottom,var(--fade,#fff) 35%,transparent);padding-bottom:18px}
-.run .smore.dn{bottom:0;background:linear-gradient(to top,var(--fade,#fff) 35%,transparent);padding-top:18px}
+.run .smore.up{top:0;background:linear-gradient(to bottom,color-mix(in srgb,var(--accent) 22%,var(--fade,#fff)) 0%,color-mix(in srgb,var(--accent) 8%,transparent) 45%,transparent)}
+.run .smore.dn{bottom:0;background:linear-gradient(to top,color-mix(in srgb,var(--accent) 22%,var(--fade,#fff)) 0%,color-mix(in srgb,var(--accent) 8%,transparent) 45%,transparent)}
 /* 📱 preview = the page area a phone browser shows (iPhone 393px wide; KakaoTalk in-app browser leaves ~660px between its bars).
    Phones use overlay scrollbars, so the preview must not lose width to a desktop scrollbar either */
 .run.phone .slide{scrollbar-width:none}.run.phone .slide::-webkit-scrollbar{display:none}
