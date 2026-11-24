@@ -1668,6 +1668,15 @@ function submit(){
     const label=k=>{if(cols[k])return cols[k];const [id,x]=k.split('#'),q=runQs.find(z=>z.id==id);return (q?q.title:id)+(x=='note'?' (의견)':x=='img'?' (이미지)':x=='chk'?' (체크)':x&&q?' (답변 '+(q.blocks.filter(b=>b.kind=='answer').findIndex(b=>b.id==x)+1)+')':'')};
     // images stay local: sheet cells can't hold them
     const items=[['at','시간',rec.at],...(rec.user?[['email','이메일',rec.user.email],['name','이름',rec.user.name]]:[]),...Object.entries(a).map(([k,v])=>[k,label(k),k.endsWith('#img')?'[이미지 첨부]':Array.isArray(v)?v.join(', '):v])];
+    // 객관식/점수 with a 주관식 box: that box's column gets the whole answer (picked choices + typed text),
+    // so a column like "반품 사유" is filled whether the respondent clicked a choice or wrote one
+    runQs.forEach(q=>{
+      const box=(q.type=='mc'||q.type=='scale')&&(q.blocks||[]).find(b=>b.kind=='answer');if(!box)return;
+      const k=q.id+'#'+box.id,pick=a[q.id],all=[...(Array.isArray(pick)?pick:pick!=null&&pick!==''?[pick]:[]),a[k]].filter(x=>x!=null&&String(x).trim()!=='');
+      if(!all.length)return;
+      const it=items.find(x=>x[0]==k),val=all.join(', ');
+      if(it)it[2]=val;else items.push([k,label(k),val]);
+    });
     const body={at:rec.at,form:form.title,items,answers:Object.fromEntries([...(rec.user?[['이메일',rec.user.email],['이름',rec.user.name]]:[]),...Object.entries(a).map(([k,v])=>[label(k),k.endsWith('#img')?'[이미지 첨부]':v])])};
     fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).catch(()=>{});
   }
