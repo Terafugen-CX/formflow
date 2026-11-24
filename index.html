@@ -1610,7 +1610,9 @@ function show(i){
 }
 function validate(i){
   const q=runQs[i],err=document.querySelector(`.slide[data-i="${i}"] .err`),v=ans[q.id];
-  const empty=v==null||v===''||(Array.isArray(v)&&!v.length);
+  // 객관식/점수: text typed in the page's 주관식 box also counts as an answer
+  const typed=(q.type=='mc'||q.type=='scale')&&(q.blocks||[]).some(b=>b.kind=='answer'&&String(ans[q.id+'#'+b.id]||'').trim());
+  const empty=!typed&&(v==null||v===''||(Array.isArray(v)&&!v.length));
   err.textContent='';
   const sl=document.querySelector(`#run .slide[data-i="${i}"]`);   // required checkbox lines must be ticked
   if(sl&&sl.querySelector('.chk input[data-req]:not(:checked)')){err.textContent='필수 체크 항목을 선택해 주세요';return false}
