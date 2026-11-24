@@ -308,6 +308,8 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .choice kbd{font:600 12px Pretendard,system-ui;border:1px solid currentColor;border-radius:4px;padding:2px 7px;background:var(--bg);color:var(--accent)}
 .choice.sel kbd{color:var(--accent)}
 .scale{display:flex;gap:6px;flex-wrap:wrap}
+.scl{display:flex;flex-direction:column}.scl .choice kbd{min-width:2.6em;text-align:center}
+.scedit{margin-top:4px}.scrow{display:flex;gap:8px;align-items:center;margin:6px 0}.scrow select{width:84px;padding:7px;border:1px solid var(--line);border-radius:6px;font-size:15px}.scrow input{flex:1;max-width:360px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:16px}.scedit #addlb{margin-top:6px}
 .scale button{flex:1;min-width:46px;height:56px;border-radius:6px;font-size:18px;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 60%,transparent);color:var(--accent)}
 .scale button:hover{background:color-mix(in srgb,var(--accent) 16%,transparent)}
 .scale button.sel{background:var(--accent);color:var(--bg)}
@@ -627,6 +629,12 @@ function blocksEditor(q,low){
     :`<div class="blk" data-bid="${b.id}"><span class="grip" title="드래그해서 위치 이동">⠿</span>${b.kind=='check'?'<input type="checkbox" class="chkprev" disabled>':''}<div class="rt desc" contenteditable="true" data-rt="b:${b.id}" data-ph="내용">${b.html||esc(b.text)}</div><span class="badd">${BADD}</span><button class="ico" data-bdel="${b.id}" title="삭제">✕</button></div>`).join('');
   return rows||(low||q.blocks.length?'':`<div class="badd" style="margin-top:12px">${BADD}</div>`);
 }
+// 점수: each row is a score picked from a dropdown plus its 문구 (e.g. 1점 · 매우 불만); respondents see exactly these rows
+const scoreRows=q=>{const k=Object.keys(q.labels||{}).map(Number).filter(n=>n>=1&&n<=10).sort((a,b)=>a-b);return k.length?k:Array.from({length:q.max||10},(_,i)=>i+1)};
+function scaleStage(q){
+  const rows=scoreRows(q),opts=c=>Array.from({length:10},(_,i)=>i+1).map(n=>`<option value="${n}" ${n==c?'selected':''} ${n!=c&&rows.includes(n)?'disabled':''}>${n}점</option>`).join('');
+  return `<div class="scedit">${rows.map(n=>`<div class="scrow"><select data-lbsel="${n}">${opts(n)}</select><input data-lb="${n}" value="${esc((q.labels||{})[n]||'')}" placeholder="문구 입력 (예: 매우 불만)"><button class="ico" data-lbdel="${n}" title="삭제">✕</button></div>`).join('')}<button class="btn ghost sm" id="addlb" ${rows.length>=10?'disabled':''}>＋ 점수 추가</button></div>`;
+}
 function scaleEditor(q){
   const used=Object.keys(q.labels).filter(k=>+k<=q.max).sort((a,b)=>a-b);
   const opts=c=>Array.from({length:q.max},(_,i)=>i+1).map(n=>`<option value="${n}" ${n==c?'selected':''} ${n!=c&&q.labels[n]!==undefined?'disabled':''}>${n}점</option>`).join('');
@@ -638,7 +646,7 @@ function jumpEditor(q,bare){
   if(q.type=='end')return '';
   const targets=form.qs.filter(x=>x!==q&&x.type!='welcome');
   const opts=cur=>'<option value="">다음 질문으로</option>'+targets.map(x=>`<option value="${x.id}" ${cur==x.id?'selected':''}>${(form.qs.indexOf(x)+1)+'. '+(x.type=='end'?'[끝 화면] ':'')+esc(x.title).slice(0,26)}</option>`).join('');
-  const rows=q.type=='mc'&&!q.multi?q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`]):q.type=='scale'?Array.from({length:q.max},(_,j)=>[String(j+1),`${j+1}점`]):[];
+  const rows=q.type=='mc'&&!q.multi?q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`]):q.type=='scale'?scoreRows(q).map(n=>[String(n),`${n}점`]):[];
   const row=(k,lab)=>`<div class="jrow"><span class="jl" title="${esc(lab)}">${esc(lab)}</span><span>→</span><select data-jk="${k}" data-jq="${q.id}">${opts(q.jumps[k]||'')}</select></div>`;
   return `<div class="field">${bare?'':'<label>답변에 따라 이동 (워크플로우)</label>'}${rows.map(([k,l])=>row(k,l)).join('')}${rows.length?'':row('*','다음 페이지')}</div>`;
 }
@@ -656,7 +664,7 @@ function showFlowPanel(id){
 function flowRows(q){
   if(q.type=='end')return [];
   if(q.type=='mc'&&!q.multi)return [...q.options.map((o,j)=>[o.id,`${j+1}. ${o.text||'(빈 선택지)'}`])];
-  if(q.type=='scale')return [...Array.from({length:q.max},(_,j)=>[String(j+1),`${j+1}점${q.labels[j+1]?' · '+q.labels[j+1]:''}`])];
+  if(q.type=='scale')return scoreRows(q).map(n=>[String(n),`${n}점${q.labels[n]?' · '+q.labels[n]:''}`]);
   return [['*','다음 페이지']];
 }
 const flowPos=(q,i)=>[q.fx!=null?q.fx:40+i*270,q.fy!=null?q.fy:40+(i%2?150:0)];
@@ -748,7 +756,8 @@ function stageSection(q){
   title.contentEditable='true';title.dataset.rt='title';title.dataset.ph='질문을 입력하세요';
   title.classList.add('rt');if(q.required)title.classList.add('req');
   const anchor=inn.querySelector(':scope > .extra')||inn.querySelector(':scope > .err');
-  if(q.type=='mc'){title.insertAdjacentHTML('afterend',blocksEditor({...q,blocks:q.blocks.filter(b=>!b.low&&(b.kind=='text'||b.kind=='img'))},false));anchor.insertAdjacentHTML('beforebegin',mcStage(q)+blocksEditor({...q,blocks:q.blocks.filter(b=>b.kind=='button'||b.kind=='answer')},true))}
+  if(q.type=='scale'){inn.querySelectorAll(':scope > .scl').forEach(e=>e.remove());title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',scaleStage(q)+blocksEditor(q,true))}
+  else if(q.type=='mc'){title.insertAdjacentHTML('afterend',blocksEditor({...q,blocks:q.blocks.filter(b=>!b.low&&(b.kind=='text'||b.kind=='img'))},false));anchor.insertAdjacentHTML('beforebegin',mcStage(q)+blocksEditor({...q,blocks:q.blocks.filter(b=>b.kind=='button'||b.kind=='answer')},true))}
   else{title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',blocksEditor(q,true))}
   sec.insertAdjacentHTML('beforeend',textBoxes(q)+imageBoxes(q));
   const fin=sec.querySelector('#finish');   // 끝 화면 button: its label is edited in place
@@ -778,7 +787,7 @@ function renderBuild(){
   theme();renderNav();renderQs();
   const q=form.qs[sel];
   if(!q){$('#editor').innerHTML='';$('#propsBody').innerHTML='';return}
-  $('#editor').innerHTML=`<div id="stageWrap"><div id="stage"></div>${q.type=='mc'?`<div class="laybar">${layBtns(q)}</div>`:''}</div><div class="edit epanel">    ${q.type=='scale'?scaleEditor(q):''}
+  $('#editor').innerHTML=`<div id="stageWrap"><div id="stage"></div>${q.type=='mc'?`<div class="laybar">${layBtns(q)}</div>`:''}</div><div class="edit epanel">
     ${q.type=='welcome'?`<div class="field"><label>버튼 글자</label><input value="${esc(q.btn)}" data-k="btn"></div>`:''}
     </div>`;
   refreshStage();
@@ -801,7 +810,7 @@ document.addEventListener('input',e=>{
     q[t.dataset.k]=v;if(t.dataset.k=='bg'||t.dataset.k=='btn')refreshStage();
     if(t.dataset.k=='title'){const el=document.querySelectorAll('.qitem .t')[sel];if(el)el.textContent=v}
   }
-  else if(t.dataset.lb!=null){q.labels[t.dataset.lb]=t.value;refreshStage()}
+  else if(t.dataset.lb!=null){q.labels[t.dataset.lb]=t.value;if(!t.closest('#stage'))refreshStage()}   // typing on the canvas must keep focus
   else if(t.dataset.rt){
     const k=t.dataset.rt;
     if(k.startsWith('t:')){const tb=(q.texts||[]).find(x=>x.id==k.slice(2));if(tb){tb.html=cleanHtml(t.innerHTML);tb.text=t.innerText.trim()}}
@@ -881,8 +890,8 @@ document.addEventListener('click',e=>{
     q.blocks.splice(idx,0,{id:uid(),kind:nk,low:!!(from&&from.low),text:'',html:''});
   }
   else if(d.bdel){q.blocks=q.blocks.filter(b=>b.id!=d.bdel);q.am=true}
-  else if(t.id=='addlb'){const n=Array.from({length:q.max},(_,i)=>i+1).find(i=>q.labels[i]===undefined);if(!n)return;q.labels[n]=''}
-  else if(d.lbdel){delete q.labels[d.lbdel]}
+  else if(t.id=='addlb'){scoreRows(q).forEach(n=>{if(q.labels[n]===undefined)q.labels[n]=''});const n=Array.from({length:10},(_,i)=>i+1).find(i=>q.labels[i]===undefined);if(!n)return;q.labels[n]=''}
+  else if(d.lbdel){if(scoreRows(q).length<2)return;scoreRows(q).forEach(n=>{if(q.labels[n]===undefined)q.labels[n]=''});delete q.labels[d.lbdel]}
   else if(d.lay){q.layout=d.lay=='grid'?'grid':'list'}  else if(d.i!=null)sel=+d.i;
   else if(d.oadd){const i=q.options.findIndex(o=>o.id==d.oadd);q.options.splice(i+1,0,{id:uid(),text:'옵션 '+(q.options.length+1),img:''})}
   else if(d.odel){if(q.options.length<2)return;const i=q.options.findIndex(o=>o.id==d.odel),n=q.options[i+1];if(q.options[i].nl&&n)n.nl=true;q.options.splice(i,1)}
@@ -1582,7 +1591,7 @@ function slideHTML(q,i){
     const items=card?gridHTML(q,cardH):q.options.map((o,j)=>`<button class="choice" data-v="${esc(o.text)}"><kbd>${kbdOf(q,j)}</kbd>${o.img?`<img class="oimgv" src="${o.img}">`:''}<span>${esc(o.text)}</span></button>`).join('');
     body=items;
   }
-  else if(q.type=='scale')body=`<div class="scale">${Array.from({length:q.max},(_,j)=>`<div class="sc"><button data-v="${j+1}">${j+1}</button><span>${esc(q.labels[j+1]||'')}</span></div>`).join('')}</div>`;
+  else if(q.type=='scale')body=`<div class="scl">${scoreRows(q).map(n=>`<button class="choice" data-v="${n}"><kbd>${n}점</kbd><span>${esc(q.labels[n]||'')}</span></button>`).join('')}</div>`;
   const extra='';   // no "추가 의견" box on the respondent page
   const last=!runQs[i+1]||runQs[i+1].type=='end';
   const foot=q.type=='welcome'?`<button class="btn go-btn">${esc(q.btn)}</button>`
@@ -1677,6 +1686,7 @@ function submit(){
       const it=items.find(x=>x[0]==k),val=all.join(', ');
       if(it)it[2]=val;else items.push([k,label(k),val]);
     });
+    runQs.forEach(q=>{if(q.type!='scale')return;const it=items.find(x=>x[0]==q.id);if(it&&it[2]!==''&&it[2]!=null)it[2]=it[2]+'점'+(q.labels[it[2]]?' '+q.labels[it[2]]:'')});
     const body={at:rec.at,form:form.title,items,answers:Object.fromEntries([...(rec.user?[['이메일',rec.user.email],['이름',rec.user.name]]:[]),...Object.entries(a).map(([k,v])=>[label(k),k.endsWith('#img')?'[이미지 첨부]':v])])};
     fetch(form.webhook,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).catch(()=>{});
   }
