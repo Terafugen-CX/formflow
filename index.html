@@ -291,7 +291,10 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 /* runner & shared choice styles */
 .run{position:fixed;inset:0;background:var(--bg);color:var(--fg);overflow:hidden;z-index:10}
 /* 📱 preview frame: a 390px phone in the middle of the screen, rest dimmed */
-.run.phone{inset:auto;top:50%;left:50%;width:402px;height:min(874px,92vh);transform:translate(-50%,-50%);border-radius:28px;box-shadow:0 0 0 100vmax rgba(0,0,0,.55)}
+/* 📱 preview = the page area a phone browser shows (iPhone 393px wide; KakaoTalk in-app browser leaves ~660px between its bars).
+   Phones use overlay scrollbars, so the preview must not lose width to a desktop scrollbar either */
+.run.phone .slide{scrollbar-width:none}.run.phone .slide::-webkit-scrollbar{display:none}
+.run.phone{inset:auto;top:50%;left:50%;width:393px;height:min(660px,92vh);transform:translate(-50%,-50%);border-radius:28px;box-shadow:0 0 0 100vmax rgba(0,0,0,.55)}
 .run .bar{position:absolute;top:0;left:0;height:4px;background:var(--accent);transition:width .4s}
 .run .close{position:absolute;top:14px;right:18px;background:none;border:0;font-size:22px;color:color-mix(in srgb,var(--fg) 50%,transparent)}
 .slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s}
@@ -347,7 +350,7 @@ th{background:var(--card);font-weight:600}
   <span id="who" style="font-size:13px;color:var(--muted)"></span>
   <button class="btn ghost sm" id="gs2" style="display:inline-flex;align-items:center;gap:8px"></button>
   <button class="btn ghost sm" id="share">공유 링크 복사</button>
-  <button class="btn ghost sm" id="playPhone" title="아이폰 화면 크기(402×874)로 미리보기">📱 모바일</button><button class="btn sm" id="play">미리보기 ▶</button>
+  <button class="btn ghost sm" id="playPhone" title="휴대폰 화면 크기(393×660, 카카오톡 브라우저 기준)로 미리보기">📱 모바일</button><button class="btn sm" id="play">미리보기 ▶</button>
 </header>
 
 <div id="vBuild" class="builder">
