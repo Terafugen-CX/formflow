@@ -184,8 +184,9 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 #stage .blk .rt.desc{border:0;padding:0;margin:0 0 24px;min-height:1.4em;font-size:18px}
 #stage .blk .qimg{max-height:260px!important;margin:0 0 20px!important}
 #stage .blk>.grip{position:absolute;left:-26px;top:0;padding:2px;opacity:.7}
-#stage .blk>.badd{position:absolute;right:0;top:-32px;z-index:5;background:#fff;border:1px solid #e4e4e7;border-radius:8px;padding:3px;opacity:1;height:34px;box-sizing:border-box;align-items:center}
-#stage .blk>.ico{position:absolute;right:-30px;top:-32px;width:24px;height:34px;margin:0;padding:0;display:grid;place-items:center;opacity:.8}
+#stage .blk>.badd,#stage .trow>.badd{position:absolute;right:auto;left:calc(100% + 36px);top:50%;transform:translateY(-50%);margin:0;z-index:5;background:#fff;border:1px solid #e4e4e7;border-radius:8px;padding:3px;opacity:1;height:34px;box-sizing:border-box;align-items:center}
+#stage .trow{position:relative;margin-bottom:8px}#stage .trow>.qtitle{margin-bottom:0}
+#stage .blk>.ico{position:absolute;right:auto;left:calc(100% + 6px);top:50%;transform:translateY(-50%);width:24px;height:34px;margin:0;padding:0;display:grid;place-items:center;opacity:.8}
 #stage .in>.badd{opacity:1}
 #stage .in .choice.ed{pointer-events:auto;cursor:text}
 .ot{outline:0;min-width:40px;flex:1}
@@ -317,11 +318,13 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .mobed #stage .spage{align-items:flex-start;overflow-y:auto;padding-bottom:72px;scrollbar-width:none}
 .mobed #stage .spage::-webkit-scrollbar{display:none}
 .mobed #stage .spage .in{margin:auto;position:relative}
-.mobed #stage .blk>.badd,.mobed #stage .blk>.ico,.mobed #stage .blk>.grip,.mobed #stage .in>.badd{opacity:0;transition:opacity .15s}
-.mobed #stage .blk:hover>.badd,.mobed #stage .blk:hover>.ico,.mobed #stage .blk:hover>.grip,.mobed #stage .in:hover>.badd,.mobed #stage .blk:focus-within>.badd{opacity:1}
-.mobed #stage .in>.badd{position:absolute;right:0;top:-38px;z-index:5;margin:0!important}
+.mobed #stage .blk>.badd,.mobed #stage .blk>.ico,.mobed #stage .blk>.grip,.mobed #stage .trow>.badd{opacity:0;transition:opacity .15s}
+.mobed #stage .blk:hover>.badd,.mobed #stage .blk:hover>.ico,.mobed #stage .blk:hover>.grip,.mobed #stage .trow:hover>.badd,.mobed #stage .blk:focus-within>.badd{opacity:1}
+.mobed #stage .blk>.badd,.mobed #stage .trow>.badd{left:auto;right:0}
+.mobed #stage .blk>.ico{left:auto;right:-24px}
 .mobed #stage .blk>.grip{left:-20px}
 .mobed #stage .ansE{min-height:calc(2.6em + 16px)}
+.mobed #stage .bzw,.mobed #stage .bzw .rt{cursor:move}
 .mobed #stage .bzw{pointer-events:auto;outline:1.5px dashed transparent;outline-offset:4px;border-radius:6px}
 .mobed #stage .bzw:hover{outline-color:color-mix(in srgb,var(--accent) 60%,transparent)}
 .mobed #stage .bzm,.mobed #stage .bzr{display:block;position:absolute;z-index:6;opacity:0;transition:opacity .15s;touch-action:none;font-style:normal}
@@ -870,6 +873,8 @@ function stageSection(q){
   if(q.type=='scale'){inn.querySelectorAll(':scope > .scl').forEach(e=>e.remove());title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',scaleStage(q)+blocksEditor(q,true))}
   else if(q.type=='mc'){title.insertAdjacentHTML('afterend',blocksEditor({...q,blocks:q.blocks.filter(b=>!b.low&&(b.kind=='text'||b.kind=='img'))},false));anchor.insertAdjacentHTML('beforebegin',mcStage(q)+blocksEditor({...q,blocks:q.blocks.filter(b=>b.kind=='button'||b.kind=='answer')},true))}
   else{title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',blocksEditor(q,true))}
+  const tb=title.nextElementSibling;
+  if(tb&&tb.classList.contains('badd')){const tr=document.createElement('div');tr.className='trow';tb.style.marginTop='';title.before(tr);tr.append(title,tb)}
   sec.insertAdjacentHTML('beforeend',textBoxes(q)+imageBoxes(q));
   const fin=sec.querySelector('#finish');   // 끝 화면 button: its label is edited in place
   const gb=sec.querySelector('.gow .go-btn');   // 시작 화면 button: its label is edited in place too
@@ -915,7 +920,7 @@ function renderBuild(){
     ${q.type=='mc'?`<div class="row"><input type="checkbox" id="multi" ${q.multi?'checked':''}><label for="multi">다중 선택</label></div>`:''}
 
     ${TXTYPES.includes(q.type)?'<button class="btn ghost sm" id="addText" style="margin-top:12px;width:100%">＋ 텍스트 추가</button><button class="btn ghost sm" id="addBoxImg" style="margin-top:8px;width:100%">＋ 이미지 추가</button>':''}
-    ${mobEdit?`<div class="crow"><span>옵션 버튼 크기 (모바일)</span><span style="display:flex;align-items:center;gap:6px"><input type="range" min="50" max="160" step="5" value="${q.bs||100}" id="mobBs"><b id="mobBsV" style="font-size:12px;width:38px">${q.bs||100}%</b></span></div>`:''}
+    ${mobEdit?`<div class="crow"><span>버튼 크기 (모바일)</span><span style="display:flex;align-items:center;gap:6px"><input type="range" min="50" max="160" step="5" value="${q.bs||100}" id="mobBs"><b id="mobBsV" style="font-size:12px;width:38px">${q.bs||100}%</b></span></div>`:''}
     <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
     <div class="crow"><span>배경 색</span><input type="color" value="${q.bg||'#ffffff'}" data-k="bg"></div>
     <div class="crow"><span>배경 이미지</span><span class="bgctl">${q.bgimg?`<img class="bgth" src="${q.bgimg}"><button class="ico" id="bgdel" title="배경 이미지 삭제">✕</button>`:'<button class="btn ghost sm" id="bgpick">이미지 선택</button>'}</span></div>
@@ -941,7 +946,7 @@ document.addEventListener('input',e=>{
   }
   else if(t.dataset.ot!=null){const o=q.options.find(x=>x.id==t.dataset.ot);if(o)o.text=t.isContentEditable?t.innerText.trim():t.value;if(!t.isContentEditable)refreshStage()}
   else if(t.dataset.fp){form[t.dataset.fp]=t.value;theme();if(t.dataset.fp=='title')renderNav()}
-  else if(t.id=='mobBs'){q.bs=+t.value;$('#mobBsV').textContent=t.value+'%';const p=$('#stagePage');if(p)p.style.setProperty('--bs',q.bs/100)}
+  else if(t.id=='mobBs'){q.bs=+t.value;$('#mobBsV').textContent=t.value+'%';const p=$('#stagePage');if(p)p.style.setProperty('--bs',q.bs/100);p.querySelectorAll('.bzw').forEach(w=>{const z=q.bz[w.dataset.bz]||{};w.querySelector('.bzz').style.zoom=(z.s||1)*q.bs/100})}
   else if(t.id=='req')q.required=t.checked;
   else if(t.id=='multi'){q.multi=t.checked;refreshStage()}  else return;
   save();
@@ -1031,18 +1036,20 @@ document.addEventListener('dblclick',e=>{
 
 // 📱 모바일 편집: drag a button's ⇔ to move it left/right, its corner dot to resize it (phone layout only)
 document.addEventListener('pointerdown',e=>{
-  const h=e.target.closest&&e.target.closest('#stage .bzm,#stage .bzr');if(!h||!mobEdit)return;
-  const w=h.closest('.bzw'),q=form.qs[sel];if(!w||!q)return;
-  e.preventDefault();e.stopPropagation();
-  const key=w.dataset.bz,z=q.bz[key]=q.bz[key]||{s:1,x:0},zz=w.querySelector('.bzz');
-  const x0=e.clientX,y0=e.clientY,r=w.getBoundingClientRect(),pr=w.parentElement.getBoundingClientRect(),s0=z.s,X0=z.x,Y0=z.y||0,move=h.classList.contains('bzm'),k=r.height/(w.offsetHeight||1);
-  w.classList.add('drag');
+  if(!mobEdit||e.button)return;
+  const w=e.target.closest&&e.target.closest('#stage .bzw'),q=form.qs[sel];if(!w||!q)return;
+  const rz=!!e.target.closest('.bzr'),key=w.dataset.bz,z=q.bz[key]=q.bz[key]||{s:1,x:0,y:0},zz=w.querySelector('.bzz');
+  const x0=e.clientX,y0=e.clientY,r=w.getBoundingClientRect(),pr=w.parentElement.getBoundingClientRect(),s0=z.s,X0=z.x||0,Y0=z.y||0,k=r.height/(w.offsetHeight||1);
+  if(rz){e.preventDefault();e.stopPropagation()}
+  let on=rz;   // a press on the button only turns into a move after 4px, so a click still edits its text
   const mv=ev=>{
-    const dx=ev.clientX-x0;
-    if(move){const free=pr.width-r.width;z.x=Math.round(Math.max(0,Math.min(100,X0+(free>0?dx/free*100:0))));w.style.left=z.x+'%';w.style.transform=`translateX(-${z.x}%)`;z.y=Math.round(Math.max(-800,Math.min(800,Y0+(ev.clientY-y0)/k)));w.style.top=z.y+'px'}
-    else{z.s=Math.round(Math.max(0.5,Math.min(2.5,s0*(r.width+dx)/r.width))*100)/100;zz.style.zoom=z.s}
+    const dx=ev.clientX-x0,dy=ev.clientY-y0;
+    if(!on){if(Math.hypot(dx,dy)<4)return;on=true;document.activeElement&&document.activeElement.blur&&document.activeElement.blur();document.body.style.userSelect='none'}
+    getSelection().removeAllRanges();w.classList.add('drag');
+    if(!rz){const free=pr.width-r.width;z.x=Math.round(Math.max(0,Math.min(100,X0+(free>0?dx/free*100:0))));z.y=Math.round(Math.max(-800,Math.min(800,Y0+dy/k)));w.style.left=z.x+'%';w.style.transform=`translateX(-${z.x}%)`;w.style.top=z.y+'px'}
+    else{z.s=Math.round(Math.max(0.5,Math.min(2.5,s0*(r.width+dx)/r.width))*100)/100;zz.style.zoom=z.s*(q.bs||100)/100}
   };
-  const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);w.classList.remove('drag');save()};
+  const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);w.classList.remove('drag');document.body.style.userSelect='';if(on)save()};
   addEventListener('pointermove',mv);addEventListener('pointerup',up);
 },true);
 
@@ -1777,8 +1784,8 @@ function ansStyle(b){
 const kbdOf=(q,j)=>String(j+1);
 // a push button inside its place/size wrappers (key: line id, 'go' = 시작 button, 'end' = 끝 button)
 function bzWrap(q,key,inner){
-  const z=(q.bz||{})[key]||{},x=z.x||0,y=z.y||0,sz=z.s||1;
-  return `<span class="bzw" data-bz="${key}" style="${x?`left:${x}%;transform:translateX(-${x}%);`:''}${y?`top:${y}px;`:''}"><span class="bzz" style="display:inline-block${sz!=1?';zoom:'+sz:''}">${inner}</span><i class="bzm" title="끌어서 이동">✥ 이동</i><i class="bzr" title="크기 조절"></i></span>`;
+  const z=(q.bz||{})[key]||{},x=z.x||0,y=z.y||0,sz=Math.round((z.s||1)*(q.bs||100))/100;   // page slider × this button's own size
+  return `<span class="bzw" data-bz="${key}" style="${x?`left:${x}%;transform:translateX(-${x}%);`:''}${y?`top:${y}px;`:''}"><span class="bzz" style="display:inline-block${sz!=1?';zoom:'+sz:''}">${inner}</span><i class="bzr" title="크기 조절"></i></span>`;
 }
 function slideHTML(q,i){
   const isQ=!NOQ.includes(q.type);
