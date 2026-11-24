@@ -364,7 +364,7 @@ th{background:var(--card);font-weight:600}
       <input type="number" id="tbSizeNum" min="6" max="300" step="1" placeholder="px" title="글씨 크기 직접 입력 (px)">
       <select id="tbFont" title="글씨체"><option value="">글씨체</option><option value="Pretendard">Pretendard</option><option value="'Malgun Gothic'">맑은 고딕</option><option value="serif">명조 (Serif)</option><option value="monospace">고정폭</option><option value="cursive">손글씨</option></select>
     </div>
-    <div class="sec">질문 추가</div><div class="types" id="types"></div><div id="propsBody"></div></div>
+    <div class="sec" style="margin-top:22px">질문 추가</div><div class="types" id="types"></div><div id="propsBody"></div></div>
 </div>
 <div id="vFlow" class="res hide"></div>
 <div id="vResults" class="res hide"></div>
@@ -423,10 +423,10 @@ th{background:var(--card);font-weight:600}
 // Create it once in Google Cloud Console and paste it here; leave empty to run without login.
 const APP_GCID='355286319137-2cipbd76d4dd9159429q5cd7jbvkm8cd.apps.googleusercontent.com';
 // legacy types (choice/email/number/date) stay renderable for old forms but can no longer be added
-const TYPES={welcome:'시작 화면',text:'본문',short:'짧은 글',long:'긴 글',mc:'객관식',scale:'점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',check:'체크박스',button:'버튼',end:'끝 화면'};
+const TYPES={welcome:'시작 화면',text:'본문',short:'짧은 글',long:'긴 글',mc:'객관식',scale:'점수',email:'이메일',number:'숫자',date:'날짜',statement:'안내문',check:'체크박스',button:'버튼',answer:'주관식',end:'끝 화면'};
 const TXTYPES=['welcome','end'];
 const SHEET_ICON='<svg width="18" height="16" viewBox="60 190 1110 820" aria-hidden="true"><defs><linearGradient id="sheetG" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#78c7fb"/><stop offset="1" stop-color="#78c7fb" stop-opacity="0"/></linearGradient></defs><rect x="75" y="290" width="200" height="620" rx="110" fill="#009b52"/><rect x="172" y="208" width="978" height="782" rx="120" fill="#10bc5f"/><rect x="172" y="288" width="640" height="622" fill="url(#sheetG)"/><rect x="869" y="440" width="73" height="465" rx="36" fill="#fff"/><rect x="478" y="716" width="587" height="73" rx="36" fill="#fff"/></svg>';
-const ADDABLE=['welcome','text','mc','scale','check','button','end']
+const ADDABLE=['welcome','text','mc','answer','scale','check','button','end']
 const IMGRE=/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/;;
 const NOQ=['welcome','statement','end'];
 const YN={ko:['예','아니오'],ox:['O','X']};
@@ -586,7 +586,7 @@ function renderQs(){
   $('#types').innerHTML=ADDABLE.map(k=>{
     // "체크박스" is not a page: it adds a checkbox line to the selected page (not possible on 객관식 pages)
     // "버튼" adds a button line to the selected page (시작/끝 화면 already have their own button)
-    const cur=form.qs[sel],noChk=k=='check'&&cur&&cur.type=='mc',noBtn=k=='button'&&cur&&(cur.type=='welcome'||cur.type=='end');
+    const cur=form.qs[sel],noChk=k=='check'&&cur&&cur.type=='mc',noBtn=(k=='button'||k=='answer')&&cur&&(cur.type=='welcome'||cur.type=='end');
     const off=(k=='welcome'&&has(k))||noChk||noBtn;
     return `<button data-add="${k}" ${off?`disabled title="${noChk?'객관식 페이지에는 넣을 수 없습니다':noBtn?'시작·끝 화면에는 이미 버튼이 있습니다':'이미 있습니다 (1개만 가능)'}"`:''}>${TYPES[k]}</button>`;
   }).join('');
@@ -741,14 +741,14 @@ function stageSection(q){
   sec.classList.remove('slide','below');sec.classList.add('spage');sec.removeAttribute('data-i');sec.id='stagePage';
   sec.querySelectorAll(':scope > .tx,:scope > .ix').forEach(e=>e.remove());
   inn.querySelectorAll(':scope > .qdesc,:scope > .qimg,:scope > .chk,:scope > .go').forEach(e=>e.remove());
-  if(q.type=='text')inn.querySelectorAll(':scope > .ans').forEach(e=>e.remove());   // the answer box is one of the editable lines
+  if(q.type=='text'||q.type=='mc')inn.querySelectorAll(':scope > .ans').forEach(e=>e.remove());   // the answer box is one of the editable lines
   if(q.type=='mc')inn.querySelectorAll(':scope > .choice,:scope > .mcgrid').forEach(e=>e.remove());
   const title=inn.querySelector('.qtitle');
   title.innerHTML=q.titleHtml||esc(q.title);
   title.contentEditable='true';title.dataset.rt='title';title.dataset.ph='질문을 입력하세요';
   title.classList.add('rt');if(q.required)title.classList.add('req');
   const anchor=inn.querySelector(':scope > .extra')||inn.querySelector(':scope > .err');
-  if(q.type=='mc'){title.insertAdjacentHTML('afterend',blocksEditor({...q,blocks:q.blocks.filter(b=>!b.low&&(b.kind=='text'||b.kind=='img'))},false));anchor.insertAdjacentHTML('beforebegin',mcStage(q)+blocksEditor({...q,blocks:q.blocks.filter(b=>b.kind=='button')},true))}
+  if(q.type=='mc'){title.insertAdjacentHTML('afterend',blocksEditor({...q,blocks:q.blocks.filter(b=>!b.low&&(b.kind=='text'||b.kind=='img'))},false));anchor.insertAdjacentHTML('beforebegin',mcStage(q)+blocksEditor({...q,blocks:q.blocks.filter(b=>b.kind=='button'||b.kind=='answer')},true))}
   else{title.insertAdjacentHTML('afterend',blocksEditor(q,false));anchor.insertAdjacentHTML('beforebegin',blocksEditor(q,true))}
   sec.insertAdjacentHTML('beforeend',textBoxes(q)+imageBoxes(q));
   const fin=sec.querySelector('#finish');   // 끝 화면 button: its label is edited in place
@@ -785,7 +785,7 @@ function renderBuild(){
   $('#propsBody').innerHTML=`
     ${NOQ.includes(q.type)?'':`<div class="row"><input type="checkbox" id="req" ${q.required?'checked':''}><label for="req">필수 응답</label></div>`}
     ${q.type=='mc'?`<div class="row"><input type="checkbox" id="multi" ${q.multi?'checked':''}><label for="multi">다중 선택</label></div>`:''}
-    ${q.type=='welcome'||q.type=='end'?'':'<div class="row"><button class="btn ghost sm" data-mv="-1">▲ 위로</button><button class="btn ghost sm" data-mv="1">▼ 아래로</button></div>'}
+
     ${TXTYPES.includes(q.type)?'<button class="btn ghost sm" id="addText" style="margin-top:12px;width:100%">＋ 텍스트 추가</button><button class="btn ghost sm" id="addBoxImg" style="margin-top:8px;width:100%">＋ 이미지 추가</button>':''}
     <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
     <div class="crow"><span>배경 색</span><input type="color" value="${q.bg||'#ffffff'}" data-k="bg"></div>
@@ -854,6 +854,11 @@ document.addEventListener('click',e=>{
       if(!q||q.type=='mc')return;
       q.blocks.push({id:uid(),kind:'check',low:true,text:'',html:''});save();renderBuild();
       const last=[...document.querySelectorAll('#stagePage .blk .rt')].pop();if(last)last.focus();
+      return;
+    }
+    if(t2=='answer'){   // 주관식: a text answer box on the current page (객관식 pages too, e.g. "기타 사유 기재")
+      if(!q||q.type=='welcome'||q.type=='end')return;
+      q.blocks.push({id:uid(),kind:'answer',low:true,text:'',html:''});q.am=true;save();renderBuild();
       return;
     }
     if(t2=='button'){   // a "next" button line at the bottom of the current page
@@ -1589,7 +1594,7 @@ function slideHTML(q,i){
     :b.kind=='answer'?`<textarea class="ans" data-bid="${b.id}" rows="2" placeholder="${esc(b.text||'답변을 입력하세요')}" style="${ansStyle(b)}"></textarea>`
     :b.kind=='button'?`<div class="go"><button class="btn go-btn">${b.html||esc(b.text)||'확인'}</button></div>`
     :(b.text||b.html)?(b.kind=='check'?`<label class="chk"><input type="checkbox"${b.req||need?' data-req':''}><span class="qdesc">${b.html||esc(b.text)}</span>${b.req||need?'<span class="rq"> *</span>':''}</label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'';
-  const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'||(!b.low&&(b.kind=='text'||b.kind=='img'))):q.blocks).filter(b=>!!b.low==low).map(one).join('');
+  const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'||b.kind=='answer'||(!b.low&&(b.kind=='text'||b.kind=='img'))):q.blocks).filter(b=>!!b.low==low).map(one).join('');
   const sbg=`${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
   return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}" style="${sbg}">${(q.images||[]).map(t=>`<img class="ix" src="${t.src}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw">`).join('')}${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
@@ -1641,8 +1646,9 @@ function sheetCols(qs,raw){
   const base=q=>(q.title||'(제목 없음)')+(live.filter(z=>z.title==q.title).length>1?' ('+(qs.indexOf(q)+1)+'번)':'');
   live.forEach(q=>{
     const b=base(q);
-    if(q.type=='mc'||q.type=='scale')out.push([q.id,b]);
-    else (q.blocks||[]).filter(x=>x.kind=='answer').forEach((x,j)=>out.push([j?q.id+'#'+x.id:q.id,b+(j?' (답변 '+(j+1)+')':'')]));
+    const boxes=(q.blocks||[]).filter(x=>x.kind=='answer');
+    if(q.type=='mc'||q.type=='scale'){out.push([q.id,b]);boxes.forEach((x,j)=>out.push([q.id+'#'+x.id,b+' (주관식'+(boxes.length>1?' '+(j+1):'')+')']))}
+    else boxes.forEach((x,j)=>out.push([j?q.id+'#'+x.id:q.id,b+(j?' (답변 '+(j+1)+')':'')]));
     if((q.blocks||[]).some(x=>x.kind=='check'))out.push([q.id+'#chk',b+' (체크)']);
   });
   const m=form.colNames||{};
@@ -1689,7 +1695,8 @@ document.addEventListener('input',e=>{
   const c=e.target.classList;if(!runQs[cur]||!c)return;
   if(c.contains('ans')){   // first answer box -> the question's answer; extra boxes -> "<id>#<box id>"
     const q=runQs[cur],bid=e.target.dataset.bid,first=(q.blocks||[]).find(b=>b.kind=='answer');
-    ans[!bid||!first||first.id==bid?q.id:q.id+'#'+bid]=e.target.value;
+    const own=q.type=='mc'||q.type=='scale';
+    ans[own&&bid?q.id+'#'+bid:!bid||!first||first.id==bid?q.id:q.id+'#'+bid]=e.target.value;
   }
   else if(c.contains('note'))ans[runQs[cur].id+'#note']=e.target.value;
 });
@@ -1714,7 +1721,7 @@ function renderResults(){
   const fmt=v=>Array.isArray(v)?v.join(', '):v??'';
   const hasU=rs.some(r=>r.user);
   const okImg=s=>/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(s||'');
-  const xa=(r,q)=>(q.blocks||[]).filter(b=>b.kind=='answer').slice(1).map(b=>r.a[q.id+'#'+b.id]).filter(v=>v);
+  const xa=(r,q)=>(q.blocks||[]).filter(b=>b.kind=='answer').slice(q.type=='mc'||q.type=='scale'?0:1).map(b=>r.a[q.id+'#'+b.id]).filter(v=>v);
   const txt=(r,q)=>fmt(r.a[q.id])+xa(r,q).map(v=>' / '+v).join('')+(r.a[q.id+'#note']?' / 의견: '+r.a[q.id+'#note']:'')+(r.a[q.id+'#img']?' [이미지]':'')+(r.a[q.id+'#chk']?' / 체크: '+fmt(r.a[q.id+'#chk']):'');
   const cell=(r,q)=>esc(fmt(r.a[q.id]))+xa(r,q).map(v=>`<div>${esc(v)}</div>`).join('')+(r.a[q.id+'#chk']?`<div>☑ ${esc(fmt(r.a[q.id+'#chk']))}</div>`:'')+(r.a[q.id+'#note']?`<div style="color:var(--muted)">💬 ${esc(r.a[q.id+'#note'])}</div>`:'')+(okImg(r.a[q.id+'#img'])?`<img src="${r.a[q.id+'#img']}" style="max-height:64px;display:block;margin-top:6px;border-radius:4px">`:'');
   $('#vResults').innerHTML=`<h2>${esc(form.title)} — 응답 ${rs.length}건</h2>
