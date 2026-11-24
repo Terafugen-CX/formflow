@@ -291,6 +291,10 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 /* runner & shared choice styles */
 .run{position:fixed;inset:0;background:var(--bg);color:var(--fg);overflow:hidden;z-index:10}
 /* 📱 preview frame: a 390px phone in the middle of the screen, rest dimmed */
+/* phones (and the 📱 preview): the grey system scrollbar is replaced by a thin bar in the 강조 색 that shows only while scrolling */
+@media (pointer:coarse){.run .slide{scrollbar-width:none}.run .slide::-webkit-scrollbar{display:none}}
+.run .sthumb{position:absolute;right:3px;top:0;width:4px;border-radius:4px;background:var(--accent);opacity:0;transition:opacity .35s;pointer-events:none;z-index:30}
+.run .sthumb.on{opacity:.85;transition:opacity .1s}
 /* 📱 preview = the page area a phone browser shows (iPhone 393px wide; KakaoTalk in-app browser leaves ~660px between its bars).
    Phones use overlay scrollbars, so the preview must not lose width to a desktop scrollbar either */
 .run.phone .slide{scrollbar-width:none}.run.phone .slide::-webkit-scrollbar{display:none}
@@ -1552,7 +1556,7 @@ let ans={},cur=0,runQs=[],submitted=false,hist=[],steps=0;
 function startRun(){
   theme();runQs=form.qs;ans={};cur=0;submitted=false;hist=[];steps=0;
   const R=$('#run');R.classList.remove('hide','phone');
-  R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up" title="이전">◀</button><button id="dn" title="다음">▶</button></div>';
+  R.innerHTML='<div class="bar"></div><button class="close">✕</button>'+runQs.map(slideHTML).join('')+'<div class="nav"><button id="up" title="이전">◀</button><button id="dn" title="다음">▶</button></div><div class="sthumb"></div>';
   show(0);fitText();
 }
 // phones: sizes picked on a PC (e.g. a 48px title) shrink with the screen width; body text never drops below 15px.
@@ -1568,6 +1572,16 @@ function fitText(){
   });
 }
 addEventListener('resize',fitText);
+let thumbT=0;
+$('#run').addEventListener('scroll',e=>{
+  const sl=e.target,R=$('#run'),th=R.querySelector('.sthumb');
+  if(!th||!sl.classList||!sl.classList.contains('slide'))return;
+  if(!(R.classList.contains('phone')||matchMedia('(pointer:coarse)').matches))return;   // PC keeps its normal scrollbar
+  const max=sl.scrollHeight-sl.clientHeight;if(max<=0)return;
+  const h=Math.max(36,sl.clientHeight*sl.clientHeight/sl.scrollHeight);
+  th.style.height=h+'px';th.style.top=(sl.scrollTop/max*(sl.clientHeight-h))+'px';
+  th.classList.add('on');clearTimeout(thumbT);thumbT=setTimeout(()=>th.classList.remove('on'),700);
+},true);
 // 📱 preview: the same runner inside a phone-sized frame
 function startPhone(){startRun();$('#run').classList.add('phone');fitText()}
 // creator-only Google sign-in: protects the builder, never the shared respondent page. Remembered 3 days.
