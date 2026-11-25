@@ -336,6 +336,7 @@ dialog pre{background:#f5f5f6;padding:12px;border-radius:8px;overflow:auto;font-
 .mobed #stage .ansE{min-height:calc(2.6em + 16px)}
 .mobed #stage .bzw,.mobed #stage .bzw .rt{cursor:move}
 .mobed #stage .bzw{pointer-events:auto;outline:1.5px dashed transparent;outline-offset:4px;border-radius:6px}
+.mobed #stage .mact{outline:1.5px dashed var(--accent)!important;outline-offset:4px;border-radius:6px}
 .mobed #stage .bzw:hover{outline-color:color-mix(in srgb,var(--accent) 60%,transparent)}
 .mobed #stage .bzm,.mobed #stage .bzr{display:block;position:absolute;z-index:6;opacity:0;transition:opacity .15s;touch-action:none;font-style:normal}
 .mobed #stage .bzw:hover .bzm,.mobed #stage .bzw:hover .bzr,.mobed #stage .bzw.drag .bzm,.mobed #stage .bzw.drag .bzr{opacity:1}
@@ -958,13 +959,15 @@ function renderBuild(){
     ${q.type=='mc'?`<div class="row"><input type="checkbox" id="multi" ${q.multi?'checked':''}><label for="multi">다중 선택</label></div>`:''}
 
     ${TXTYPES.includes(q.type)?'<button class="btn ghost sm" id="addText" style="margin-top:12px;width:100%">＋ 텍스트 추가</button><button class="btn ghost sm" id="addBoxImg" style="margin-top:8px;width:100%">＋ 이미지 추가</button>':''}
-    ${mobEdit&&bzKeys(q).length?(()=>{const ks=bzKeys(q);if(!ks.includes(mobBzKey))mobBzKey=ks[0];const v=Math.round(((q.bz[mobBzKey]||{}).s||1)*100);return `<div class="crow"><span>버튼 크기 (모바일)<br><small id="mobBzN" style="color:var(--muted)">${esc(bzName(q,mobBzKey))}</small></span><span style="display:flex;align-items:center;gap:6px"><input type="range" min="50" max="250" step="5" value="${v}" id="mobBz"><b id="mobBzV" style="font-size:12px;width:38px">${v}%</b></span></div>`})():''}
+    ${mobEdit&&bzKeys(q).length?(()=>{const ks=bzKeys(q);if(!ks.includes(mobBzKey))mobBzKey=ks[0];const v=Math.round(((q.bz[mobBzKey]||{}).s||1)*100);return `<div class="crow"><span style="width:auto;white-space:nowrap">버튼 크기 (모바일)</span><span style="display:flex;align-items:center;gap:6px;flex:1;min-width:0"><input type="range" min="50" max="250" step="5" value="${v}" id="mobBz" style="flex:1;min-width:0"><b id="mobBzV" style="font-size:12px;width:38px">${v}%</b></span></div>`})():''}
+    ${mobEdit?`<div class="crow"><span style="width:auto;white-space:nowrap">위치 (모바일)</span><span style="display:flex;align-items:center;gap:4px;flex:1;justify-content:flex-end">X <input type="number" id="mobPX" style="width:58px"><i id="mobPXu" style="font-style:normal">px</i> Y <input type="number" id="mobPY" style="width:58px"><i style="font-style:normal">px</i></span></div>`:''}
     ${mobEdit&&(q.type=='mc'||q.type=='scale')?`<div class="crow"><span>옵션 크기 (모바일)</span><span style="display:flex;align-items:center;gap:6px"><input type="range" min="50" max="160" step="5" value="${q.bs||100}" id="mobBs"><b id="mobBsV" style="font-size:12px;width:38px">${q.bs||100}%</b></span></div>`:''}
     <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
     <div class="crow"><span>배경 색</span><input type="color" value="${q.bg||'#ffffff'}" data-k="bg"></div>
     <div class="crow"><span>배경 이미지</span><span class="bgctl">${q.bgimg?`<img class="bgth" src="${q.bgimg}"><button class="ico" id="bgdel" title="배경 이미지 삭제">✕</button>`:'<button class="btn ghost sm" id="bgpick">이미지 선택</button>'}</span></div>
     <div style="font-size:11px;color:var(--muted);margin-top:6px">배경 색·이미지는 지금 선택한 질문 페이지에만 적용됩니다</div>
     `;
+  if(mobEdit)mobPosSync();
 }
 document.addEventListener('input',e=>{
   const t=e.target,q=form.qs[sel];
@@ -986,6 +989,11 @@ document.addEventListener('input',e=>{
   else if(t.dataset.ot!=null){const o=q.options.find(x=>x.id==t.dataset.ot);if(o)o.text=t.isContentEditable?t.innerText.trim():t.value;if(!t.isContentEditable)refreshStage()}
   else if(t.dataset.fp){form[t.dataset.fp]=t.value;theme();if(t.dataset.fp=='title')renderNav()}
   else if(t.id=='mobBs'){q.bs=+t.value;$('#mobBsV').textContent=t.value+'%';const p=$('#stagePage');if(p)p.style.setProperty('--bs',q.bs/100)}
+  else if(t.id=='mobPX'||t.id=='mobPY'){
+    if(!mobSel)return;const isB=mobSel.k=='b',m=isB?q.bz:q.tz,z=m[mobSel.key]=m[mobSel.key]||(isB?{s:1,x:0,y:0}:{x:0,y:0});
+    const v=Math.round(+t.value||0);if(t.id=='mobPX')z.x=isB?Math.max(0,Math.min(100,v)):Math.max(-800,Math.min(800,v));else z.y=Math.max(-800,Math.min(800,v));
+    const el=mobPosEl(q);if(el){if(isB){el.style.left=z.x+'%';el.style.transform=`translateX(-${z.x}%)`;el.style.top=z.y+'px'}else{el.style.position='relative';el.style.left=z.x+'px';el.style.top=z.y+'px'}}
+  }
   else if(t.id=='mobBz'){const z=q.bz[mobBzKey]=q.bz[mobBzKey]||{s:1,x:0,y:0};z.s=+t.value/100;$('#mobBzV').textContent=t.value+'%';const w=document.querySelector(`#stagePage .bzw[data-bz="${mobBzKey}"] .bzz`);if(w)w.style.zoom=z.s}
   else if(t.id=='req')q.required=t.checked;
   else if(t.id=='multi'){q.multi=t.checked;refreshStage()}  else return;
@@ -1079,7 +1087,7 @@ document.addEventListener('dblclick',e=>{
 document.addEventListener('pointerdown',e=>{
   if(!mobEdit||e.button)return;
   const w=e.target.closest&&e.target.closest('#stage .bzw'),q=form.qs[sel];if(!w||!q)return;
-  mobBzKey=w.dataset.bz;{const sl=$('#mobBz'),z0=(q.bz||{})[w.dataset.bz]||{};if(sl){sl.value=Math.round((z0.s||1)*100);$('#mobBzV').textContent=sl.value+'%';$('#mobBzN').textContent=bzName(q,w.dataset.bz)}}
+  mobBzKey=w.dataset.bz;{const sl=$('#mobBz'),z0=(q.bz||{})[w.dataset.bz]||{};if(sl){sl.value=Math.round((z0.s||1)*100);$('#mobBzV').textContent=sl.value+'%'}mobSel={k:'b',key:w.dataset.bz};mobPosSync()}
   const rz=!!e.target.closest('.bzr'),key=w.dataset.bz,z=q.bz[key]=q.bz[key]||{s:1,x:0,y:0},zz=w.querySelector('.bzz');
   const x0=e.clientX,y0=e.clientY,r=w.getBoundingClientRect(),pr=w.parentElement.getBoundingClientRect(),s0=z.s,X0=z.x||0,Y0=z.y||0,k=r.height/(w.offsetHeight||1);
   if(rz){e.preventDefault();e.stopPropagation()}
@@ -1088,7 +1096,7 @@ document.addEventListener('pointerdown',e=>{
     const dx=ev.clientX-x0,dy=ev.clientY-y0;
     if(!on){if(Math.hypot(dx,dy)<4)return;on=true;document.activeElement&&document.activeElement.blur&&document.activeElement.blur();document.body.style.userSelect='none'}
     getSelection().removeAllRanges();w.classList.add('drag');
-    if(!rz){const free=pr.width-r.width;z.x=Math.round(Math.max(0,Math.min(100,X0+(free>0?dx/free*100:0))));z.y=Math.round(Math.max(-800,Math.min(800,Y0+dy/k)));w.style.left=z.x+'%';w.style.transform=`translateX(-${z.x}%)`;w.style.top=z.y+'px'}
+    if(!rz){const free=pr.width-r.width;z.x=Math.round(Math.max(0,Math.min(100,X0+(free>0?dx/free*100:0))));z.y=Math.round(Math.max(-800,Math.min(800,Y0+dy/k)));w.style.left=z.x+'%';w.style.transform=`translateX(-${z.x}%)`;w.style.top=z.y+'px';mobPosSync()}
     else{z.s=Math.round(Math.max(0.5,Math.min(2.5,s0*(r.width+dx)/r.width))*100)/100;zz.style.zoom=z.s;mobBzKey=key;const sl=$('#mobBz');if(sl){sl.value=Math.round(z.s*100);$('#mobBzV').textContent=Math.round(z.s*100)+'%'}}
   };
   const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);w.classList.remove('drag');document.body.style.userSelect='';if(on)save()};
@@ -1229,10 +1237,11 @@ document.addEventListener('pointerdown',e=>{
   const g=e.target.closest&&e.target.closest('#stage .grip'),q=form.qs[sel];if(!g||!q)return;
   const el=g.closest('.blk,.trow');if(!el)return;
   const key=g.dataset.tz||el.dataset.bid;if(!key)return;
-  e.preventDefault();e.stopPropagation();
+  e.preventDefault();e.stopPropagation();mobSel={k:'t',key};
   const z=q.tz[key]=q.tz[key]||{x:0,y:0},x0=e.clientX,y0=e.clientY,X0=z.x,Y0=z.y,k=el.getBoundingClientRect().height/(el.offsetHeight||1);
   document.body.style.userSelect='none';
-  const mv=ev=>{z.x=Math.round(Math.max(-800,Math.min(800,X0+(ev.clientX-x0)/k)));z.y=Math.round(Math.max(-800,Math.min(800,Y0+(ev.clientY-y0)/k)));el.style.position='relative';el.style.left=z.x+'px';el.style.top=z.y+'px'};
+  const mv=ev=>{z.x=Math.round(Math.max(-800,Math.min(800,X0+(ev.clientX-x0)/k)));z.y=Math.round(Math.max(-800,Math.min(800,Y0+(ev.clientY-y0)/k)));el.style.position='relative';el.style.left=z.x+'px';el.style.top=z.y+'px';mobPosSync()};
+  mobPosSync();
   const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);document.body.style.userSelect='';save()};
   addEventListener('pointermove',mv);addEventListener('pointerup',up);
 },true);
@@ -1848,6 +1857,23 @@ const kbdOf=(q,j)=>String(j+1);
 let mobBzKey='';
 const bzKeys=q=>[...(q.type=='welcome'?['go']:[]),...(q.type=='end'?['end']:[]),...q.blocks.filter(b=>b.kind=='button').map(b=>b.id)];
 const bzName=(q,k)=>{if(k=='go')return q.btn||'시작하기';if(k=='end')return q.endBtn||'종료';const b=q.blocks.find(x=>x.id==k);return (b&&b.text)||'확인'};
+// 📱: the item whose position the side panel shows/edits (last button pressed or line dragged)
+let mobSel=null;
+function mobPosEl(q){
+  if(!mobSel)return null;
+  if(mobSel.k=='b')return document.querySelector(`#stagePage .bzw[data-bz="${mobSel.key}"]`);
+  return mobSel.key=='title'?document.querySelector('#stagePage .trow'):document.querySelector(`#stagePage .blk[data-bid="${mobSel.key}"]`);
+}
+function mobPosSync(){
+  const q=form.qs[sel],px=$('#mobPX'),py=$('#mobPY');if(!q||!px)return;
+  if(!mobSel||!mobPosEl(q))mobSel=bzKeys(q).length?{k:'b',key:mobBzKey||bzKeys(q)[0]}:{k:'t',key:'title'};
+  const z=(mobSel.k=='b'?q.bz:q.tz)[mobSel.key]||{};
+  if(document.activeElement!==px)px.value=z.x||0;if(document.activeElement!==py)py.value=z.y||0;
+  $('#mobPXu').textContent=mobSel.k=='b'?'%':'px';
+  px.min=mobSel.k=='b'?0:-800;px.max=mobSel.k=='b'?100:800;py.min=-800;py.max=800;
+  document.querySelectorAll('#stagePage .mact').forEach(e=>e.classList.remove('mact'));
+  const el=mobPosEl(q);if(el)el.classList.add('mact');
+}
 const tzStyle=(q,key)=>{const z=(q.tz||{})[key];return z&&(z.x||z.y)?`position:relative;left:${z.x}px;top:${z.y}px;`:''};
 function bzWrap(q,key,inner){
   const z=(q.bz||{})[key]||{},x=z.x||0,y=z.y||0,sz=z.s||1;
