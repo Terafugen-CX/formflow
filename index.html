@@ -1899,7 +1899,7 @@ function slideHTML(q,i){
   const extra='';   // no "추가 의견" box on the respondent page
   const last=!runQs[i+1]||runQs[i+1].type=='end';
   const foot=q.type=='welcome'?`<div class="gow">${bzWrap(q,'go',`<button class="btn go-btn">${esc(q.btn)}</button>`)}</div>`
-    :q.type=='end'?`<p class="qdesc">응답이 제출되었습니다.</p><div class="gow">${bzWrap(q,'end',`<button class="btn" id="finish">${esc(q.endBtn||'종료')}</button>`)}</div>`
+    :q.type=='end'?`<div class="gow" style="margin-top:24px">${bzWrap(q,'end',`<button class="btn" id="finish">${esc(q.endBtn||'종료')}</button>`)}</div>`
     :'';   // question pages get a button only when one is added as a line
   // lines above the page's main control (low=false) and below it (low=true: answer box, checkboxes)
   const need=q.required&&!NOQ.includes(q.type);
