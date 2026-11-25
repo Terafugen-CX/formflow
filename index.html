@@ -388,13 +388,33 @@ th{background:var(--card);font-weight:600}
 /* 응답 table: one line per cell, scroll sideways instead of wrapping */
 #vResults th,#vResults td{white-space:nowrap}#vResults .rdel{position:sticky;right:0;background:var(--bg,#fff);width:1%;padding:6px}#vResults th.rdel{background:var(--card)}#vResults .rdel .ico{display:block;color:#999}#vResults .rdel .ico:hover{color:#c0392b}#vResults table{width:auto;min-width:100%}
 .hide{display:none!important}
+/* 홈: folder cards */
+header .logo{cursor:pointer}
+body.athome header>.tab:not([data-v=home]),body.athome #crumb,body.athome #gs2,body.athome #share,body.athome #playPhone,body.athome .pwrap{display:none!important}
+body.athome header #who{margin-left:auto}
+.home{height:calc(100vh - 57px);overflow:auto;background:var(--card,#f7f7f8)}
+.hwrap{max-width:1040px;margin:0 auto;padding:36px 24px 60px}
+.hhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.hhead h1{font-size:22px;margin:0}
+.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.hcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 16px 12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:box-shadow .15s,border-color .15s}
+.hcard:hover{border-color:var(--ui);box-shadow:0 4px 16px rgba(0,0,0,.06)}
+.hcard .hic{font-size:30px;line-height:1}
+.hcard .hnm{font-weight:700;font-size:16px;word-break:break-all}
+.hcard .hmeta{font-size:12px;color:var(--muted)}
+.hcard .hacts{display:flex;gap:6px;margin-top:8px;padding-top:10px;border-top:1px solid var(--line);flex-wrap:wrap}
+.hcard .hacts .btn{font-size:12px;padding:4px 10px}
+.hcard.locked{background:#fbfbfc}
+.hcard .hlk{font-size:12px;color:#c0392b;font-weight:600}
+.hempty{color:var(--muted);font-size:14px;padding:40px 0;text-align:center}
 @media(max-width:900px){.builder{grid-template-columns:1fr;height:auto}.side,.props{border:0}}
 </style>
 </head>
 <body>
 <header>
-  <span class="logo">FormFlow</span>
+  <span class="logo" id="goHome" title="홈으로">FormFlow</span>
   <span class="crumb" id="crumb"></span>
+  <button class="tab" data-v="home">홈</button>
   <button class="tab" data-v="build">편집</button>
   <button class="tab" data-v="flow">워크플로우</button>
   <button class="tab" data-v="results">응답</button>
@@ -403,6 +423,8 @@ th{background:var(--card);font-weight:600}
   <button class="btn ghost sm" id="share">공유 링크 복사</button>
   <button class="btn ghost sm" id="playPhone" title="휴대폰 화면(393×660)에서 보이는 배치를 따로 편집합니다. PC 배치에는 영향이 없습니다">📱 모바일 편집</button><span class="pwrap"><button class="btn sm" id="play">미리보기 ▶</button><div class="pmenu" id="playMenu" hidden><button data-pm="pc">💻 PC 화면</button><button data-pm="mo">📱 모바일 화면</button></div></span>
 </header>
+
+<div id="vHome" class="home hide"><div class="hwrap"><div class="hhead"><h1>내 폴더</h1><button class="btn sm" id="hAdd">＋ 새 폴더</button></div><div id="hList" class="hgrid"></div></div></div>
 
 <div id="vBuild" class="builder">
   <div class="side">
@@ -696,16 +718,17 @@ function theme(){
 /* ---------- builder ---------- */
 function treeHTML(fs,d){
   return fs.map(f=>{
-    const open=f.open!==false;
-    return `<div class="proj" style="padding-left:${8+d*14}px" data-pid="${f.id}"><span>${open?'📂':'📁'}</span><span class="nm">${esc(f.name)}</span><span class="acts"><button class="ico" data-addfm="${f.id}" title="폼 추가">＋📄</button><button class="ico" data-addsub="${f.id}" title="하위 폴더 추가">＋📁</button><button class="ico" data-pren="${f.id}" title="이름 변경">✎</button><button class="ico" data-pdel="${f.id}" title="삭제">✕</button></span></div>`
-    +(open?f.forms.map(m=>`<div class="fitem ${m.id==form.id?'on':''}" style="padding-left:${30+d*14}px" data-fid="${m.id}"><span class="nm">${esc(m.title)}</span>${m.lock?'<span class="lockic" title="보호됨: 열람만 가능">🔒</span>':`<button class="ico" data-fren="${m.id}" title="이름 변경">✎</button><button class="ico" data-fdel="${m.id}" title="삭제">✕</button>`}</div>`).join('')+treeHTML(f.folders,d+1):'');
+    const open=f.open!==false,fl=lockedFolderOf(f);
+    return `<div class="proj" style="padding-left:${8+d*14}px" data-pid="${f.id}"><span>${open?'📂':'📁'}</span><span class="nm">${esc(f.name)}</span>${fl?'<span class="lockic" title="잠긴 폴더: 열람만 가능 (홈에서 해제)">🔒</span>':`<span class="acts"><button class="ico" data-addfm="${f.id}" title="폼 추가">＋📄</button><button class="ico" data-addsub="${f.id}" title="하위 폴더 추가">＋📁</button><button class="ico" data-pren="${f.id}" title="이름 변경">✎</button><button class="ico" data-pdel="${f.id}" title="삭제">✕</button></span>`}</div>`
+    +(open?f.forms.map(m=>`<div class="fitem ${m.id==form.id?'on':''}" style="padding-left:${30+d*14}px" data-fid="${m.id}"><span class="nm">${esc(m.title)}</span>${m.lock||fl?'<span class="lockic" title="보호됨: 열람만 가능">🔒</span>':`<button class="ico" data-fren="${m.id}" title="이름 변경">✎</button><button class="ico" data-fdel="${m.id}" title="삭제">✕</button>`}</div>`).join('')+treeHTML(f.folders,d+1):'');
   }).join('');
 }
 function renderNav(){
-  $('#crumb').innerHTML=`${esc(pathOf(form.id))} / <b>${esc(form.title)}</b>${form.lock?' <span class="lockic" title="보호됨">🔒 보호됨</span>':''}`;
-  document.body.classList.toggle('locked',!!form.lock);
-  $('#lockBtn').textContent=form.lock?'🔓 보호 해제':'🔒 폼 보호';
-  $('#lockNote').textContent=form.lock?'보호 중: 열람만 가능합니다. 수정하려면 비밀번호로 보호를 해제하세요.':'켜면 비밀번호를 아는 사람만 이 폼을 수정·삭제할 수 있습니다.';
+  const L=formLocked(form),byFolder=L&&!form.lock;
+  $('#crumb').innerHTML=`${esc(pathOf(form.id))} / <b>${esc(form.title)}</b>${L?` <span class="lockic" title="보호됨">🔒 ${byFolder?'폴더 잠김':'보호됨'}</span>`:''}`;
+  document.body.classList.toggle('locked',L);
+  $('#lockBtn').textContent=byFolder?'🔒 폴더 잠김':form.lock?'🔓 보호 해제':'🔒 폼 보호';
+  $('#lockNote').textContent=byFolder?'이 폼이 든 폴더가 잠겨 있어 열람만 가능합니다. 홈 화면에서 폴더 잠금을 해제하세요.':form.lock?'보호 중: 열람만 가능합니다. 수정하려면 비밀번호로 보호를 해제하세요.':'켜면 비밀번호를 아는 사람만 이 폼을 수정·삭제할 수 있습니다.';
   $('#projs').innerHTML=treeHTML(store.projects,0);
 }
 function renderQs(){
@@ -980,7 +1003,7 @@ document.addEventListener('click',e=>{
   else if(d.pren){const f=findFolder(d.pren).f;const n=prompt('폴더 이름 변경',f.name);if(!n)return;f.name=n}
   else if(d.pdel){
     const {f,p}=findFolder(d.pdel);const ids=[];walk([f],x=>ids.push(...x.forms.map(m=>m.id)));
-    if(ids.some(id=>findForm(id).form.lock)){alert('보호된 폼이 들어 있어 이 폴더는 삭제할 수 없습니다. 먼저 그 폼의 보호를 해제하세요.');return}
+    if(lockedFolderOf(f)||folderHasLock(f)){alert('잠긴 폴더이거나 보호된 폼이 들어 있어 삭제할 수 없습니다. 먼저 잠금/보호를 해제하세요.');return}
     if(ids.length>=allForms().length){alert('폼이 최소 1개는 남아야 합니다.');return}
     if(!confirm('"'+f.name+'" 폴더와 하위 폴더, 폼 '+ids.length+'개를 삭제할까요? 응답도 함께 삭제됩니다.'))return;
     ids.forEach(id=>localStorage.removeItem('ff_res_'+id));
@@ -990,6 +1013,7 @@ document.addEventListener('click',e=>{
   else if(d.pid){const f=findFolder(d.pid).f;f.open=f.open===false}
   else if(d.fren){const r=findForm(d.fren);const n=prompt('폼 이름 변경',r.form.title);if(!n)return;r.form.title=n}
   else if(d.fdel){
+    if(formLocked(findForm(d.fdel).form))return;
     if(allForms().length<2){alert('폼이 최소 1개는 남아야 합니다.');return}
     const r=findForm(d.fdel);
     if(!confirm('"'+r.form.title+'" 폼을 삭제할까요? 응답도 함께 삭제됩니다.'))return;
@@ -1044,7 +1068,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('dblclick',e=>{
   const t=e.target.closest('.fitem');if(!t||view!='build')return;
-  const r=findForm(t.dataset.fid);if(r.form.lock)return;const n=prompt('폼 이름 변경',r.form.title);
+  const r=findForm(t.dataset.fid);if(formLocked(r.form))return;const n=prompt('폼 이름 변경',r.form.title);
   if(n){r.form.title=n;save();renderBuild()}
 });
 
@@ -1434,9 +1458,15 @@ document.addEventListener('click',e=>{if(qDragged&&e.target.closest&&e.target.cl
 /* ---------- 폼 보호: password-protected read-only mode ----------
    The password is kept only as a salted SHA-256 hash. This guards against accidental edits in this browser;
    it is not server-side security (the form data itself lives in this browser's storage). */
+const validLock=l=>!!(l&&typeof l.s=='string'&&/^[0-9a-f]{64}$/.test(l.h||''));
+// the nearest locked folder at or above this folder (a locked folder locks everything inside it)
+function lockedFolderOf(fo){let c=fo;while(c){if(validLock(c.lock))return c;const p=findFolder(c.id);c=p&&p.p}return null}
+function formLocked(m){if(!m)return false;if(m.lock)return true;const r=findForm(m.id);return !!(r&&lockedFolderOf(r.folder))}
+const folderHasLock=fo=>{let k=false;walk([fo],x=>{if(validLock(x.lock))k=true;x.forms.forEach(m=>{if(m.lock)k=true})});return k};
 async function pwHash(salt,pw){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+':'+pw));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 document.addEventListener('click',async e=>{
   if(e.target.id!='lockBtn')return;
+  if(!form.lock&&formLocked(form)){alert('이 폼이 든 폴더가 잠겨 있습니다. 홈 화면에서 폴더 잠금을 해제하세요.');return}
   if(!form.lock){
     const p1=prompt('보호 비밀번호를 정하세요 (4자 이상). 이 비밀번호를 아는 사람만 수정·삭제할 수 있습니다.');if(p1==null)return;
     if(p1.length<4){alert('비밀번호는 4자 이상이어야 합니다.');return}
@@ -1452,7 +1482,7 @@ document.addEventListener('click',async e=>{
 // still allowed: choosing pages/forms, preview, share link, viewing the workflow and results
 const EDIT_ZONES='#stage,#stageWrap .laybar,.props,#vFlow,#sheetGuide #gsMake,#sheetGuide #gsUnlink,#sheetGuide [data-colk],#list [data-del]';
 ['pointerdown','mousedown','click','dblclick','input','change','keydown','paste','drop'].forEach(ev=>document.addEventListener(ev,e=>{
-  if(shared||!form||!form.lock||!e.target.closest)return;
+  if(shared||!form||view=='home'||!formLocked(form)||!e.target.closest)return;
   const t=e.target;if(t.closest('#lockBox,#run,#fpclose'))return;
   const inList=t.closest('#list .qitem');
   if(inList&&(ev=='pointerdown'||ev=='mousedown')&&!t.closest('[data-del]'))return e.stopPropagation();   // no drag-reorder; click still selects
@@ -2013,12 +2043,62 @@ function renderResults(){
   $('#clr').onclick=()=>{if(confirm('모든 응답을 삭제할까요?')){localStorage.removeItem(resKey());renderResults()}};
 }
 
+/* ---------- 홈: folder list (add / rename / delete / lock) ---------- */
+function renderHome(){
+  const cnt=fo=>{let n=0,m=0;walk([fo],x=>{n+=x.forms.length;if(x!==fo)m++});return [n,m]};
+  $('#hList').innerHTML=store.projects.length?store.projects.map(fo=>{
+    const [n,m]=cnt(fo),lk=validLock(fo.lock);
+    return `<div class="hcard${lk?' locked':''}" data-hopen="${fo.id}"><div class="hic">${lk?'🔒':'📁'}</div><div class="hnm">${esc(fo.name)}</div><div class="hmeta">폼 ${n}개${m?` · 하위 폴더 ${m}개`:''}</div>
+      <div class="hacts">${lk?'<span class="hlk">잠김 · 열람만 가능</span>':`<button class="btn ghost sm" data-hren="${fo.id}">✎ 이름 수정</button><button class="btn ghost sm" data-hdel="${fo.id}">✕ 삭제</button>`}<button class="btn ghost sm" data-hlock="${fo.id}">${lk?'🔓 잠금 해제':'🔒 잠금'}</button></div></div>`;
+  }).join(''):'<div class="hempty">폴더가 없습니다. "＋ 새 폴더"로 만들어 보세요.</div>';
+}
+function firstFormIn(fo){let r=null;walk([fo],x=>{if(!r&&x.forms.length)r=x.forms[0]});return r}
+document.addEventListener('click',async e=>{
+  if(view!='home'&&!(e.target.closest&&e.target.closest('#goHome')))return;
+  const t=e.target.closest&&e.target.closest('#goHome,#hAdd,[data-hren],[data-hdel],[data-hlock],[data-hopen]');if(!t)return;
+  const d=t.dataset,fo=id=>findFolder(id).f;
+  if(t.id=='goHome'){setView('home');return}
+  if(t.id=='hAdd'){const n=prompt('새 폴더 이름');if(!n||!n.trim())return;store.projects.push({id:uid(),name:n.trim(),forms:[],folders:[],open:true})}
+  else if(d.hren){const f=fo(d.hren);if(lockedFolderOf(f))return;const n=prompt('폴더 이름 수정',f.name);if(!n||!n.trim())return;f.name=n.trim()}
+  else if(d.hdel){
+    const f=fo(d.hdel);if(lockedFolderOf(f)||folderHasLock(f)){alert('잠긴 폴더이거나 보호된 폼이 들어 있어 삭제할 수 없습니다. 먼저 잠금/보호를 해제하세요.');return}
+    const ids=[];walk([f],x=>ids.push(...x.forms.map(m=>m.id)));
+    if(ids.length&&ids.length>=allForms().length){alert('폼이 최소 1개는 남아야 합니다. 다른 폴더에 폼이 있어야 이 폴더를 삭제할 수 있습니다.');return}
+    if(!confirm('"'+f.name+'" 폴더를 삭제할까요?\n하위 폴더와 폼 '+ids.length+'개, 그 응답까지 모두 삭제되며 되돌릴 수 없습니다.'))return;
+    ids.forEach(id=>localStorage.removeItem('ff_res_'+id));
+    store.projects.splice(store.projects.indexOf(f),1);
+    if(ids.includes(form.id)){form=allForms()[0];store.fid=form.id;sel=0}
+  }
+  else if(d.hlock){
+    const f=fo(d.hlock);
+    if(!validLock(f.lock)){
+      const p1=prompt('"'+f.name+'" 폴더 잠금 비밀번호를 정하세요 (4자 이상).\n잠그면 폴더 안의 모든 폼이 열람만 가능해지고, 폴더 이름 수정·삭제도 막힙니다.');if(p1==null)return;
+      if(p1.length<4){alert('비밀번호는 4자 이상이어야 합니다.');return}
+      if(prompt('비밀번호를 한 번 더 입력하세요.')!==p1){alert('비밀번호가 서로 다릅니다.');return}
+      const salt=uid()+uid();f.lock={s:salt,h:await pwHash(salt,p1)};
+    }else{
+      const p=prompt('"'+f.name+'" 폴더 잠금 해제 비밀번호를 입력하세요.');if(p==null)return;
+      if(await pwHash(f.lock.s,p)!==f.lock.h){alert('비밀번호가 맞지 않습니다.');return}
+      delete f.lock;
+    }
+  }
+  else if(d.hopen){
+    const f=fo(d.hopen),m=firstFormIn(f);
+    if(m){form=m;store.fid=m.id;sel=0}
+    else if(lockedFolderOf(f)){alert('빈 폴더입니다.');return}
+    else{const nf=blankForm();f.forms.push(nf);form=nf;store.fid=nf.id;sel=0}
+    f.open=true;save();setView('build');return;
+  }
+  save();renderHome();
+});
+
 /* ---------- shell ---------- */
 function setView(v){
-  mobOut();view=v;
+  mobOut();view=v;document.body.classList.toggle('athome',v=='home');
+  $('#vHome').classList.toggle('hide',v!='home');
   $('#vBuild').classList.toggle('hide',v!='build');$('#vResults').classList.toggle('hide',v!='results');$('#vFlow').classList.toggle('hide',v!='flow');
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v==v));
-  v=='build'?renderBuild():v=='flow'?renderFlow():renderResults();
+  v=='home'?renderHome():v=='build'?renderBuild():v=='flow'?renderFlow():renderResults();
 }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setView(t.dataset.v));
 $('#play').onclick=e=>{e.stopPropagation();$('#playMenu').hidden=!$('#playMenu').hidden};
@@ -2057,7 +2137,7 @@ $('#share').onclick=async()=>{
 };
 if(shared){document.querySelector('header').classList.add('hide');$('#vBuild').classList.add('hide');$('#run').classList.remove('hide');$('#run').innerHTML='<p class="runmsg">불러오는 중…</p>';
   loadShared().then(f=>{form=normalize(f);startRun()},()=>{$('#run').innerHTML='<p class="runmsg">폼을 불러오지 못했습니다. 링크를 다시 확인해 주세요.</p>'})}
-else{save();setView('build');adminInit()}
+else{save();setView('home');adminInit()}
 </script>
 </body>
 </html>
