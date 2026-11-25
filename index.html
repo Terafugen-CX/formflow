@@ -958,7 +958,8 @@ function renderBuild(){
     ${q.type=='mc'?`<div class="row"><input type="checkbox" id="multi" ${q.multi?'checked':''}><label for="multi">다중 선택</label></div>`:''}
 
     ${TXTYPES.includes(q.type)?'<button class="btn ghost sm" id="addText" style="margin-top:12px;width:100%">＋ 텍스트 추가</button><button class="btn ghost sm" id="addBoxImg" style="margin-top:8px;width:100%">＋ 이미지 추가</button>':''}
-    ${mobEdit?`<div class="crow"><span>버튼 크기 (모바일)</span><span style="display:flex;align-items:center;gap:6px"><input type="range" min="50" max="160" step="5" value="${q.bs||100}" id="mobBs"><b id="mobBsV" style="font-size:12px;width:38px">${q.bs||100}%</b></span></div>`:''}
+    ${mobEdit&&bzKeys(q).length?(()=>{const ks=bzKeys(q);if(!ks.includes(mobBzKey))mobBzKey=ks[0];const v=Math.round(((q.bz[mobBzKey]||{}).s||1)*100);return `<div class="crow"><span>버튼 크기 (모바일)<br><small id="mobBzN" style="color:var(--muted)">${esc(bzName(q,mobBzKey))}</small></span><span style="display:flex;align-items:center;gap:6px"><input type="range" min="50" max="250" step="5" value="${v}" id="mobBz"><b id="mobBzV" style="font-size:12px;width:38px">${v}%</b></span></div>`})():''}
+    ${mobEdit&&(q.type=='mc'||q.type=='scale')?`<div class="crow"><span>옵션 크기 (모바일)</span><span style="display:flex;align-items:center;gap:6px"><input type="range" min="50" max="160" step="5" value="${q.bs||100}" id="mobBs"><b id="mobBsV" style="font-size:12px;width:38px">${q.bs||100}%</b></span></div>`:''}
     <div class="crow"><span>강조 색</span><input type="color" value="${form.accent}" data-fp="accent"></div>
     <div class="crow"><span>배경 색</span><input type="color" value="${q.bg||'#ffffff'}" data-k="bg"></div>
     <div class="crow"><span>배경 이미지</span><span class="bgctl">${q.bgimg?`<img class="bgth" src="${q.bgimg}"><button class="ico" id="bgdel" title="배경 이미지 삭제">✕</button>`:'<button class="btn ghost sm" id="bgpick">이미지 선택</button>'}</span></div>
@@ -984,7 +985,8 @@ document.addEventListener('input',e=>{
   }
   else if(t.dataset.ot!=null){const o=q.options.find(x=>x.id==t.dataset.ot);if(o)o.text=t.isContentEditable?t.innerText.trim():t.value;if(!t.isContentEditable)refreshStage()}
   else if(t.dataset.fp){form[t.dataset.fp]=t.value;theme();if(t.dataset.fp=='title')renderNav()}
-  else if(t.id=='mobBs'){q.bs=+t.value;$('#mobBsV').textContent=t.value+'%';const p=$('#stagePage');if(p)p.style.setProperty('--bs',q.bs/100);p.querySelectorAll('.bzw').forEach(w=>{const z=q.bz[w.dataset.bz]||{};w.querySelector('.bzz').style.zoom=(z.s||1)*q.bs/100})}
+  else if(t.id=='mobBs'){q.bs=+t.value;$('#mobBsV').textContent=t.value+'%';const p=$('#stagePage');if(p)p.style.setProperty('--bs',q.bs/100)}
+  else if(t.id=='mobBz'){const z=q.bz[mobBzKey]=q.bz[mobBzKey]||{s:1,x:0,y:0};z.s=+t.value/100;$('#mobBzV').textContent=t.value+'%';const w=document.querySelector(`#stagePage .bzw[data-bz="${mobBzKey}"] .bzz`);if(w)w.style.zoom=z.s}
   else if(t.id=='req')q.required=t.checked;
   else if(t.id=='multi'){q.multi=t.checked;refreshStage()}  else return;
   save();
@@ -1077,6 +1079,7 @@ document.addEventListener('dblclick',e=>{
 document.addEventListener('pointerdown',e=>{
   if(!mobEdit||e.button)return;
   const w=e.target.closest&&e.target.closest('#stage .bzw'),q=form.qs[sel];if(!w||!q)return;
+  mobBzKey=w.dataset.bz;{const sl=$('#mobBz'),z0=(q.bz||{})[w.dataset.bz]||{};if(sl){sl.value=Math.round((z0.s||1)*100);$('#mobBzV').textContent=sl.value+'%';$('#mobBzN').textContent=bzName(q,w.dataset.bz)}}
   const rz=!!e.target.closest('.bzr'),key=w.dataset.bz,z=q.bz[key]=q.bz[key]||{s:1,x:0,y:0},zz=w.querySelector('.bzz');
   const x0=e.clientX,y0=e.clientY,r=w.getBoundingClientRect(),pr=w.parentElement.getBoundingClientRect(),s0=z.s,X0=z.x||0,Y0=z.y||0,k=r.height/(w.offsetHeight||1);
   if(rz){e.preventDefault();e.stopPropagation()}
@@ -1086,7 +1089,7 @@ document.addEventListener('pointerdown',e=>{
     if(!on){if(Math.hypot(dx,dy)<4)return;on=true;document.activeElement&&document.activeElement.blur&&document.activeElement.blur();document.body.style.userSelect='none'}
     getSelection().removeAllRanges();w.classList.add('drag');
     if(!rz){const free=pr.width-r.width;z.x=Math.round(Math.max(0,Math.min(100,X0+(free>0?dx/free*100:0))));z.y=Math.round(Math.max(-800,Math.min(800,Y0+dy/k)));w.style.left=z.x+'%';w.style.transform=`translateX(-${z.x}%)`;w.style.top=z.y+'px'}
-    else{z.s=Math.round(Math.max(0.5,Math.min(2.5,s0*(r.width+dx)/r.width))*100)/100;zz.style.zoom=z.s*(q.bs||100)/100}
+    else{z.s=Math.round(Math.max(0.5,Math.min(2.5,s0*(r.width+dx)/r.width))*100)/100;zz.style.zoom=z.s;mobBzKey=key;const sl=$('#mobBz');if(sl){sl.value=Math.round(z.s*100);$('#mobBzV').textContent=Math.round(z.s*100)+'%'}}
   };
   const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);w.classList.remove('drag');document.body.style.userSelect='';if(on)save()};
   addEventListener('pointermove',mv);addEventListener('pointerup',up);
@@ -1841,9 +1844,13 @@ function ansStyle(b){
 }
 const kbdOf=(q,j)=>String(j+1);
 // a push button inside its place/size wrappers (key: line id, 'go' = 시작 button, 'end' = 끝 button)
+// 📱: buttons whose size the side-panel slider edits (the one last pressed on the canvas, else the first)
+let mobBzKey='';
+const bzKeys=q=>[...(q.type=='welcome'?['go']:[]),...(q.type=='end'?['end']:[]),...q.blocks.filter(b=>b.kind=='button').map(b=>b.id)];
+const bzName=(q,k)=>{if(k=='go')return q.btn||'시작하기';if(k=='end')return q.endBtn||'종료';const b=q.blocks.find(x=>x.id==k);return (b&&b.text)||'확인'};
 const tzStyle=(q,key)=>{const z=(q.tz||{})[key];return z&&(z.x||z.y)?`position:relative;left:${z.x}px;top:${z.y}px;`:''};
 function bzWrap(q,key,inner){
-  const z=(q.bz||{})[key]||{},x=z.x||0,y=z.y||0,sz=Math.round((z.s||1)*(q.bs||100))/100;   // page slider × this button's own size
+  const z=(q.bz||{})[key]||{},x=z.x||0,y=z.y||0,sz=z.s||1;
   return `<span class="bzw" data-bz="${key}" style="${x?`left:${x}%;transform:translateX(-${x}%);`:''}${y?`top:${y}px;`:''}"><span class="bzz" style="display:inline-block${sz!=1?';zoom:'+sz:''}">${inner}</span><i class="bzr" title="크기 조절"></i></span>`;
 }
 function slideHTML(q,i){
