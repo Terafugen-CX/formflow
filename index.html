@@ -402,8 +402,10 @@ body.athome header #who{margin-left:auto}
 .hcard .hic{font-size:30px;line-height:1}
 .hcard .hnm{font-weight:700;font-size:16px;word-break:break-all}
 .hcard .hmeta{font-size:12px;color:var(--muted)}
-.hcard .hacts{display:flex;gap:6px;margin-top:8px;padding-top:10px;border-top:1px solid var(--line);flex-wrap:wrap}
-.hcard .hacts .btn{font-size:12px;padding:4px 10px}
+.hcard{position:relative}
+.hcard .hacts{position:absolute;top:10px;right:10px;display:flex;gap:4px}
+.hcard .hib{width:28px;height:28px;border:1px solid var(--line);background:#fff;border-radius:7px;display:grid;place-items:center;font-size:13px;color:#555;cursor:pointer;padding:0}
+.hcard .hib:hover{background:var(--card,#f4f4f5);color:#191919}
 .hcard.locked{background:#fbfbfc}
 .hcard .hlk{font-size:12px;color:#c0392b;font-weight:600}
 .hempty{color:var(--muted);font-size:14px;padding:40px 0;text-align:center}
@@ -2049,7 +2051,7 @@ function renderHome(){
   $('#hList').innerHTML=store.projects.length?store.projects.map(fo=>{
     const [n,m]=cnt(fo),lk=validLock(fo.lock);
     return `<div class="hcard${lk?' locked':''}" data-hopen="${fo.id}"><div class="hic">${lk?'🔒':'📁'}</div><div class="hnm">${esc(fo.name)}</div><div class="hmeta">폼 ${n}개${m?` · 하위 폴더 ${m}개`:''}</div>
-      <div class="hacts">${lk?'<span class="hlk">잠김 · 열람만 가능</span>':`<button class="btn ghost sm" data-hren="${fo.id}">✎ 이름 수정</button><button class="btn ghost sm" data-hdel="${fo.id}">✕ 삭제</button>`}<button class="btn ghost sm" data-hlock="${fo.id}">${lk?'🔓 잠금 해제':'🔒 잠금'}</button></div></div>`;
+      <div class="hacts">${lk?'':`<button class="hib" data-hren="${fo.id}" title="이름 수정">✎</button><button class="hib" data-hdel="${fo.id}" title="삭제">✕</button>`}<button class="hib" data-hlock="${fo.id}" title="${lk?'잠금 해제':'잠금'}">${lk?'🔓':'🔒'}</button></div>${lk?'<div class="hlk">잠김 · 열람만 가능</div>':''}</div>`;
   }).join(''):'<div class="hempty">폴더가 없습니다. "＋ 새 폴더"로 만들어 보세요.</div>';
 }
 function firstFormIn(fo){let r=null;walk([fo],x=>{if(!r&&x.forms.length)r=x.forms[0]});return r}
