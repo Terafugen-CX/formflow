@@ -897,7 +897,7 @@ function stageSection(q){
   // not a ".slide": the runner's show()/validate() look slides up by class + data-i across the whole document
   sec.classList.remove('slide','below');sec.classList.add('spage');sec.removeAttribute('data-i');sec.id='stagePage';
   sec.querySelectorAll(':scope > .tx,:scope > .ix').forEach(e=>e.remove());
-  inn.querySelectorAll(':scope > .qdesc,:scope > .qimg,:scope > .chk,:scope > .go').forEach(e=>e.remove());
+  inn.querySelectorAll(':scope > .qdesc,:scope > .qimg,:scope > .chk,:scope > .go,:scope > .tzw').forEach(e=>e.remove());
   if(q.type=='text'||q.type=='mc')inn.querySelectorAll(':scope > .ans').forEach(e=>e.remove());   // the answer box is one of the editable lines
   if(q.type=='mc')inn.querySelectorAll(':scope > .choice,:scope > .mcgrid').forEach(e=>e.remove());
   const title=inn.querySelector('.qtitle');
@@ -1872,7 +1872,7 @@ function slideHTML(q,i){
     :b.kind=='answer'?`<textarea class="ans" data-bid="${b.id}" rows="2" placeholder="${esc(b.text||'답변을 입력하세요')}" style="${ansStyle(b)}"></textarea>`
     :b.kind=='button'?`<div class="go">${bzWrap(q,b.id,`<button class="btn go-btn">${b.html||esc(b.text)||'확인'}</button>`)}</div>`
     :(b.text||b.html)?(b.kind=='check'?`<label class="chk"><input type="checkbox"${b.req||need?' data-req':''}><span class="qdesc">${b.html||esc(b.text)}</span>${b.req||need?'<span class="rq"> *</span>':''}</label>`:`<div class="qdesc">${b.html||esc(b.text)}</div>`):'';
-  const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'||b.kind=='answer'||(!b.low&&(b.kind=='text'||b.kind=='img'))):q.blocks).filter(b=>!!b.low==low).map(b=>{const h=one(b),st=tzStyle(q,b.id);return st&&h?`<div style="${st}">${h}</div>`:h}).join('');
+  const blk=low=>(q.type=='mc'?q.blocks.filter(b=>b.kind=='button'||b.kind=='answer'||(!b.low&&(b.kind=='text'||b.kind=='img'))):q.blocks).filter(b=>!!b.low==low).map(b=>{const h=one(b),st=tzStyle(q,b.id);return st&&h?`<div class="tzw" style="${st}">${h}</div>`:h}).join('');
   const sbg=`${q.bs&&q.bs!=100?`--bs:${q.bs/100};`:''}${(q.bg||q.bgimg)?`--bg:${q.bg||form.bg};background-color:${q.bg||form.bg};`:''}${q.bgimg?`background-image:url(${q.bgimg});background-size:cover;background-position:center;background-repeat:no-repeat;`:''}`;
   return `<section class="slide below${q.bgimg?' hasbg':''}" data-i="${i}"${q._m?' data-mo':''} style="${sbg}">${(q.images||[]).map(t=>`<img class="ix" src="${t.src}" style="left:${t.x}%;top:${t.y}%;width:${t.w}cqw;height:${t.h}cqw">`).join('')}${(q.texts||[]).map(t=>`<div class="tx" style="left:${t.x}%;top:${t.y}%;width:${t.w}%;font-size:${t.fs}cqw">${t.html||esc(t.text)}</div>`).join('')}<div class="in">
     ${isQ?`<div class="qnum">${n} →</div>`:''}
