@@ -720,8 +720,8 @@ function theme(){
 function treeHTML(fs,d){
   return fs.map(f=>{
     const open=f.open!==false,fl=lockedFolderOf(f);
-    return `<div class="proj" style="padding-left:${8+d*14}px" data-pid="${f.id}"><span>${open?'📂':'📁'}</span><span class="nm">${esc(f.name)}</span>${fl?'<span class="lockic" title="잠긴 폴더: 열람만 가능 (홈에서 해제)">🔒</span>':`<span class="acts"><button class="ico" data-addfm="${f.id}" title="폼 추가">＋📄</button><button class="ico" data-addsub="${f.id}" title="하위 폴더 추가">＋📁</button><button class="ico" data-pren="${f.id}" title="이름 변경">✎</button><button class="ico" data-pdel="${f.id}" title="삭제">✕</button></span>`}</div>`
-    +(open?f.forms.map(m=>`<div class="fitem ${m.id==form.id?'on':''}" style="padding-left:${30+d*14}px" data-fid="${m.id}"><span class="nm">${esc(m.title)}</span>${m.lock||fl?'<span class="lockic" title="보호됨: 열람만 가능">🔒</span>':`<button class="ico" data-fren="${m.id}" title="이름 변경">✎</button><button class="ico" data-fdel="${m.id}" title="삭제">✕</button>`}</div>`).join('')+treeHTML(f.folders,d+1):'');
+    return `<div class="proj" style="padding-left:${8+d*14}px" data-pid="${f.id}"><span>${open?'📂':'📁'}</span><span class="nm">${esc(f.name)}</span>${fl?'<span class="lockic" title="잠긴 폴더: 이름 수정·삭제와 폼 추가·삭제 불가 (홈에서 해제)">🔒</span>':`<span class="acts"><button class="ico" data-addfm="${f.id}" title="폼 추가">＋📄</button><button class="ico" data-addsub="${f.id}" title="하위 폴더 추가">＋📁</button><button class="ico" data-pren="${f.id}" title="이름 변경">✎</button><button class="ico" data-pdel="${f.id}" title="삭제">✕</button></span>`}</div>`
+    +(open?f.forms.map(m=>`<div class="fitem ${m.id==form.id?'on':''}" style="padding-left:${30+d*14}px" data-fid="${m.id}"><span class="nm">${esc(m.title)}</span>${m.lock?'<span class="lockic" title="보호됨: 열람만 가능">🔒</span>':`<button class="ico" data-fren="${m.id}" title="이름 변경">✎</button>${fl?'':`<button class="ico" data-fdel="${m.id}" title="삭제">✕</button>`}`}</div>`).join('')+treeHTML(f.folders,d+1):'');
   }).join('');
 }
 function renderNav(){
@@ -1014,7 +1014,7 @@ document.addEventListener('click',e=>{
   else if(d.pid){const f=findFolder(d.pid).f;f.open=f.open===false}
   else if(d.fren){const r=findForm(d.fren);const n=prompt('폼 이름 변경',r.form.title);if(!n)return;r.form.title=n}
   else if(d.fdel){
-    if(formLocked(findForm(d.fdel).form))return;
+    {const r0=findForm(d.fdel);if(formLocked(r0.form))return;if(lockedFolderOf(r0.folder)){alert('잠긴 폴더 안의 폼은 삭제할 수 없습니다. 홈 화면에서 폴더 잠금을 해제하세요.');return}}
     if(allForms().length<2){alert('폼이 최소 1개는 남아야 합니다.');return}
     const r=findForm(d.fdel);
     if(!confirm('"'+r.form.title+'" 폼을 삭제할까요? 응답도 함께 삭제됩니다.'))return;
@@ -1462,7 +1462,8 @@ document.addEventListener('click',e=>{if(qDragged&&e.target.closest&&e.target.cl
 const validLock=l=>!!(l&&typeof l.s=='string'&&/^[0-9a-f]{64}$/.test(l.h||''));
 // the nearest locked folder at or above this folder (a locked folder locks everything inside it)
 function lockedFolderOf(fo){let c=fo;while(c){if(validLock(c.lock))return c;const p=findFolder(c.id);c=p&&p.p}return null}
-function formLocked(m){if(!m)return false;if(m.lock)return true;const r=findForm(m.id);return !!(r&&lockedFolderOf(r.folder))}
+// a form is read-only only by its own lock; a folder lock protects the folder (rename/delete, adding or removing forms), not form editing
+function formLocked(m){return !!(m&&m.lock)}
 const folderHasLock=fo=>{let k=false;walk([fo],x=>{if(validLock(x.lock))k=true;x.forms.forEach(m=>{if(m.lock)k=true})});return k};
 async function pwHash(salt,pw){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+':'+pw));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 document.addEventListener('click',async e=>{
@@ -2050,7 +2051,7 @@ function renderHome(){
   $('#hList').innerHTML=store.projects.length?store.projects.map(fo=>{
     const [n,m]=cnt(fo),lk=validLock(fo.lock);
     return `<div class="hcard${lk?' locked':''}" data-hopen="${fo.id}"><div class="hic">${lk?'🔒':'📁'}</div><div class="hnm">${esc(fo.name)}</div><div class="hmeta">폼 ${n}개${m?` · 하위 폴더 ${m}개`:''}</div>
-      <div class="hacts">${lk?'':`<button class="hib" data-hren="${fo.id}" title="이름 수정">✎</button><button class="hib" data-hdel="${fo.id}" title="삭제">✕</button>`}<button class="hib" data-hlock="${fo.id}" title="${lk?'잠금 해제':'잠금'}">${lk?'🔓':'🔒'}</button></div>${lk?'<div class="hlk">잠김 · 열람만 가능</div>':''}</div>`;
+      <div class="hacts">${lk?'':`<button class="hib" data-hren="${fo.id}" title="이름 수정">✎</button><button class="hib" data-hdel="${fo.id}" title="삭제">✕</button>`}<button class="hib" data-hlock="${fo.id}" title="${lk?'잠금 해제':'잠금'}">${lk?'🔓':'🔒'}</button></div>${lk?'<div class="hlk">🔒 잠긴 폴더</div>':''}</div>`;
   }).join(''):'<div class="hempty">폴더가 없습니다. "＋ 새 폴더"로 만들어 보세요.</div>';
 }
 function firstFormIn(fo){let r=null;walk([fo],x=>{if(!r&&x.forms.length)r=x.forms[0]});return r}
@@ -2073,7 +2074,7 @@ document.addEventListener('click',async e=>{
   else if(d.hlock){
     const f=fo(d.hlock);
     if(!validLock(f.lock)){
-      const p1=prompt('"'+f.name+'" 폴더 잠금 비밀번호를 정하세요 (4자 이상).\n잠그면 폴더 안의 모든 폼이 열람만 가능해지고, 폴더 이름 수정·삭제도 막힙니다.');if(p1==null)return;
+      const p1=prompt('"'+f.name+'" 폴더 잠금 비밀번호를 정하세요 (4자 이상).\n잠그면 폴더 이름 수정·삭제와 폴더 안 폼 추가·삭제가 막힙니다.\n폼 내용 수정은 각 폼의 보호로 따로 관리됩니다.');if(p1==null)return;
       if(p1.length<4){alert('비밀번호는 4자 이상이어야 합니다.');return}
       if(prompt('비밀번호를 한 번 더 입력하세요.')!==p1){alert('비밀번호가 서로 다릅니다.');return}
       const salt=uid()+uid();f.lock={s:salt,h:await pwHash(salt,p1)};
